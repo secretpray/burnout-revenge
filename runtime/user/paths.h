@@ -135,8 +135,7 @@ inline std::filesystem::path GetCachePath()
     return HomeCachePath();
 }
 
-// Renames older folders to the current name. Only Most Wanted leaves its
-// former name as a compatibility link; Burnout's first release does not.
+// First release: user folders already use the product name; no legacy aliases.
 // Call first thing
 // in main (after portable::Detect: in portable mode it does nothing, since
 // the home folder isn't BurnoutRevenge's then); returns what it did, for the

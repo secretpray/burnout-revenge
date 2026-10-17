@@ -174,7 +174,6 @@ endif()
 # links in its disk checks); the screen hides the entry on Windows until
 # placement.cpp is ported there.
 if(NOT WIN32)
-    sb_test(user_folder_migration_test)
     sb_test(install_folder_test SOURCES ${RT}/install/placement.cpp ${RT}/install/installer.cpp ${RT}/install/locate.cpp
         ${RT}/install/manifest.cpp ${RT}/install/result.cpp ${RT}/install/disc_source.cpp ${RT}/install/sha256.cpp
         ${RT}/user/portable.cpp
@@ -190,16 +189,6 @@ if(NOT WIN32)
     if(APPLE AND NOT IOS)
         target_link_libraries(install_folder_test PRIVATE "-framework CoreFoundation")  # placement.cpp's iCloud check
         target_link_libraries(portable_test PRIVATE "-framework CoreFoundation")
-    endif()
-endif()
-# The SteamOS launcher's hybrid-graphics part (NVIDIA PRIME render offload,
-# scripts/steamos/bundle/burnout-revenge.sh) on made-up /sys, /proc and Vulkan
-# folders. Bash, so not on Windows.
-if(NOT WIN32)
-    find_program(BR_BASH bash)
-    if(BR_BASH)
-        add_test(NAME launcher_prime_test COMMAND ${BR_BASH} ${CMAKE_CURRENT_SOURCE_DIR}/launcher_prime_test.sh
-            ${ROOT}/scripts/steamos/bundle/burnout-revenge.sh)
     endif()
 endif()
 # The entitlements in a Mach-O's code signature (platform/code_signature.h),

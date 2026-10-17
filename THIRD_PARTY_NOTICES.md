@@ -6,11 +6,11 @@ under the GNU General Public License, version 3 or (at your option) any later ve
 include, software by others under their own licenses, listed here. The license texts are in
 [`LICENSES/`](LICENSES).
 
-The downloads carry these notices too: the Mac app in `SpeedBreaker.app/Contents/Resources/licenses`,
+The downloads carry these notices too: the Mac app in `Burnout Revenge.app/Contents/Resources/licenses`,
 each SteamOS download in its `licenses/` folder (with the license of every library it bundles,
-collected when the bundle is made), and the iPhone and iPad IPA in `SpeedBreaker.app/licenses`.
+collected when the bundle is made), Other platforms are not distributed by this project.
 
-## Compiled into SpeedBreaker (every platform)
+## Compiled into Burnout Revenge
 
 | Project | What it does here | License | Text |
 |---|---|---|---|

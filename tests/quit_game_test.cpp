@@ -284,7 +284,7 @@ namespace
                 CHECK(!Has(l, name), "settings_menu.cpp:%zu: %s: %s", i + 1, name, Trim(l).c_str());
             if (Has(l, "ImGui::Button(\"Quit Game\")"))
                 button = int(i);
-            if (Has(l, "\"Quit BurnoutRevenge? Progress since your last save will be lost.\""))
+            if (Has(l, "\"Quit Burnout Revenge? Progress since your last save will be lost.\""))
                 text = int(i);
             if (Has(l, "ImGui::Button(\"Quit\")"))
                 quitButton = int(i);
@@ -304,7 +304,7 @@ namespace
         CHECK(button > 0, "the footer has a Quit Game button");
         CHECK(close > 0 && button > close, "Quit Game comes after Close (line %d, Close %d)", button + 1, close + 1);
         CHECK(button > 0 && Has(lines[button], "s_quit.Choose()"), "Quit Game only asks (s_quit.Choose())");
-        CHECK(text > 0, "the prompt says \"Quit BurnoutRevenge? Progress since your last save will be lost.\"");
+        CHECK(text > 0, "the prompt says \"Quit Burnout Revenge? Progress since your last save will be lost.\"");
         CHECK(quitButton > text && cancelButton > quitButton, "Quit, then Cancel to its right (lines %d, %d)", quitButton + 1, cancelButton + 1);
         CHECK(focus > quitButton && focus < cancelButton && Has(lines[focus + 1], "SetKeyboardFocusHere"),
             "the first frame's focus goes to the button after it: Cancel (line %d)", focus + 1);

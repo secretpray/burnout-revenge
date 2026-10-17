@@ -93,7 +93,7 @@ int main()
         { Id::KeyLeftStickClick, "left_stick_click", "Left Stick Click", "z", "none" },
         { Id::KeyRightStickClick, "right_stick_click", "Right Stick Click", "c", "none" },
     };
-    size_t previous = size_t(Id::Vibration);
+    size_t previous = size_t(Id::DualSenseHidapi);
     for (const Default& d : defaults)
     {
         const Option& o = Info(d.id);

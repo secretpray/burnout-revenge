@@ -121,7 +121,11 @@ CONTROLS = [('timingsafe_enable_if_supported', 'libSystem', '15.2', '(const void
              '(__bridge const void *)[NSWritingToolsCoordinatorContext class]')]
 # Weak imports newer than the floor that are known to sit behind an @available check in every use:
 # {name: (macOS version, where the checks are)}. Add one only after reading each use. (None in v0.1.1.)
-GUARDED = {}
+GUARDED = {
+    # Sole use is inside ValidateTemporalInputs' macOS 26 availability branch;
+    # MetalFX is weak-linked and this developer-only probe never runs normally.
+    'MTLFXFrameInterpolatorDescriptor': ('26.0', 'runtime/platform/apple/metalfx.mm: ValidateTemporalInputs, @available(macOS 26.0, *)'),
+}
 
 
 def system_imports(path):

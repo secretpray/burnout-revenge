@@ -49,3 +49,27 @@ and 60 FPS with FSR 1, internal 1080p → 4K output. Crash/replay intervals also
 occurred; GPU timestamps were off, so no GPU execution cost is inferred from
 zero log fields. Scripted focus loss/gain releases input and returns grab=0.
 Physical Bluetooth keyboard behavior remains unverified.
+
+### Standalone checks and run 82
+
+The first standalone suite exposed donor-specific fixtures: removed SteamOS
+launcher and legacy folder-migration tests (those features were removed), updated
+control ordering for the new DualSense option and quit text, and pinned an actual
+Burnout switch dispatch with deliberately escaping labels/defaults. Final suite:
+**60/60 passed**, including the real Metal bridge.
+
+Run 82 started with empty isolated data. The installer verified and copied all
+802 files (3.84 GB) from the user's ISO, then the game reached its title screen.
+Six user-supplied add-ons were automatically imported and connected. Screenshot
+confirms the title screen, not a race. SIGTERM exited normally. This candidate
+was marked dirty and is a test package, not the published release.
+
+### Run 83 — first screen and native DualSense discovery
+
+Empty data, no scripted inputs: screenshot confirms two initial choices, ISO and
+optional add-on folder. Native Apple backend detects DualSense (rumble supported)
+after asynchronous discovery. Immediate inventory before discovery returned zero,
+so it cannot establish device absence. Automated clicks did not advance this
+run; manual ISO-picker interaction remains inconclusive. Run 82 did complete
+installation through the test's controller input. Physical Bluetooth keyboard
+reliability needs confirmation. Normal SIGTERM exit.

@@ -97,8 +97,8 @@ if TEST and DMG:
     raise SystemExit('make_app.py: --test and --dmg: a test app is never a download')
 # The app's name (the bundle's, the displayed one and the menu bar's), bundle
 # identifier and symbols' name; --test's are its own.
-EXECUTABLE = 'BurnoutRevenge' if GAME == 'burnout' else 'BurnoutRevenge'
-NAME = ('Burnout Revenge' if GAME == 'burnout' else 'BurnoutRevenge') + (' (test)' if TEST else '')
+EXECUTABLE = 'BurnoutRevenge'
+NAME = 'Burnout Revenge' + (' (test)' if TEST else '')
 BUNDLE_ID = 'io.github.secretpray.' + EXECUTABLE + ('.test' if TEST else '')
 FILE = EXECUTABLE + ('-test' if TEST else '')
 BUILD = os.path.abspath(ARGS[0] if len(ARGS) > 0 else os.path.join(ROOT, 'build/burnout-mac' if GAME == 'burnout' else 'build/main'))
