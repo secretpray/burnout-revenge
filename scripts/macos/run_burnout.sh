@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 BUILD="$ROOT/build/burnout-mac"
 if [ ! -x "$BUILD/runtime/BurnoutRevenge" ]; then
-  echo 'Build BurnoutRevenge first; see docs/BURNOUT_REVENGE_MAC_PROGRESS.md' >&2
+  echo 'Build BurnoutRevenge first; see docs/BUILD.md' >&2
   exit 1
 fi
 export BURNOUT_GAME_DIR="${BURNOUT_GAME_DIR:-$ROOT/game/burnout/files}"

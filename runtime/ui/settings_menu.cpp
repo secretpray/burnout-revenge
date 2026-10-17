@@ -932,7 +932,7 @@ namespace ui
                         // legal notices (NOTICE, THIRD_PARTY_NOTICES.md).
                         ImGui::TextWrapped("Copyright (C) 2026 project(u) and SpeedBreaker contributors. Free software under the "
                                            "GPL-3.0-or-later, with no warranty; third-party licenses come with the game. Not affiliated "
-                                           "with Electronic Arts or Valve.");
+                                           "with Electronic Arts or Apple.");
                         ImGui::PopStyleColor();
                         ImGui::PopTextWrapPos();
                         ImGui::Unindent(LabelInset());

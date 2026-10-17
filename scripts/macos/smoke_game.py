@@ -155,7 +155,7 @@ if samples:
     }
     result['performance_medians'] = {key: round(statistics.median(s[key] for s in samples if key in s), 3) for key in keys}
 (out / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n')
-progress = ROOT / 'docs/BURNOUT_REVENGE_MAC_PROGRESS.md'
+progress = ROOT / 'docs/PROGRESS.md'
 if progress.exists():
     status = 'остановлен по лимиту времени' if timed_out else f'завершился с кодом {code}'
     relative = out.relative_to(ROOT)

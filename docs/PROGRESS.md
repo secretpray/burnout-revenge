@@ -41,3 +41,11 @@ not supported. First-time shader creation can hitch. No 120/144 FPS claim.
 - [ ] Full career and broader track/car coverage.
 - [ ] Safe GPU-history consumer, live MetalFX FG and pacing on 120 Hz.
 - [ ] GOD input support.
+
+### Run 81 (dual-game integration, before standalone build)
+
+105.1 s, exit 0, no missing imports. Screenshot confirms active race at 110 MPH
+and 60 FPS with FSR 1, internal 1080p → 4K output. Crash/replay intervals also
+occurred; GPU timestamps were off, so no GPU execution cost is inferred from
+zero log fields. Scripted focus loss/gain releases input and returns grab=0.
+Physical Bluetooth keyboard behavior remains unverified.

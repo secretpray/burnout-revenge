@@ -292,7 +292,7 @@ def opened(target):
     with tempfile.TemporaryDirectory() as mnt:
         run('hdiutil', 'attach', '-readonly', '-nobrowse', '-noautoopen', '-mountpoint', mnt, target)
         try:
-            yield os.path.join(mnt, 'BurnoutRevenge.app')
+            yield os.path.join(mnt, 'Burnout Revenge.app')
         finally:
             run('hdiutil', 'detach', mnt, check=False)
 

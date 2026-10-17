@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 xex = ROOT / 'game/burnout/files/default.xex'
 expected = '5258c75d9ae649ed4fb71d4e2fe8808545db16092cfe764ea1a2504f5aae2e2d'
 if not xex.is_file() or hashlib.sha256(xex.read_bytes()).hexdigest() != expected:
-    raise SystemExit('This configuration requires the verified Burnout Revenge USA XEX; see docs/BURNOUT_REVENGE_MAC_PROGRESS.md')
+    raise SystemExit('This configuration requires the verified Burnout Revenge USA XEX; see docs/BUILD.md')
 tool = ROOT / 'tools/XenonRecomp/build/XenonRecomp/XenonRecomp'
 header = ROOT / 'tools/XenonRecomp/XenonUtils/ppc_context.h'
 output = ROOT / 'ppc/burnout'

@@ -267,7 +267,7 @@ def copy_licenses(resources, libraries):
     for name in ('COPYING', 'NOTICE', 'THIRD_PARTY_NOTICES.md'):
         shutil.copy2(os.path.join(ROOT, name), licenses)
     shutil.copytree(os.path.join(ROOT, 'LICENSES'), os.path.join(licenses, 'LICENSES'))
-    lines = ['SpeedBreaker is free software under the GPL-3.0-or-later (COPYING, NOTICE). What it is',
+    lines = ['Burnout Revenge is free software under the GPL-3.0-or-later (COPYING, NOTICE). What it is',
              'built from and with, and each license, is in THIRD_PARTY_NOTICES.md and LICENSES/.', '',
              'The libraries in Contents/Frameworks, with their own license files here:']
     records = {}   # prefix -> its build_deps.sh record

@@ -5,7 +5,7 @@
 #include <iterator>
 
 #ifndef BR_MANIFEST_FILE
-#define BR_MANIFEST_FILE "manifest.inc"
+#define BR_MANIFEST_FILE "burnout_manifest.inc"
 #endif
 
 namespace install
