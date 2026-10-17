@@ -1,6 +1,8 @@
 # v0.1.0 release validation
 
-Published 2026-10-18 (Europe/Kyiv), marked experimental/pre-release.
+Published 2026-10-18 (Europe/Kyiv). The port is experimental. Initially marked
+pre-release on GitHub; changed to a normal Latest release on the same date so
+it appears on the repository homepage. No binary, tag or checksum changed.
 
 - [Public source](https://github.com/secretpray/burnout-revenge)
 - [Release and downloads](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.0)

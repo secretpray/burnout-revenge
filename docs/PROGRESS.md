@@ -134,4 +134,7 @@ PPC, private diagnostic logs or broken local Markdown links.
 
 Publication verification: re-downloaded the DMG, LGPL source archive and
 `SHA256SUMS` from GitHub; both files passed `shasum -a 256 -c SHA256SUMS`.
-The release is public, not a draft, and explicitly marked pre-release.
+The release is public and not a draft. It was initially marked pre-release;
+on 2026-10-18 that GitHub flag was removed and v0.1.0 set as Latest so the
+repository homepage can display it. The port remains experimental, with the
+same documented limitations; the tag, application and checksums are unchanged.
