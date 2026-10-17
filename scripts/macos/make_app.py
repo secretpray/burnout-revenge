@@ -82,15 +82,16 @@ OPTIONS = [a for a in sys.argv[1:] if a.startswith('--')]
 DMG = '--dmg' in OPTIONS
 TEST = '--test' in OPTIONS
 MIN_MACOS = next((a.split('=', 1)[1] for a in OPTIONS if a.startswith('--min-macos=')), None)
+COVER = next((a.split('=', 1)[1] for a in OPTIONS if a.startswith('--cover=')), os.path.join(ROOT, 'assets/cover.jpg'))
 GAME = next((a.split('=', 1)[1] for a in OPTIONS if a.startswith('--game=')), 'burnout')
-ICON = next((a.split('=', 1)[1] for a in OPTIONS if a.startswith('--icon=')), os.path.join(ROOT, 'scripts/macos/AppIcon.png'))
-if GAME not in ('burnout', 'burnout'):
-    raise SystemExit('make_app.py: --game must be burnout or burnout')
+ICON = next((a.split('=', 1)[1] for a in OPTIONS if a.startswith('--icon=')), os.path.join(ROOT, 'assets/AppIcon.png'))
+if GAME != 'burnout':
+    raise SystemExit('make_app.py: --game must be burnout')
 DMG_TOOL = os.environ.get('DMG_TOOL', '')  # '' (hdiutil, else diskutil), 'hdiutil' or 'diskutil'
 if DMG_TOOL not in ('', 'hdiutil', 'diskutil'):
     raise SystemExit(f'make_app.py: DMG_TOOL={DMG_TOOL}: use hdiutil or diskutil, or leave it unset')
 for a in OPTIONS:
-    if a not in ('--dmg', '--test') and not a.startswith(('--min-macos=', '--game=', '--icon=')):
+    if a not in ('--dmg', '--test') and not a.startswith(('--min-macos=', '--game=', '--icon=', '--cover=')):
         raise SystemExit(f'make_app.py: unknown option {a} (usage: make_app.py [build dir] [output dir] [--dmg] '
                          f'[--min-macos=<version>] [--test])')
 if TEST and DMG:
@@ -605,7 +606,7 @@ def main():
         icon_name = 'BurnoutRevenge' if GAME == 'burnout' else 'AppIcon'
         run('iconutil', '-c', 'icns', iconset, '-o', os.path.join(resources, icon_name + '.icns'))
         if GAME == 'burnout':
-            run('sips', '-s', 'format', 'bmp', '-z', '768', '768', src,
+            run('sips', '-s', 'format', 'bmp', '-z', '768', '768', os.path.abspath(COVER),
                 '--out', os.path.join(resources, 'BurnoutCover.bmp'))
 
     # Every binary here runs on the macOS the plist promises, and so does the

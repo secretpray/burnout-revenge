@@ -1,11 +1,21 @@
 #!/usr/bin/env python3
-# Derived from SpeedBreaker packaging. GPL-3.0-or-later (see COPYING).
-"""Generate the macOS cover icon from the supplied cover (requires Pillow)."""
+# Burnout Revenge packaging. GPL-3.0-or-later (see COPYING).
+"""Validate the canonical app icon and optionally copy it to a packaging path."""
 from pathlib import Path
-import sys
-from PIL import Image, ImageDraw
+import shutil, sys, subprocess, tempfile
+from PIL import Image
 root = Path(__file__).resolve().parents[2]
-source = Image.open(root / 'assets/cover.jpg').convert('RGBA').resize((824,824))
-mask = Image.new('L',(824,824)); ImageDraw.Draw(mask).rounded_rectangle((0,0,823,823),radius=185,fill=255)
-icon = Image.new('RGBA',(1024,1024)); icon.paste(source,(100,100),mask)
-icon.save(sys.argv[1] if len(sys.argv)>1 else root / 'scripts/macos/AppIcon.png')
+source = root / 'assets/AppIcon.png'
+with tempfile.TemporaryDirectory() as tmp:
+    renderer = Path(tmp)/'render_icon'
+    subprocess.run(['xcrun','--sdk','macosx','clang++','-fobjc-arc',str(root/'scripts/macos/render_icon.mm'),
+        '-framework','AppKit','-o',str(renderer)],check=True)
+    subprocess.run([str(renderer),str(root/'assets/icon-artwork.png'),str(source)],check=True)
+image = Image.open(source).convert('RGBA')
+assert image.size == (1024, 1024), 'Icon must be 1024x1024'
+alpha = image.getchannel('A')
+assert alpha.getextrema() == (0,255), 'Icon must retain transparent margins'
+assert all(alpha.getpixel(p) == 0 for p in ((0,0),(1023,0),(0,1023),(1023,1023))), 'Corners must be transparent'
+assert alpha.getpixel((512,512)) == 255, 'Artwork must stay opaque'
+if len(sys.argv)>1 and Path(sys.argv[1]).resolve()!=source.resolve():shutil.copy2(source,sys.argv[1])
+print(f'{source}: RGBA, transparent rounded silhouette verified')

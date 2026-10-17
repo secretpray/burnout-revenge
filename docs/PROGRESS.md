@@ -1,6 +1,6 @@
 # Progress and known limitations
 
-Updated 2026-10-17. Release candidate preparation is in progress.
+Updated 2026-10-18. Release candidate preparation is in progress.
 
 ## Verified before standalone extraction
 
@@ -21,7 +21,8 @@ paths do not invoke those stubs; other modes can. Online/multiplayer, full caree
 all track/car combinations and every crash/replay path are not verified.
 
 Magic Keyboard was reported to stop responding across macOS applications after
-leaving the game with a Bluetooth DualSense connected. Local bluetoothd logs show
+leaving the game with DualSense connected. The user later confirmed USB for
+the controller, so Bluetooth contention is not an established explanation. Local bluetoothd logs show
 actual disconnections for both devices; they do not establish causation. Apple's
 native controller backend is now the Mac default, with raw HID opt-in/restart.
 Focus loss releases all input grabs and clears keyboard state. Actual Bluetooth
@@ -33,9 +34,9 @@ not supported. First-time shader creation can hitch. No 120/144 FPS claim.
 
 ## Remaining work
 
-- [ ] Final standalone build, unit tests and packaged-app checks.
-- [ ] Fresh ISO install with optional add-ons, then direct second startup.
-- [ ] Active race with FSR and separate MetalFX regression.
+- [x] Standalone build and unit tests (60/60); final icon package check pending.
+- [x] Fresh ISO install with optional add-ons and direct second startup.
+- [x] Active race with FSR and live switching of upscale modes (run 85).
 - [ ] Real Magic Keyboard + Bluetooth DualSense focus-switch confirmation.
 - [ ] First release source/package/license audit and publication.
 - [ ] Full career and broader track/car coverage.
@@ -71,5 +72,38 @@ optional add-on folder. Native Apple backend detects DualSense (rumble supported
 after asynchronous discovery. Immediate inventory before discovery returned zero,
 so it cannot establish device absence. Automated clicks did not advance this
 run; manual ISO-picker interaction remains inconclusive. Run 82 did complete
-installation through the test's controller input. Physical Bluetooth keyboard
+installation; its interaction method was not independently traced. Physical Bluetooth keyboard
 reliability needs confirmation. Normal SIGTERM exit.
+
+### 2026-10-17 18:10:12 EEST — burnout, 85-release-race-filters
+
+- Запуск остановлен по лимиту времени; длительность 140.1 с.
+- Лог: [`build/burnout-runs/85-release-race-filters/session.log`](../build/burnout-runs/85-release-race-filters/session.log).
+- Кадров: 9; папка `build/burnout-runs/85-release-race-filters/build/`.
+- Звук: включён.
+- Шейдеры: асинхронно; контроллер: виртуальный тестовый.
+- Аварийные импорты: в логе не зарегистрированы.
+- Стадия меню/гонки требует визуальной проверки; автоматический отчёт её не подтверждает.
+- Периодические показатели после 75 с (27 выборок, средние значений логгера): `{"aa_gpu_ms": 1.556, "cp_ms": 6.215, "draws": 2079.556, "fps": 52.726, "game_gpu_ms": 7.048, "gpu_queue_ms": 12.285, "pool_full": 0.0, "post_gpu_ms": 5.383, "stall_ms": 2.236, "uploads": 1.911, "worst_ms": 68.507}`; пул снимков: `default`. Это не распределение времени всех кадров.
+- Add-on: зарегистрировано 6; ответы на перечисление игрой: `[6]`. Доступность каждой машины требует проверки в гараже.
+
+### Run 85 — packaged candidate, installed game and filters
+
+140.1 s, exit 0, no missing imports. Verified installed-game discovery using
+the fresh install from run 82 and copied test saves; no reinstall. Screenshots
+show active crash/replay sequences in 1080p/Bicubic and 720p/MetalFX, then
+active racing at 95 MPH/60 FPS with 720p/FSR 1. Lower-FPS crash/replay intervals
+are retained; scenes differ, so this is a functional switch test, not a quality
+or performance A/B. GPU timestamps were enabled. MoltenVK logged primitive-restart
+warnings and transient pipeline-cache serialization errors during compilation;
+no missing imports or process crash occurred. Cache persistence is rechecked
+before release.
+
+### Icon correction (2026-10-18)
+
+The packager previously used the square cover for both ICNS and installer art.
+Finder applied its own shape, while explicit NSApplication icon assignment
+showed the raw square. The canonical transparent rounded icon is now separate
+from the original installer cover. Darker, more contrasted artwork is
+normalized to a 1024px RGBA canvas with a deterministic rounded alpha mask.
+The ICNS resolutions and direct-binary startup are checked before publication.

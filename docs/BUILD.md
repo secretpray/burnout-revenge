@@ -39,7 +39,7 @@ OS. The packager rejects a dependency requiring a newer deployment target.
 ```sh
 MOLTENVK=/path/to/MoltenVK/dylib/macOS/libMoltenVK.dylib \
 MOLTENVK_VERSION=1.4.2 python3 scripts/macos/make_app.py \
-  build/burnout-mac build/app --game=burnout --icon=assets/cover.jpg
+  build/burnout-mac build/app --game=burnout
 python3 scripts/macos/check_app.py "build/app/Burnout Revenge.app"
 ```
 
