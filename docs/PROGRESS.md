@@ -1,6 +1,6 @@
 # Progress and known limitations
 
-Updated 2026-10-18. Release candidate preparation is in progress.
+Updated 2026-10-18. [Experimental v0.1.0 is published](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.0).
 
 ## Verified before standalone extraction
 
@@ -8,8 +8,8 @@ Updated 2026-10-18. Release candidate preparation is in progress.
 - Six user-owned add-on packages enumerated; every unlocked car not verified.
 - GPU temporal history/Metal texture export and resize 720p → 1080p → 720p.
 - SpeedBreaker v0.1.6 integrated into the dual-game development checkout.
-- Dual-game regression suite: Burnout 62/62, Most Wanted 61/61 before final
-  keyboard compatibility changes. Final standalone checks are recorded below.
+- Final dual-game regression suite after input changes: Burnout 62/62 and
+  Most Wanted 61/61. Standalone Burnout suite: 60/60, including the Metal bridge.
 - Run 80: FSR pipelines compile and upscale 1080p to 4K, normal exit. Captured
   profile selection, so it is not an active-race performance benchmark.
 
@@ -34,11 +34,14 @@ not supported. First-time shader creation can hitch. No 120/144 FPS claim.
 
 ## Remaining work
 
-- [x] Standalone build and unit tests (60/60); final icon package check pending.
+- [x] Standalone build and unit tests (60/60); signature, dependency, minimum OS
+  and DMG checks passed for the final icon package.
 - [x] Fresh ISO install with optional add-ons and direct second startup.
 - [x] Active race with FSR and live switching of upscale modes (run 85).
-- [ ] Real Magic Keyboard + Bluetooth DualSense focus-switch confirmation.
-- [ ] First release source/package/license audit and publication.
+- [ ] Real Magic Keyboard focus-switch checks, including the reported USB
+  DualSense configuration, without remote UI automation.
+- [x] First release source/package/license audit and publication. See
+  [release validation](RELEASE_0.1.0.md).
 - [ ] Full career and broader track/car coverage.
 - [ ] Safe GPU-history consumer, live MetalFX FG and pacing on 120 Hz.
 - [ ] GOD input support.
@@ -75,18 +78,6 @@ run; manual ISO-picker interaction remains inconclusive. Run 82 did complete
 installation; its interaction method was not independently traced. Physical Bluetooth keyboard
 reliability needs confirmation. Normal SIGTERM exit.
 
-### 2026-10-17 18:10:12 EEST — burnout, 85-release-race-filters
-
-- Запуск остановлен по лимиту времени; длительность 140.1 с.
-- Лог: [`build/burnout-runs/85-release-race-filters/session.log`](../build/burnout-runs/85-release-race-filters/session.log).
-- Кадров: 9; папка `build/burnout-runs/85-release-race-filters/build/`.
-- Звук: включён.
-- Шейдеры: асинхронно; контроллер: виртуальный тестовый.
-- Аварийные импорты: в логе не зарегистрированы.
-- Стадия меню/гонки требует визуальной проверки; автоматический отчёт её не подтверждает.
-- Периодические показатели после 75 с (27 выборок, средние значений логгера): `{"aa_gpu_ms": 1.556, "cp_ms": 6.215, "draws": 2079.556, "fps": 52.726, "game_gpu_ms": 7.048, "gpu_queue_ms": 12.285, "pool_full": 0.0, "post_gpu_ms": 5.383, "stall_ms": 2.236, "uploads": 1.911, "worst_ms": 68.507}`; пул снимков: `default`. Это не распределение времени всех кадров.
-- Add-on: зарегистрировано 6; ответы на перечисление игрой: `[6]`. Доступность каждой машины требует проверки в гараже.
-
 ### Run 85 — packaged candidate, installed game and filters
 
 140.1 s, exit 0, no missing imports. Verified installed-game discovery using
@@ -106,4 +97,41 @@ Finder applied its own shape, while explicit NSApplication icon assignment
 showed the raw square. The canonical transparent rounded icon is now separate
 from the original installer cover. Darker, more contrasted artwork is
 normalized to a 1024px RGBA canvas with a deterministic rounded alpha mask.
-The ICNS resolutions and direct-binary startup are checked before publication.
+All ten ICNS representations passed alpha checks; direct-binary startup and
+process-icon assignment passed in run 86. Actual Dock appearance still needs
+manual confirmation.
+
+### Run 86 — installed binary, rounded icon and warm cache
+
+105.1 s, exit 0, no missing imports or measurement warnings. Actual executable
+was Applications/Burnout Revenge.app/Contents/MacOS/BurnoutRevenge. Screenshot
+confirms an active race at 111 MPH/60 FPS with FSR 1. The log confirms explicit
+process-icon assignment and a 2035 KB pipeline cache loaded; this warm run had
+no VK_INCOMPLETE or MoltenVK error records. Whole-run FPS includes crash/replays
+and is not a 60-FPS stability benchmark. All ten ICNS representations have fully
+transparent corners and opaque centers. The DMG's signature/dependency/macOS-floor
+check passed. Direct Dock capture through UI automation timed out, so no claim
+is made that a Dock screenshot was visually verified.
+
+### Keyboard recurrence during UI automation (2026-10-18)
+
+The user reported another system-wide Magic Keyboard failure while automated
+UI control was being used to inspect Dock/Finder. Causality is unproven; UI
+automation was stopped immediately. DualSense had been reported connected by
+USB, so a two-Bluetooth-device explanation is insufficient. Native DualSense
+backend is available, but it is not a confirmed fix. Further physical-keyboard
+checks should be manual, without remote UI control, before blaming the port or
+controller. Build commands and internal SDL test inputs do not seize OS input.
+
+### Publication — 2026-10-18
+
+Public repository: [secretpray/burnout-revenge](https://github.com/secretpray/burnout-revenge).
+Experimental release: [v0.1.0](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.0).
+Tag and binary source revision are `23c8e77`; later main-branch commits only record
+validation/documentation. The release includes a DMG, exact LGPL third-party
+sources and SHA-256 files. Source audit: 421 tracked files, no game data, generated
+PPC, private diagnostic logs or broken local Markdown links.
+
+Publication verification: re-downloaded the DMG, LGPL source archive and
+`SHA256SUMS` from GitHub; both files passed `shasum -a 256 -c SHA256SUMS`.
+The release is public, not a draft, and explicitly marked pre-release.

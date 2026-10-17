@@ -3,7 +3,9 @@
 An experimental, unofficial native port of **Burnout Revenge (Xbox 360, USA)**
 for Apple silicon. PowerPC code is recompiled ahead of time; graphics run through
 Vulkan/MoltenVK. Bring your own disc image: no ISO, extracted game files, add-on
-packs or generated game code are included in this repository or the downloads.
+packs or generated PPC source files are included in this repository or the
+downloads. The application contains native code recompiled from the supported
+executable and requires the matching user-supplied ISO for its assets.
 
 [Download](https://github.com/secretpray/burnout-revenge/releases) ·
 [Build](docs/BUILD.md) · [Progress and limitations](docs/PROGRESS.md) ·
@@ -11,7 +13,7 @@ packs or generated game code are included in this repository or the downloads.
 
 ## Install
 
-1. Download the macOS Apple silicon archive from Releases, unpack it and drag
+1. Download and open the macOS Apple silicon DMG from Releases, then drag
    **Burnout Revenge.app** to Applications.
 2. Open it. The app is signed ad hoc, not notarized. If macOS blocks it, use
    System Settings → Privacy & Security → Open Anyway.
@@ -45,7 +47,7 @@ upscaling; neither generates frames. The game's simulation remains capped at 60.
 
 On Mac, DualSense defaults to Apple's controller backend. A restart-only
 **DualSense Raw HID Driver** option restores SDL's raw backend. This is a
-compatibility mitigation for a reported Magic Keyboard Bluetooth disconnect;
+compatibility mitigation for a reported system-wide Magic Keyboard disconnect;
 a causal link and hardware fix have not been established. See
 [known issues](docs/PROGRESS.md).
 
