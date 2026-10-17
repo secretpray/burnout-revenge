@@ -1,0 +1,23 @@
+Burnout Revenge for Mac
+Copyright (C) 2026 project(u) and SpeedBreaker contributors (original runtime)
+Copyright (C) 2026 secretpray and Burnout Revenge port contributors (modifications)
+
+Derived from SpeedBreaker: https://github.com/SpeedBreakerProject/speedbreaker
+Burnout research reference: https://github.com/CrownParkComputing/Xbox360-Native-Ports
+See CREDITS.md for the exact versions and scope of reuse.
+
+This program is free software under the GNU General Public License, version 3
+or (at your option) any later version. See COPYING. It is distributed WITHOUT
+ANY WARRANTY, including MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+Original notices and third-party licenses are retained in LICENSES/ and
+THIRD_PARTY_NOTICES.md. The application carries these notices in its Resources.
+
+Complete corresponding source for this port is published with its release tag:
+https://github.com/secretpray/burnout-revenge/releases
+The same release carries the exact FFmpeg and libmspack sources, local patches
+and build scripts used for the bundled LGPL components. No game data is included.
+
+Burnout Revenge and its artwork are owned by their respective rights holders.
+This unofficial fan project is not affiliated with Electronic Arts, Criterion
+Games, Apple or Sony. The cover is branding artwork, not GPL-licensed program
+source. You need your own supported USA Xbox 360 disc image to play or rebuild.
