@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.1.12
 
 - A rare black screen at launch (about 1 in 100, with Skip Intro Movies) is
   fixed: the film player's helper threads could miss a wake-up and leave the
@@ -8,6 +8,8 @@
 - Choosing Xbox Live in the main menu no longer closes the game: offline, the
   game's network calls now answer as a console without a connection, and the
   menu stays.
+- The finished save (BurnoutRevenge-100-percent-save.zip) comes with this
+  release too.
 
 ## v0.1.11
 
