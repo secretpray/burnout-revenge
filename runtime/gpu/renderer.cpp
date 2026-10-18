@@ -4851,6 +4851,15 @@ void main()
                     break;
                 }
             }
+            // BURNOUT_LOG_CLEARS=1: each target's clear values, once per value.
+            static const bool logClears = std::getenv("BURNOUT_LOG_CLEARS") != nullptr;
+            if (logClears)
+                LogOnce((0x35ull << 56) | (uint64_t(rt->base) << 44) | (uint64_t(rt->pitch) << 32) |
+                    (rt->depth ? s_regs[XE_GPU_REG_RB_DEPTH_CLEAR] : s_regs[XE_GPU_REG_RB_COLOR_CLEAR]),
+                    "clear: frame %llu target b%u p%u fmt %u%s (%d,%d)-(%d,%d) value %08X %08X", (unsigned long long)s_frame,
+                    rt->base, rt->pitch, rt->format, rt->depth ? " (depth)" : "", r.x0, r.y0, r.x1, r.y1,
+                    rt->depth ? s_regs[XE_GPU_REG_RB_DEPTH_CLEAR] : s_regs[XE_GPU_REG_RB_COLOR_CLEAR],
+                    rt->depth ? 0u : s_regs[XE_GPU_REG_RB_COLOR_CLEAR_LO]);
             // `r` is in guest pixels; the clear covers its host pixels.
             int32_t x0 = rt->scale.x.EdgeAt(std::clamp(r.x0, 0, int32_t(rt->guestWidth)));
             int32_t y0 = rt->scale.y.EdgeAt(std::clamp(r.y0, 0, int32_t(rt->guestHeight)));
@@ -7822,7 +7831,15 @@ void main()
                 }
         }
         if (x1 <= x0 || y1 <= y0)
+        {
+            // BURNOUT_LOG_CLEARS=1 too: draws with nothing left of their scissor.
+            static const bool logEmpty = std::getenv("BURNOUT_LOG_CLEARS") != nullptr;
+            if (logEmpty)
+                LogOnce((0x36ull << 56) ^ s_vs->hash ^ (s_ps->hash << 1), "empty scissor: frame %llu vs_%016llx ps_%016llx target %ux%u "
+                    "guest scissor (%d,%d)-(%d,%d)%s: not drawn", (unsigned long long)s_frame, (unsigned long long)s_vs->hash,
+                    (unsigned long long)s_ps->hash, targetW, targetH, sc.x0, sc.y0, sc.x1, sc.y1, untiledPass ? " (untiled)" : "");
             return;
+        }
         VkRect2D scissor = HostRect(scale, x0, y0, x1, y1);
 
         // Viewport: the guest transform is folded into the vertex shader
