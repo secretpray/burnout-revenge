@@ -26,7 +26,9 @@
   холодные 126/128 и тёплые 129/130 одинаковы по подтормаживаниям (это загрузки);
   встроенные кэши уже экономят 3–4 мс на маршруте. Вернуться, только если другие режимы
   покажут компиляцию внутри hitch.
-- [ ] SMAA/CAS и bloom/LOD audit с одинаковой сценой и GPU замерами.
+- [ ] Качество изображения ([IMAGE_QUALITY](IMAGE_QUALITY.md)): SMAA 1x добавлен
+  (Anti-Aliasing Type, по умолчанию FXAA): +0,4 мс GPU при 1080p, текст/текстуры чётче, края
+  гладкие (прогоны 131–133). Дальше: проверка в игре пользователем, затем CAS и bloom.
 - [ ] GPU history consumer/leases/events и MetalFX FI; сравнить draw-state interpolation.
   Сначала Crash 30→60, затем 60→120. Live FG пока выключена.
 - [ ] Save backup/restore, controller glyphs, custom music, полное Add-on покрытие.

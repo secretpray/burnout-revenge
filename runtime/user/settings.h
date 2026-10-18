@@ -45,6 +45,7 @@ namespace settings
         FrameRate,
         PresentScale,  // shown on iOS only
         AntiAliasing,
+        AntiAliasingMethod,  // FXAA or SMAA (video/smaa.h)
         Scaling,
         AspectRatio,
         Brightness,    // the game's picture (video/display_tone.h)
@@ -111,6 +112,7 @@ namespace settings
     // shown at their size or smaller take the bicubic pass
     // (video/upscale.h, whose Mode has the same values).
     enum class ScalingMode : int32_t { Bicubic = 0, Linear = 1, Fsr1 = 2, MetalFxSpatial = 3 };
+    enum class AaMethod : int32_t { Fxaa = 0, Smaa = 1 };
     // Frame Rate: 60, 30, or Auto (video/frame_rate.h: 60, or 30 while the
     // device is hot or can't hold 60).
     constexpr int32_t kFrameRateAuto = 0;

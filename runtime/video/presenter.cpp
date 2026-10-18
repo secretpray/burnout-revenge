@@ -22,6 +22,7 @@
 #include "vblank_lock.h"
 #include "display_tone.h"
 #include "fsr1.h"
+#include "smaa.h"
 #include "upscale.h"
 #include <ui/ui.h>
 #if defined(__APPLE__) && TARGET_OS_IOS
@@ -1254,8 +1255,34 @@ void main()
             VkImageView aaView = VK_NULL_HANDLE;
             uint32_t aaWidth = 0, aaHeight = 0;
         } s_post;
+
+        // Anti-Aliasing Type's SMAA (video/smaa.h): its three passes, their
+        // two images at the game's resolution and SMAA's lookup textures.
+        struct SmaaImage
+        {
+            VkImage image = VK_NULL_HANDLE;
+            VkDeviceMemory memory = VK_NULL_HANDLE;
+            VkImageView view = VK_NULL_HANDLE;
+        };
+        struct SmaaState
+        {
+            bool tried = false, ready = false;
+            VkSampler nearest = VK_NULL_HANDLE;
+            VkDescriptorSetLayout set = VK_NULL_HANDLE;
+            VkPipelineLayout layout = VK_NULL_HANDLE;
+            VkPipeline edges = VK_NULL_HANDLE, weights = VK_NULL_HANDLE, blend = VK_NULL_HANDLE;
+            SmaaImage edgesImage, weightsImage;  // rgba8, the frame's size
+            uint32_t width = 0, height = 0;
+            SmaaImage area, search;               // the lookup textures
+            VkBuffer staging = VK_NULL_HANDLE;    // their bytes, kept: made once
+            VkDeviceMemory stagingMemory = VK_NULL_HANDLE;
+            bool uploaded = false;
+            bool failedLogged = false;
+        } s_smaa;
+
         // Read every frame: the settings menu changes them live.
         bool AaEnabled() { return settings::GetBool(settings::Id::AntiAliasing); }
+        bool SmaaChosen() { return settings::GetInt(settings::Id::AntiAliasingMethod) == int32_t(settings::AaMethod::Smaa); }
         bool Bicubic() { return settings::GetInt(settings::Id::Scaling) != int32_t(settings::ScalingMode::Linear); }
         float Sharpen() { return std::clamp(settings::GetFloat(settings::Id::Sharpening), 0.0f, 1.0f); }
 
@@ -1436,6 +1463,206 @@ void main()
             vkCreateImageView(s_device, &vci, nullptr, &s_post.aaView);
             s_post.aaWidth = width;
             s_post.aaHeight = height;
+        }
+
+        // An image for SMAA: the frame's size (or a lookup texture's), sampled
+        // and, for the passes' outputs, written.
+        bool MakeSmaaImage(SmaaImage& out, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage)
+        {
+            VkImageCreateInfo ii{ VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+            ii.imageType = VK_IMAGE_TYPE_2D;
+            ii.format = format;
+            ii.extent = { width, height, 1 };
+            ii.mipLevels = 1;
+            ii.arrayLayers = 1;
+            ii.samples = VK_SAMPLE_COUNT_1_BIT;
+            ii.tiling = VK_IMAGE_TILING_OPTIMAL;
+            ii.usage = usage;
+            if (vkCreateImage(s_device, &ii, nullptr, &out.image) != VK_SUCCESS)
+                return false;
+            VkMemoryRequirements req;
+            vkGetImageMemoryRequirements(s_device, out.image, &req);
+            VkMemoryAllocateInfo ai{ VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
+            ai.allocationSize = req.size;
+            ai.memoryTypeIndex = FindMemoryType(req.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+            if (vkAllocateMemory(s_device, &ai, nullptr, &out.memory) != VK_SUCCESS)
+                return false;
+            vkBindImageMemory(s_device, out.image, out.memory, 0);
+            VkImageViewCreateInfo vci{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+            vci.image = out.image;
+            vci.viewType = VK_IMAGE_VIEW_TYPE_2D;
+            vci.format = format;
+            vci.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+            return vkCreateImageView(s_device, &vci, nullptr, &out.view) == VK_SUCCESS;
+        }
+
+        void FreeSmaaImage(SmaaImage& image)
+        {
+            if (image.view)
+                vkDestroyImageView(s_device, image.view, nullptr);
+            if (image.image)
+                vkDestroyImage(s_device, image.image, nullptr);
+            if (image.memory)
+                vkFreeMemory(s_device, image.memory, nullptr);
+            image = {};
+        }
+
+        // SMAA's pipelines and lookup textures, the first time it's chosen
+        // (their bytes copied in by the first frame's commands: EnsureSmaa's
+        // caller records the copy), and its two images for this size. False
+        // when it can't run: FXAA does the frame instead.
+        bool EnsureSmaa(VkCommandBuffer cmd, uint32_t width, uint32_t height)
+        {
+            if (!s_smaa.tried)
+            {
+                s_smaa.tried = true;
+                VkSamplerCreateInfo sci{ VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+                sci.magFilter = sci.minFilter = VK_FILTER_NEAREST;
+                sci.addressModeU = sci.addressModeV = sci.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+                vkCreateSampler(s_device, &sci, nullptr, &s_smaa.nearest);
+                VkDescriptorSetLayoutBinding bindings[4] = {
+                    { 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+                    { 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+                    { 2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+                    { 3, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
+                };
+                VkDescriptorSetLayoutCreateInfo dslci{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+                dslci.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
+                dslci.bindingCount = 4;
+                dslci.pBindings = bindings;
+                vkCreateDescriptorSetLayout(s_device, &dslci, nullptr, &s_smaa.set);
+                VkPushConstantRange range{ VK_SHADER_STAGE_COMPUTE_BIT, 0, 16 };
+                VkPipelineLayoutCreateInfo plci{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+                plci.setLayoutCount = 1;
+                plci.pSetLayouts = &s_smaa.set;
+                plci.pushConstantRangeCount = 1;
+                plci.pPushConstantRanges = &range;
+                vkCreatePipelineLayout(s_device, &plci, nullptr, &s_smaa.layout);
+                auto pipeline = [&](const std::string& glsl, VkPipeline& out) {
+                    VkShaderModule cs = PostModule(glsl.c_str(), 2);
+                    if (!cs)
+                        return false;
+                    VkComputePipelineCreateInfo cpci{ VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
+                    cpci.stage = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0, VK_SHADER_STAGE_COMPUTE_BIT, cs, "main", nullptr };
+                    cpci.layout = s_smaa.layout;
+                    bool ok = vkCreateComputePipelines(s_device, VK_NULL_HANDLE, 1, &cpci, nullptr, &out) == VK_SUCCESS;
+                    vkDestroyShaderModule(s_device, cs, nullptr);
+                    return ok;
+                };
+                const uint32_t areaBytes = smaa::kAreaWidth * smaa::kAreaHeight * 2, searchBytes = smaa::kSearchWidth * smaa::kSearchHeight;
+                VkBufferCreateInfo bci{ VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+                bci.size = areaBytes + searchBytes;
+                bci.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+                bool ok = pipeline(smaa::EdgesGlsl(), s_smaa.edges) && pipeline(smaa::WeightsGlsl(), s_smaa.weights) &&
+                    pipeline(smaa::BlendGlsl(), s_smaa.blend) &&
+                    MakeSmaaImage(s_smaa.area, smaa::kAreaWidth, smaa::kAreaHeight, VK_FORMAT_R8G8_UNORM,
+                        VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT) &&
+                    MakeSmaaImage(s_smaa.search, smaa::kSearchWidth, smaa::kSearchHeight, VK_FORMAT_R8_UNORM,
+                        VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT) &&
+                    vkCreateBuffer(s_device, &bci, nullptr, &s_smaa.staging) == VK_SUCCESS;
+                if (ok)
+                {
+                    VkMemoryRequirements req;
+                    vkGetBufferMemoryRequirements(s_device, s_smaa.staging, &req);
+                    VkMemoryAllocateInfo ai{ VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
+                    ai.allocationSize = req.size;
+                    ai.memoryTypeIndex = FindMemoryType(req.memoryTypeBits,
+                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+                    void* mapped = nullptr;
+                    ok = vkAllocateMemory(s_device, &ai, nullptr, &s_smaa.stagingMemory) == VK_SUCCESS &&
+                        vkBindBufferMemory(s_device, s_smaa.staging, s_smaa.stagingMemory, 0) == VK_SUCCESS &&
+                        vkMapMemory(s_device, s_smaa.stagingMemory, 0, VK_WHOLE_SIZE, 0, &mapped) == VK_SUCCESS;
+                    if (ok)
+                    {
+                        memcpy(mapped, smaa::AreaTexBytes(), areaBytes);
+                        memcpy(static_cast<uint8_t*>(mapped) + areaBytes, smaa::SearchTexBytes(), searchBytes);
+                        vkUnmapMemory(s_device, s_smaa.stagingMemory);
+                    }
+                }
+                s_smaa.ready = ok;
+                fprintf(stderr, "[video] SMAA 1x (High): %s\n", ok ? "ready" : "couldn't be set up; FXAA instead");
+            }
+            if (!s_smaa.ready)
+                return false;
+            if (!s_smaa.uploaded)
+            {
+                // The lookup textures, once: copied in ahead of this frame's passes.
+                const uint32_t areaBytes = smaa::kAreaWidth * smaa::kAreaHeight * 2;
+                for (SmaaImage* image : { &s_smaa.area, &s_smaa.search })
+                    Barrier(cmd, image->image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 0,
+                        VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
+                VkBufferImageCopy area{ 0, 0, 0, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 }, { 0, 0, 0 }, { smaa::kAreaWidth, smaa::kAreaHeight, 1 } };
+                VkBufferImageCopy search{ areaBytes, 0, 0, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 }, { 0, 0, 0 }, { smaa::kSearchWidth, smaa::kSearchHeight, 1 } };
+                vkCmdCopyBufferToImage(cmd, s_smaa.staging, s_smaa.area.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &area);
+                vkCmdCopyBufferToImage(cmd, s_smaa.staging, s_smaa.search.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &search);
+                for (SmaaImage* image : { &s_smaa.area, &s_smaa.search })
+                    Barrier(cmd, image->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                        VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+                s_smaa.uploaded = true;
+            }
+            if (s_smaa.width != width || s_smaa.height != height || !s_smaa.edgesImage.image)
+            {
+                WaitIdle();
+                FreeSmaaImage(s_smaa.edgesImage);
+                FreeSmaaImage(s_smaa.weightsImage);
+                const VkImageUsageFlags usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+                if (!MakeSmaaImage(s_smaa.edgesImage, width, height, VK_FORMAT_R8G8B8A8_UNORM, usage) ||
+                    !MakeSmaaImage(s_smaa.weightsImage, width, height, VK_FORMAT_R8G8B8A8_UNORM, usage))
+                {
+                    s_smaa.ready = false;
+                    fprintf(stderr, "[video] SMAA: no memory for %ux%u images; FXAA instead\n", width, height);
+                    return false;
+                }
+                s_smaa.width = width;
+                s_smaa.height = height;
+            }
+            return true;
+        }
+
+        // SMAA's three passes: `source` (the frame, GENERAL) into s_post.aaImage.
+        void RecordSmaa(VkCommandBuffer cmd, VkImageView source, uint32_t w, uint32_t h)
+        {
+            const float metrics[4] = { 1.0f / float(w), 1.0f / float(h), float(w), float(h) };
+            const VkPipelineStageFlags compute = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+            auto pass = [&](VkPipeline pipeline, std::initializer_list<VkDescriptorImageInfo> inputs, VkImageView output) {
+                VkDescriptorImageInfo infos[4];
+                VkWriteDescriptorSet writes[4];
+                uint32_t n = 0;
+                for (const VkDescriptorImageInfo& in : inputs)
+                {
+                    infos[n] = in;
+                    writes[n] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, VK_NULL_HANDLE, n, 0, 1,
+                        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, &infos[n], nullptr, nullptr };
+                    n++;
+                }
+                infos[n] = { VK_NULL_HANDLE, output, VK_IMAGE_LAYOUT_GENERAL };
+                writes[n] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, VK_NULL_HANDLE, 3, 0, 1,
+                    VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, &infos[n], nullptr, nullptr };
+                vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+                s_post.pushDescriptorSet(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, s_smaa.layout, 0, n + 1, writes);
+                vkCmdPushConstants(cmd, s_smaa.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(metrics), metrics);
+                vkCmdDispatch(cmd, (w + 7) / 8, (h + 7) / 8, 1);
+            };
+            auto written = [&](VkImage image) {
+                Barrier(cmd, image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, VK_ACCESS_SHADER_WRITE_BIT,
+                    VK_ACCESS_SHADER_READ_BIT, compute, compute);
+            };
+            for (VkImage image : { s_smaa.edgesImage.image, s_smaa.weightsImage.image })
+                Barrier(cmd, image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_ACCESS_SHADER_READ_BIT,
+                    VK_ACCESS_SHADER_WRITE_BIT, compute, compute);
+            pass(s_smaa.edges, { { s_post.sampler, source, VK_IMAGE_LAYOUT_GENERAL } }, s_smaa.edgesImage.view);
+            written(s_smaa.edgesImage.image);
+            pass(s_smaa.weights,
+                { { s_post.sampler, s_smaa.edgesImage.view, VK_IMAGE_LAYOUT_GENERAL },
+                  { s_post.sampler, s_smaa.area.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL },
+                  { s_smaa.nearest, s_smaa.search.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL } },
+                s_smaa.weightsImage.view);
+            written(s_smaa.weightsImage.image);
+            pass(s_smaa.blend,
+                { { s_post.sampler, source, VK_IMAGE_LAYOUT_GENERAL },
+                  { s_post.sampler, s_smaa.weightsImage.view, VK_IMAGE_LAYOUT_GENERAL } },
+                s_post.aaView);
         }
 
         // The tone pipeline's pieces, made the first time Brightness or the
@@ -3604,6 +3831,20 @@ void main()
                     EnsureAaImage(w, h);
                     Barrier(cmd, s_post.aaImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_ACCESS_SHADER_READ_BIT,
                         VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+                }
+                // Anti-Aliasing Type: SMAA's passes, when chosen and set up;
+                // under Hor+ and Vert+ (bandOn) FXAA, which keeps its fetches
+                // inside the 16:9 band's spans (band_filter.h) as SMAA's can't.
+                const bool smaa = aa && SmaaChosen() && !bandOn && EnsureSmaa(cmd, w, h);
+                if (smaa)
+                {
+                    RecordSmaa(cmd, f.sourceView, w, h);
+                    Barrier(cmd, s_post.aaImage, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, VK_ACCESS_SHADER_WRITE_BIT,
+                        VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+                    scaleInput = s_post.aaView;
+                }
+                else if (aa)
+                {
                     VkDescriptorImageInfo in{ s_post.sampler, f.sourceView, VK_IMAGE_LAYOUT_GENERAL };
                     VkDescriptorImageInfo out{ VK_NULL_HANDLE, s_post.aaView, VK_IMAGE_LAYOUT_GENERAL };
                     VkWriteDescriptorSet writes[2] = {

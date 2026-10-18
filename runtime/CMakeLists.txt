@@ -127,6 +127,13 @@ foreach(name ffx_a ffx_fsr1)
     string(APPEND fsr1_inc "constexpr unsigned char k_${name}[] = { ${fsr1_bytes}0 };\n")
 endforeach()
 file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/generated/fsr1_headers.inc.new "${fsr1_inc}")
+# SMAA (thirdparty/smaa, vendored, unmodified): SMAA.hlsl's text for the SMAA
+# option's shaders (video/smaa.cpp), the same way (generated/smaa_hlsl.inc).
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/smaa/SMAA.hlsl)
+file(READ ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/smaa/SMAA.hlsl smaa_hex HEX)
+string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," smaa_bytes "${smaa_hex}")
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/generated/smaa_hlsl.inc.new "// Generated from runtime/thirdparty/smaa by runtime/CMakeLists.txt. Do not edit.\nconstexpr unsigned char k_smaa_hlsl[] = { ${smaa_bytes}0 };\n")
+configure_file(${CMAKE_CURRENT_BINARY_DIR}/generated/smaa_hlsl.inc.new ${CMAKE_CURRENT_BINARY_DIR}/generated/smaa_hlsl.inc COPYONLY)
 configure_file(${CMAKE_CURRENT_BINARY_DIR}/generated/fsr1_headers.inc.new ${CMAKE_CURRENT_BINARY_DIR}/generated/fsr1_headers.inc COPYONLY)
 target_include_directories(${BR_RUNTIME_TARGET} PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/generated)
 # The "What's new" note (ui/whats_new.cpp): this version's entry in
