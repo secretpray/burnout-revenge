@@ -5,6 +5,8 @@
 // game/ultrawide.h, through the hooks below.
 #include <stdafx.h>
 #include "ultrawide.h"
+#include "hud_anchor.h"
+#include <user/settings.h>
 #include <apu/xma_mmio.h>
 #include <apu/voice_mix.h>
 #include "frame_time.h"
@@ -19,6 +21,7 @@ namespace
     };
     std::atomic<Scales> s_scales{ Scales{ 1.0f, 1.0f } };
     std::atomic<bool> s_hooksSeen{ false };
+    const auto s_processStart = std::chrono::steady_clock::now();  // BURNOUT_LOG_2D's clock
 }
 
 namespace game
@@ -117,6 +120,24 @@ PPC_FUNC(sub_82353BA8)
 // other paths, 2D in the world (depth-tested: the markers over the cars),
 // and clipping the HUD to the 16:9 band (the menus park elements past the
 // frame's edges).
+namespace
+{
+    // A flush of the race HUD (and the crash camera's, the countdown's, the
+    // event messages'): its callers' code, two frames up the guest's back
+    // chain, is the HUD's (0x82180000-0x821A0000), or it is drawn by the HUD
+    // scene's loop (0x82353340) or the rating widget (0x8235DD34). The menus,
+    // the pause menu and the results come from the front end's scene
+    // (0x8235C..., 0x8235F..., 0x8246BD88); the markers over the cars from
+    // 0x820BE07C (BURNOUT_LOG_2D-style survey, 18.10).
+    bool IsRaceHud(PPCContext& ctx, uint8_t* base)
+    {
+        const uint32_t frame1 = PPC_LOAD_U32(ctx.r1.u32), lr2 = PPC_LOAD_U32(frame1 - 8);
+        const uint32_t frame2 = PPC_LOAD_U32(frame1), lr3 = PPC_LOAD_U32(frame2 - 8);
+        auto hudCode = [](uint32_t a) { return a >= 0x82180000 && a < 0x821A0000; };
+        return hudCode(lr2) || hudCode(lr3) || lr3 == 0x82353340 || lr3 == 0x8235DD34;
+    }
+}
+
 extern "C" PPC_FUNC(__imp__sub_82355FD0);
 PPC_FUNC(sub_82355FD0)
 {
@@ -137,6 +158,61 @@ PPC_FUNC(sub_82355FD0)
     const float w = std::fabs(2.0f / c1x), h = std::fabs(2.0f / c1y);
     const uint32_t count = stride >= 8 && stride <= 256 ? (end - batch) / stride : 0;
     const uint32_t per = type == 4 || type == 8 ? 3 : type == 13 ? 4 : count;
+    // BURNOUT_LOG_2D=<seconds>: from then on, each flush (up to 4000): its
+    // callers up the guest's back chain, primitive type, vertex count and
+    // box in frame pixels (how the HUD's and the menus' pieces were told
+    // apart).
+    if (static const char* from = std::getenv("BURNOUT_LOG_2D"); from && count)
+    {
+        static std::atomic<int> lines{ 0 };
+        const double t = std::chrono::duration<double>(std::chrono::steady_clock::now() - s_processStart).count();
+        if (t >= std::atof(from) && lines.fetch_add(1) < 4000)
+        {
+            float x0 = 1e30f, x1 = -1e30f, y0 = 1e30f, y1 = -1e30f;
+            for (uint32_t i = 0; i < count; i++)
+            {
+                const float x = loadF(batch + i * stride), y = loadF(batch + i * stride + 4);
+                x0 = std::min(x0, x), x1 = std::max(x1, x), y0 = std::min(y0, y), y1 = std::max(y1, y);
+            }
+            const uint32_t f1 = PPC_LOAD_U32(ctx.r1.u32), f2 = PPC_LOAD_U32(f1);
+            fprintf(stderr, "[2d] t %.3f lr %08X %08X %08X type %u n %u stride %u box %.0f,%.0f-%.0f,%.0f\n", t, uint32_t(ctx.lr),
+                PPC_LOAD_U32(f1 - 8), PPC_LOAD_U32(f2 - 8), type, count, stride, x0, y0, x1, y1);
+        }
+    }
+    // The race HUD at the screen's edges (game/hud_anchor.h): a piece of it
+    // moves with its element, by a shift of c0.x below; a row across the frame
+    // gets its 16:9 width back from c1.x (and so, as any 2D not narrowed, is
+    // left whole by the renderer).
+    float shift = 0.0f, widen = 1.0f;
+    game::hud::Box box{ 1e30f, 1e30f, -1e30f, -1e30f };
+    for (uint32_t i = 0; i < count; i++)
+    {
+        const float x = loadF(batch + i * stride), y = loadF(batch + i * stride + 4);
+        box = { std::min(box.x0, x), std::min(box.y0, y), std::max(box.x1, x), std::max(box.y1, y) };
+    }
+    // The menus' grimy frame, stretched to an ultrawide's edges: its columns
+    // moved, the rows between them widened (game/hud_anchor.h).
+    if (scale.x < 1.0f && count && w == 1280.0f && game::hud::IsMenuFrameTile(box))
+    {
+        if (box.x1 <= 128.0f || box.x0 >= 1151.0f)
+            shift = box.x1 <= 128.0f ? -game::hud::EdgeShift(scale.x) : game::hud::EdgeShift(scale.x);
+        else
+            widen = game::hud::MenuFrameStretch(scale.x);
+    }
+    else if (scale.x < 1.0f && count && settings::GetBool(settings::Id::HudAtEdges) && IsRaceHud(ctx, base))
+    {
+        const bool spans = box.x0 <= 0.01f * w && box.x1 >= 0.99f * w;
+        if (!spans && w == 1280.0f)
+        {
+            static std::mutex mutex;
+            static game::hud::Anchor anchor;
+            const double now = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+            std::lock_guard lock(mutex);
+            const game::hud::Place place = anchor.Decide(box, now);
+            widen = place == game::hud::Place::Row ? 1.0f / scale.x : 1.0f;
+            shift = place == game::hud::Place::Left ? -game::hud::EdgeShift(scale.x) : place == game::hud::Place::Right ? game::hud::EdgeShift(scale.x) : 0.0f;
+        }
+    }
     for (uint32_t first = 0; first + per <= count && per; first += per)
     {
         // Every vertex at or past an edge, and both edges reached (a sprite
@@ -166,9 +242,12 @@ PPC_FUNC(sub_82355FD0)
         }
     }
     const float originX = loadF(kOrigin), originY = loadF(kOrigin + 4);
-    storeF(kOrigin, originX * scale.x);
+    // The shift in clip space: a pixel's x * c1.x * s (+-(1 - s)), which
+    // gpu/renderer.cpp tells by c0.x and leaves unclipped; widen scales x
+    // about the frame's middle.
+    storeF(kOrigin, originX * scale.x * widen + shift * c1x * scale.x);
     storeF(kOrigin + 4, originY * scale.y);
-    storeF(kScale, c1x * scale.x);
+    storeF(kScale, c1x * scale.x * widen);
     storeF(kScale + 4, c1y * scale.y);
     __imp__sub_82355FD0(ctx, base);
     storeF(kOrigin, originX);

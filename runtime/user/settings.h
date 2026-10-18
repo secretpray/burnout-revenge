@@ -48,6 +48,7 @@ namespace settings
         AntiAliasingMethod,  // FXAA or SMAA (video/smaa.h)
         Scaling,
         AspectRatio,
+        HudAtEdges,    // on a screen wider than 16:9: the race HUD at its edges (game/hud_anchor.h)
         Brightness,    // the game's picture (video/display_tone.h)
         DisplayGamma,  // the 360's display gamma ramp (video/display_gamma.h)
         Sharpening,

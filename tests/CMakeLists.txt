@@ -179,6 +179,8 @@ sb_test(whole_vblanks_test)
 # header only; GitHub issue #10).
 sb_test(light_trails_test)
 sb_test(guest_time_test SOURCES ${RT}/cpu/guest_time.cpp)
+# The race HUD at an ultrawide's edges (game/hud_anchor.h, header only).
+sb_test(hud_anchor_test)
 # A guest thread's suspend count (cpu/suspend_count.h, header only).
 sb_test(suspend_count_test)
 # When the mouse cursor shows over the game (ui/cursor_idle.h, header only),

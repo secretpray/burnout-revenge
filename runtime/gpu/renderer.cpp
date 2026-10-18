@@ -8105,10 +8105,20 @@ void main()
             {
                 float c[8];
                 memcpy(c, &s_regs[XE_GPU_REG_SHADER_CONSTANT_000_X], sizeof(c));
+                // c0.x is -s, or -s -+ (1 - s) for a piece of the race HUD moved
+                // to the screen's left or right edge (game/hud_anchor.h): that
+                // one is placed already and is left unclipped.
+                const float ax = 640.0f * c[4], ay = c[1];
+                const bool atEdge = ax > 0.0f && ax < 0.999f &&
+                    (std::fabs(c[0] + 1.0f) < 1e-4f || std::fabs(c[0] - (1.0f - 2.0f * ax)) < 1e-4f);
                 const bool pixels = c[3] == 1.0f && c[6] == 0.0f && c[7] == 0.0f && c[4] != 0.0f && c[5] != 0.0f &&
-                    std::fabs(-2.0f * c[0] / c[4] - 1280.0f) < 1.0f && std::fabs(-2.0f * c[1] / c[5] - 720.0f) < 1.0f;
-                const float ax = -c[0], ay = c[1];
-                if (pixels && (ax < 0.999f || ay < 0.999f))
+                    (std::fabs(c[0] + ax) < 0.5f * std::fabs(c[4]) || atEdge) && std::fabs(-2.0f * c[1] / c[5] - 720.0f) < 1.0f;
+                if (pixels && atEdge)
+                {
+                    if (s_logDrawsNow)
+                        fprintf(stderr, "[draws]   2d x%.4f: the HUD at the screen's %s edge\n", ax, c[0] < -ax ? "left" : "right");
+                }
+                else if (pixels && (ax < 0.999f || ay < 0.999f))
                 {
                     const bool world = (s_regs[XE_GPU_REG_RB_DEPTHCONTROL] & 2) != 0;
                     const uint32_t prim = uint32_t(initiator.prim_type);
