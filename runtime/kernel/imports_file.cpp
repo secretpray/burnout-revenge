@@ -38,6 +38,7 @@ namespace
     constexpr uint32_t FILE_NON_DIRECTORY_FILE = 0x40;
     // Access.
     constexpr uint32_t GENERIC_WRITE_ = 0x40000000;
+    constexpr uint32_t GENERIC_ALL_ = 0x10000000;  // read and write (a Burnout Clip's file is opened so)
     constexpr uint32_t FILE_WRITE_DATA = 0x0002;
     constexpr uint32_t FILE_APPEND_DATA = 0x0004;
     // Attributes.
@@ -219,7 +220,7 @@ uint32_t NtCreateFile(be<uint32_t>* handleOut, uint32_t desiredAccess, XOBJECT_A
         return STATUS_INVALID_HANDLE;
     }
 
-    bool wantsWrite = (desiredAccess & (GENERIC_WRITE_ | FILE_WRITE_DATA | FILE_APPEND_DATA)) != 0;
+    bool wantsWrite = (desiredAccess & (GENERIC_WRITE_ | GENERIC_ALL_ | FILE_WRITE_DATA | FILE_APPEND_DATA)) != 0;
     bool mayCreate = disposition != FILE_OPEN && disposition != FILE_OVERWRITE;
     auto resolved = vfs::Resolve(*guestPath, !mayCreate);
     if (!resolved)
@@ -384,6 +385,8 @@ uint32_t NtWriteFile(uint32_t fileHandle, uint32_t eventHandle, uint32_t apcRout
     ssize_t n = pwrite(file->fd, buffer, length, off_t(pos));
     if (n < 0)
     {
+        fprintf(stderr, "[file] write of \"%s\" failed: %s (offset %llu, %u bytes)\n", file->guestPath.c_str(), strerror(errno),
+            (unsigned long long)pos, length);
         Complete(iosb, STATUS_UNSUCCESSFUL, 0);
         return STATUS_UNSUCCESSFUL;
     }

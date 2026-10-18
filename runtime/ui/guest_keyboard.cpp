@@ -49,7 +49,9 @@ namespace ui
             ImGui::Begin("Player name", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize |
                 ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings);
             ImGui::PushFont(nullptr, 18);
-            burnout::Eyebrow("BURNOUT REVENGE  /  DRIVER PROFILE");
+            // The game asks for a profile's name and a Burnout Clip's: its
+            // own title says which, so nothing here names one.
+            burnout::Eyebrow("BURNOUT REVENGE");
             burnout::Heading(request->title.empty() ? "PLAYER NAME" : request->title.c_str(), 32);
             ImGui::TextWrapped("%s", request->description.c_str());
             bool pad = SDL_HasGamepad();
@@ -110,7 +112,7 @@ namespace ui
             valid = request->text[0] && units <= request->maxUnits;
             float half = (ImGui::GetContentRegionAvail().x - gap) * .5f;
             ImGui::BeginDisabled(!valid);
-            accept |= burnout::Button("START YOUR STORY", {half, 52 * s}, true) || ImGui::IsKeyPressed(ImGuiKey_GamepadStart, false);
+            accept |= burnout::Button("DONE", {half, 52 * s}, true) || ImGui::IsKeyPressed(ImGuiKey_GamepadStart, false);
             ImGui::EndDisabled();
             accept &= valid;
             ImGui::SameLine();

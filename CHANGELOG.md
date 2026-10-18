@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Burnout Clips save: "Save Clip" in the replay failed every time ("continue
+  without saving?"), leaving empty clips behind. A clip now saves, shows in
+  Burnout Clips > My Clips with its picture, and plays in the Clip Viewer.
+- The name dialog for a clip no longer says "Driver Profile" and "Start your
+  story"; it says what the game asks and Done.
+- Our dialogs show the same buttons as the game's prompts (Settings > Input >
+  Button Prompts).
+
 ## v0.1.9
 
 - The game's own button prompts ("Select", "Exit Replay", "Camera", "PRESS TO
