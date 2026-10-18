@@ -341,6 +341,10 @@ namespace settings
               .table = "advanced", .key = "auto_import_addons", .label = "Auto-import Add-ons",
               .description = "At launch, copy Burnout car packs from XBOX360/454107DC on mounted drives. Off: use only packs already installed or imported manually. Changes apply after restarting the game.",
               .env = "BURNOUT_ADDON_AUTO", .defaultValue = 1 },
+            { .id = Id::SkipIntroMovies, .category = Category::Advanced, .type = Type::Bool, .apply = Apply::Live,
+              .table = "advanced", .key = "skip_intro_movies", .label = "Skip Intro Movies",
+              .description = "Go straight to the title screen: the EA and Criterion logos and the attract film at launch end at once.",
+              .env = "BURNOUT_SKIP_INTRO", .defaultValue = 1 },
         };
         static_assert(std::size(kOptions) == kCount, "one row per settings::Id");
 

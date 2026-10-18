@@ -98,6 +98,7 @@ namespace settings
         AsyncShaders,
         PerformanceOverlay,
         AutoImportAddons,
+        SkipIntroMovies,  // the logos and the attract film at launch (game/movies.cpp)
         Count
     };
     constexpr size_t kCount = size_t(Id::Count);
