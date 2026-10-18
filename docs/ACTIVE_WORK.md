@@ -38,7 +38,13 @@
   — в копию «before-restore». Тест save_backup_test; прогоны 139–144 на изолированном профиле.
 - [x] Подсказки кнопок по последнему устройству (PlayStation/Xbox/клавиатура) в наших меню
   (прогон 145: клавиатура и Xbox на кадрах; PlayStation проверить на DualSense).
-- [ ] Своя музыка, полное Add-on покрытие.
+- [ ] Своя музыка: системный декодер (AudioToolbox: MP3/AAC/FLAC/ALAC/WAV/AIFF) готов и
+  покрыт тестом audio_file_test; включение через XMP «системный плеер забирает управление»
+  ждёт семантики контроллера воспроизведения (исследование Xerenge/rexglue). Простая подмена
+  файлов не годится: плашка EA Trax берёт названия из данных игры (XMPGetInfo не вызывается).
+- [ ] Add-on: пакеты — ключи разблокировки (один Content.txt «ThisIsContent» в каждом), машины
+  уже в данных игры. Игра перечисляет все 6 (`game enumerates 6 pack(s)`). Осталось вручную
+  проверить в Car Select шесть машин: Spike TV, Monster, Plantronics, 360 livery, Yellowcard, Dolby.
 - [ ] 57 fatal imports, career/Crash/replay матрица; регионы/GOD/online отдельно позже.
 
 Начать с [подробного плана](ROADMAP_RU.md), затем нужных разделов
