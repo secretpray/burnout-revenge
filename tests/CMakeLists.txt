@@ -21,6 +21,7 @@ sb_test(rectangle_list_test)
 sb_test(temporal_history_test)
 sb_test(burnout_motion_test)
 sb_test(xma_mmio_test)
+sb_test(rumble_focus_test)
 # The XMA decoder's bit copies (apu/bit_copy.h, header only), with
 # AddressSanitizer: no byte outside the bits copied is read or written.
 sb_test(bit_copy_test)

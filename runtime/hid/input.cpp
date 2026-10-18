@@ -2,6 +2,7 @@
 #include <stdafx.h>
 #include "input.h"
 #include "key_map.h"
+#include "rumble_focus.h"
 #include <cpu/guest_time.h>
 #include <kernel/function.h>
 #include <ui/ui.h>
@@ -45,6 +46,32 @@ namespace
     bool s_rumbleDirty = false;
 
     SDL_Gamepad* s_gamepad = nullptr;
+    hid::RumbleFocus s_rumbleFocus;
+    bool s_rumbleErrorReported = false;
+
+    void SendRumble(uint16_t low, uint16_t high)
+    {
+        if (!s_gamepad)
+            return;
+        if (SDL_RumbleGamepad(s_gamepad, low, high, low || high ? 5000 : 0))
+            s_rumbleErrorReported = false;
+        else if (!s_rumbleErrorReported)
+        {
+            fprintf(stderr, "[input] controller rumble failed: %s\n", SDL_GetError());
+            s_rumbleErrorReported = true;
+        }
+    }
+
+    void ApplyRumbleActivity(hid::RumbleFocus::Change change)
+    {
+        if (change == hid::RumbleFocus::Change::Stop)
+            SendRumble(0, 0);
+        else if (change == hid::RumbleFocus::Change::Restore)
+        {
+            std::lock_guard lock(s_mutex);
+            s_rumbleDirty = true; // the latest request, not a stale focus-time value
+        }
+    }
     std::atomic<bool> s_blocked{ false };
     // Main thread: buttons held when a menu closed, hidden from the game
     // until each is released (the B, Start or A that closed it).
@@ -424,6 +451,11 @@ namespace
                 fprintf(stderr, "[input] gamepad: %s (rumble %s, trigger rumble %s)\n", SDL_GetGamepadName(s_gamepad),
                     SDL_GetBooleanProperty(props, SDL_PROP_GAMEPAD_CAP_RUMBLE_BOOLEAN, false) ? "yes" : "no",
                     SDL_GetBooleanProperty(props, SDL_PROP_GAMEPAD_CAP_TRIGGER_RUMBLE_BOOLEAN, false) ? "yes" : "no");
+                const auto connection = SDL_GetGamepadConnectionState(s_gamepad);
+                fprintf(stderr, "[input] controller transport: %s\n",
+                    connection == SDL_JOYSTICK_CONNECTION_WIRED ? "wired" :
+                    connection == SDL_JOYSTICK_CONNECTION_WIRELESS ? "wireless" : "unknown");
+                s_rumbleErrorReported = false;
             }
         }
         SDL_free(ids);
@@ -534,7 +566,8 @@ namespace hid
 
     void HandleEvent(const SDL_Event& e)
     {
-        if (e.type == SDL_EVENT_WINDOW_FOCUS_LOST)
+        if (e.type == SDL_EVENT_WINDOW_FOCUS_LOST || e.type == SDL_EVENT_WINDOW_HIDDEN ||
+            e.type == SDL_EVENT_WINDOW_MINIMIZED)
         {
             if (SDL_Window* window = SDL_GetWindowFromID(e.window.windowID))
             {
@@ -543,13 +576,20 @@ namespace hid
                 SDL_SetWindowRelativeMouseMode(window, false);
             }
             SDL_ResetKeyboard();
-            Suspend();
-            fprintf(stderr, "[input] focus lost: keyboard state cleared; all input grabs released\n");
+            ApplyRumbleActivity(s_rumbleFocus.SetFocused(false));
+            fprintf(stderr, "[input] window inactive (event %u): keyboard state cleared; all input grabs released\n", e.type);
         }
-        else if (e.type == SDL_EVENT_WINDOW_FOCUS_GAINED)
-            fprintf(stderr, "[input] focus gained: keyboard=%s, grab=%d\n",
+        else if (e.type == SDL_EVENT_WINDOW_FOCUS_GAINED || e.type == SDL_EVENT_WINDOW_SHOWN ||
+                 e.type == SDL_EVENT_WINDOW_RESTORED)
+        {
+            SDL_Window* window = SDL_GetWindowFromID(e.window.windowID);
+            const bool focused = e.type == SDL_EVENT_WINDOW_FOCUS_GAINED ||
+                (window && (SDL_GetWindowFlags(window) & SDL_WINDOW_INPUT_FOCUS));
+            ApplyRumbleActivity(s_rumbleFocus.SetFocused(focused));
+            fprintf(stderr, "[input] window activity: focused=%d, keyboard=%s, grab=%d\n", focused,
                 SDL_HasKeyboard() ? "present" : "absent",
-                SDL_GetWindowKeyboardGrab(SDL_GetWindowFromID(e.window.windowID)));
+                window ? SDL_GetWindowKeyboardGrab(window) : false);
+        }
         else if (e.type == SDL_EVENT_KEYBOARD_ADDED || e.type == SDL_EVENT_KEYBOARD_REMOVED)
         {
             fprintf(stderr, "[input] keyboard %s (device %u)\n",
@@ -584,7 +624,7 @@ namespace hid
     {
         if (s_gamepad)
         {
-            SDL_RumbleGamepad(s_gamepad, 0, 0, 0);
+            SendRumble(0, 0);
             SDL_CloseGamepad(s_gamepad);
             s_gamepad = nullptr;
         }
@@ -594,16 +634,14 @@ namespace hid
     {
         // Update sends a rumble for 5 s at a time and doesn't run meanwhile:
         // stop it now rather than buzz on for a game that stands still.
-        if (s_gamepad)
-            SDL_RumbleGamepad(s_gamepad, 0, 0, 0);
+        ApplyRumbleActivity(s_rumbleFocus.SetSuspended(true));
     }
 
     void Resume()
     {
         // The next Update sends the game's last request again, as the
         // Vibration setting allows.
-        std::lock_guard lock(s_mutex);
-        s_rumbleDirty = true;
+        ApplyRumbleActivity(s_rumbleFocus.SetSuspended(false));
     }
 
     void SetBlocked(bool blocked)
@@ -661,7 +699,11 @@ namespace hid
         // options), resolved by key_map.h. A key is a scancode SDL's state
         // array is indexed by; an out-of-range value (a hand edit beat
         // Load's checks) counts as not held.
-        if (const bool* k = SDL_GetKeyboardFocus() ? SDL_GetKeyboardState(nullptr) : nullptr)
+        // Cmd+Tab/H/M and other macOS shortcuts belong to the application,
+        // not to the driving key map. Do not turn their held letters into gas,
+        // steering or menu actions while Command is down. No global key hook.
+        const bool appShortcut = (SDL_GetModState() & SDL_KMOD_GUI) != 0;
+        if (const bool* k = SDL_GetKeyboardFocus() && !appShortcut ? SDL_GetKeyboardState(nullptr) : nullptr)
         {
             bool pressed[keymap::kControls] = {};
             auto down = [&](settings::Id id) {
@@ -746,8 +788,9 @@ namespace hid
         }
         if (!vibration)
             low = high = 0;
+        s_rumbleFocus.Filter(low, high);
         if (rumble && s_gamepad)
-            SDL_RumbleGamepad(s_gamepad, low, high, low || high ? 5000 : 0);
+            SendRumble(low, high);
     }
 }
 

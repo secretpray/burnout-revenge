@@ -52,7 +52,9 @@ namespace hid
     void Shutdown();
     // Main thread, from the frame loop (not UIKit's callback), once the game
     // is suspended (iOS: the app isn't active) and once it's back: Suspend
-    // stops any rumble, Resume sends the game's last request again.
+    // stops any rumble and suppresses later requests until Resume. Window
+    // focus loss/gain is tracked independently by HandleEvent: both gates
+    // must allow output before the game's latest request is sent again.
     void Suspend();
     void Resume();
 }

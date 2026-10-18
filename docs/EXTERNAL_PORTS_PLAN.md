@@ -1,0 +1,181 @@
+# External port research and adoption plan
+
+Reviewed 2026-10-18. Repository snapshots were read locally; donor games were not
+built or benchmarked. A README claim is not a result on this M1 Pro. No donor
+scripts were executed, game assets imported, or runtime architecture replaced.
+
+## Source snapshots
+
+| Project / revision | Relevant evidence | Transfer decision |
+| --- | --- | --- |
+| [shipa-2/Xerenge](https://github.com/shipa-2/Xerenge/tree/22dad21de4dd81eec048c8333ca86fa91de910b3), `22dad21` (2026-10-17) | ReXGlue/Plume; EU and USA builds; disc-derived shader recipes; fixed-step logic; post effects; draw-based frame interpolation | Best source of Burnout-specific research. Own runtime differs from our Xenos command-processor path; adapt concepts and verify USA sites. |
+| [xenophobentx/Xerenge](https://github.com/xenophobentx/Xerenge/tree/98aba269aec49489e1cafe09f7669c18a5eefad2), `98aba26` (2026-10-06) | Earlier ReXGlue/Plume tree, EU-focused README | Not an independent newer feature set. Compare individual fixes, prefer current upstream evidence. |
+| [Takedawn](https://github.com/xenophobentx/takedawn/tree/5a00fc10f9548a189e9043c5a55975863ad49175), `5a00fc1` (2026-10-17) | Original Xbox/x86/NV2A, native Metal; shader coverage manifests; SMAA/CAS; save backups; custom music; controller glyphs | Strong product/runtime reference. Its Xbox 1 patches, addresses, graphics pipeline and surround DSP are not Xbox 360 drop-ins. |
+| [Takedawn input toolkit](https://github.com/xenophobentx/xboxrecomp/tree/5ae8ad90d984425e834dee759592c15592679880), `5ae8ad9` | SDL controller lifetime on event thread; keyboard shortcut handling; background rumble gating; stop/drain on exit | Adapt the main-thread and focus/lifetime rules to SDL3, with local tests. |
+| [Xerenge SDK input](https://github.com/shipa-2/rexglue-xerenge/blob/e029bb71baee4f0698ce6b487c97c6ba04aecc79/src/input/sdl/sdl_input_driver.cpp), `e029bb7` | SDL3 subsystem initialization dispatched to UI thread; hotplug table protected by mutex; `OnLostFocus`/`OnGotFocus` empty | Useful lifecycle comparison, not an existing solution to this Magic Keyboard failure. |
+| [fabioap-cpu/Burnout-Revenge-Recomp](https://github.com/fabioap-cpu/Burnout-Revenge-Recomp/tree/0c15c98a1a235384304b228afa6e0a6e004fd3ec), `0c15c98` (2026-09-03) | Windows/ReXGlue, real-present counter and controlled rendering diagnostics; known missing world behind frontend | Reuse diagnostic methodology. It does not demonstrate a Mac input fix or eliminate our unsupported imports. |
+
+Additional primary references found: [Xenia title patches](https://github.com/xenia-canary/game-patches/blob/main/patches/454107DC%20-%20Burnout%20Revenge.patch.toml)
+(boma's bloom/blur patches), [Burnout CRASH! recompilation](https://github.com/mpkonmbk/burnout-crash-recomp)
+(different XBLA title), and [sp00nznet/burnout3](https://github.com/sp00nznet/burnout3)
+(Takedawn's original Xbox foundation). The latter two are context, not preferred
+Burnout Revenge integration targets. FreeBurn PS2 appeared in search results;
+no public source snapshot was verified, so it is not treated as reusable code.
+
+## Licensing and integration boundaries
+
+At the checked Xerenge main/fork revisions there is no top-level LICENSE/COPYING;
+only the vendored SMAA license was found in tracked paths. Do not infer a grant
+for the project's own Plume/game files from its public visibility. No such code
+has been copied. Its separate SDK input file explicitly retains the Xenia BSD
+notice; check that file's upstream license and notices before an actual port.
+Takedawn is MIT; its toolkit has component-specific notices (including LGPL audio),
+so select files by provenance rather than assigning the whole dependency one
+license. We can obtain SMAA/CAS from their explicitly licensed original projects.
+The input changes in this tranche are our implementation of lifecycle rules,
+with research attribution; no source block was copied from these projects.
+
+Switching the whole port to ReXGlue/Plume would replace working CPU/kernel/GPU
+paths, build tooling and Mac presentation. It is an alternate backend project,
+not a feature merge. Preserve our working USA pipeline and Most Wanted build.
+
+## Stage 0 — physical input and release gate (in progress)
+
+**Problem:** Magic Keyboard fails system-wide after returning to Burnout with a
+Bluetooth DualSense, including downloaded v0.1.1 run 93. The user had to power-cycle
+it. No gamepad-removal events in that run; this is not a passing keyboard check.
+USB short comparison passed. Audio initialization on the main thread is corrected,
+but does not solve the keyboard issue. v0.1.1 stays a draft.
+
+Takedawn's `src/input/keyboard_sdl.c` clears held keys on focus/hide/minimize and
+excludes Command shortcuts. Its `xinput_device.c` keeps SDL device operations on
+the event thread, gates motors for background windows, and drains pending output
+before close. These rules are useful; the donor's unmeasured Magic Keyboard
+behavior is not evidence that any one rule solves our failure.
+
+Implemented locally in the first tranche:
+
+- Independent focus and app-suspension gates for rumble. Previously focus loss
+  sent one stop, but the following guest request could restart motors in the
+  background. Every subsequent request is now filtered until both gates allow it.
+- Hide/minimize clear local key state and suppress output too. Show/restore
+  recheck actual focus; showing a window does not imply keyboard focus.
+- Command shortcuts do not also become driving/menu keys in the keyboard map.
+  Custom scancode bindings remain intact. No global keyboard hook is added.
+- Connection transport (wired/wireless/unknown) and rumble errors are logged;
+  no hardware serial or Bluetooth address is collected by the new diagnostics.
+- Regression test exercises new guest requests while inactive and both orders
+  of independent focus/suspension changes.
+
+All SDL gamepad open/close/poll operations were already on our main thread. No
+benefit is claimed from moving them again. SDL itself deduplicates unchanged
+motor levels: do not label repeated guest requests a proven Bluetooth flood.
+Takedawn uses SDL3 3.4.18 through sdl2-compat; ours is 3.4.16. The official
+[3.4.16...3.4.18 comparison](https://github.com/libsdl-org/SDL/compare/release-3.4.16...release-3.4.18)
+contains a Cocoa cursor-main-thread fix and macOS 27 Steam-controller duplicate
+fix, but no identified DualSense/Magic Keyboard correction. Do not blindly upgrade
+and call the issue fixed. A separate SDL-version comparison remains an experiment.
+
+Virtual-only event regression passed in run 95 (24.1 s, exit 0, two focus cycles).
+Full suites passed: standalone 61/61, shared Burnout 63/63, Most Wanted 62/62.
+Next: a manual
+Bluetooth test with real typing after each direction of Cmd+Tab, repeated hide /
+restore and normal exit. Compare USB separately. Keep logs private and report
+keyboard and pad outcomes independently. Only passing physical checks can clear
+the release gate. Stop/drain on exit and short renewable rumble leases are a
+follow-up experiment, not a confirmed Bluetooth repair.
+
+## Stage 1 — optional graphics preparation (next performance feature)
+
+Xerenge's `rexglue/tools/runtime_shaders.recipe` reconstructs runtime-patched
+shaders from executable/graphics templates and hashes. Takedawn's
+[prebuild design](https://github.com/xenophobentx/takedawn/blob/5a00fc10f9548a189e9043c5a55975863ad49175/docs/shader-prebuild.md)
+adds coverage keys plus device-local warmup, not a downloadable foreign driver
+cache. This directly addresses first-visit hitches, not steady-state FPS.
+
+Our renderer already persists SPIR-V and `VkPipelineCache`; it does not persist
+complete draw-pipeline descriptions for preparing every known pipeline before
+its first draw. Three distinct steps are needed:
+
+1. Record shader/pipeline coverage and compile-time misses privately, with the
+   supported USA executable identity. Export a reviewed metadata-only manifest.
+2. Reconstruct shader bytes only from the user's verified disc; check every
+   template/result hash. Xerenge's shader translator/hash scheme differs from
+   ours, and its recipe's USA coverage must be measured, not assumed.
+3. Prepare actual Vulkan pipeline state variants (formats, vertex layout,
+   topology, blending/depth), not only shader modules. Cache identity includes
+   schema/translator, game build and driver/GPU as appropriate. Allow cancellation,
+   resume and normal first-use fallback. No use or mutation of the player's save.
+
+Then add optional **Prepare graphics** after ISO/add-on selection and **Prepare
+again** in Settings. Show real completed/total counts, not a fabricated percentage.
+Acceptance: cold versus prepared identical race + first crash + menus, p50/p95/p99
+frame times, compilation counts and duration; warm-cache restart and a rejected
+foreign/truncated cache. No promise of zero hitches for unvisited content.
+
+## Stage 2 — image quality without new temporal history
+
+- SMAA 1x (official MIT implementation) as an alternative to the existing FXAA.
+  Three passes and lookup textures; preserve correct color space and 16:9 band.
+- Compare dedicated CAS against existing sharpening/FSR RCAS before adding a
+  duplicate control. Match sharpness perceptually and test halos/HUD readability.
+- Audit low-resolution bloom/downsample taps at 1080p. Xerenge identifies shimmer
+  when 720p offsets sample a larger target; our different resolve path needs a
+  same-scene test before changing it. Do not simply disable bloom: it also supplies
+  sky brightness. Keep original look as default.
+- Optional LOD/detail/blur controls only after confirming USA function signatures
+  against the executable and testing multiple tracks. Blind Xenia byte patches
+  do not execute in a statically recompiled function.
+
+Acceptance: same scene/camera at 720p/1080p, lossless crops, GPU execution time,
+frame-time tails, and separate HUD inspection. Our current 1080p/Bicubic recommendation
+remains until a measured alternative wins. HDR and HUD artwork upscaling are later
+work, not automatic consequences of SMAA.
+
+## Stage 3 — frame interpolation / smooth Crash mode
+
+Xerenge has two distinct techniques: uncapped rendering with fixed logic steps,
+and `plume_framegen.cpp` replaying matched draws between two complete states.
+The latter interpolates placement constants, not DLSS/FSR optical flow. It keeps
+logic unchanged and adds roughly one source-frame of look-behind latency. Draw
+identity includes pass/target, shader, buffers and index range; identical traffic
+meshes require disambiguation. HUD/particles and unmatched draws take the newer
+state; camera cuts bypass interpolation. Default 30-to-60 Crash interpolation in
+that backend is not proof of correctness or speed in ours.
+
+Evaluate two paths against the same captures:
+
+1. Continue our MetalFX Frame Interpolation: GPU history leases/events, producer /
+   consumer ownership, depth/motion/HUD validity, cut/resize resets, pacing and
+   fallback. Existing object-motion/history work is retained.
+2. Prototype our own draw-state interpolation using verified object identities
+   and transforms. Re-rendering may be more expensive than MetalFX and introduces
+   ambiguities for reflection passes, transparent/skinned meshes and particles.
+   It cannot be copied as a small Plume shader patch into our renderer.
+
+Start with 30-to-60 Crash on a 60 Hz display, then 60-to-120 on real 120 Hz output.
+Measure visual defects, actual distinct presented frames, input latency, GPU/memory
+cost and stable speed of physics/music. No duplicated-frame FPS counter as success.
+No 144 FPS promise. Live FG remains OFF until this gate passes.
+
+## Stage 4 — product features with independent value
+
+Ordered after input and shader preparation: bounded atomic save backups with
+restore/validation; controller-family prompts and last-used input detection;
+custom local soundtracks with loudness/headroom control; more complete add-on/car
+coverage. Existing installer, FSR 1, settings, add-on import, bug-report zip and
+basic AF/sharpening already exist: do not add them again as donor features.
+Surround/HDR, broader career testing and region-specific builds are separate
+projects. Takedawn's Xbox 1 save format and DSP cannot be imported directly.
+
+## Stage 5 — compatibility and release
+
+Keep the 57 fatal import stubs visible. Map actual newly reached paths against
+ReXGlue/Xenia semantics, implement complete handlers with tests instead of success
+stubs. Test Crash/replays, car selection, saves and several tracks. EU/other disc
+revisions require independent generated code/manifests and verification. GOD,
+network play and matchmaking remain outside the next stable-input release.
+
+A new public release requires resolved/clearly scoped input behavior, complete
+suites for both development games, downloaded-package first-run/profile/race
+validation, updated source/licenses/checksums, and documentation after every run.

@@ -1,7 +1,8 @@
-# Public v0.1.0 clean-install validation
+# Release validation and v0.1.1 audio-startup hotfix
 
 Date: 2026-10-18, Europe/Kyiv. Hardware: Apple M1 Pro, macOS 27.0.1.
-This checks the published artifact, not a locally rebuilt development binary.
+The audit starts with the public v0.1.0 artifact and compares a candidate and the
+downloaded v0.1.1 package. Each run below identifies its provenance.
 
 ## Provenance and install
 
@@ -41,10 +42,10 @@ zero removals, reported battery 95%, no rumble. The user confirmed Bluetooth was
 the transport for the failing runs. USB was independently confirmed in IOUSB and
 SDL (`wired`, Sony VID/PID 054c:0ce6) before run 90.
 
-## Assessment and unresolved work
+## Assessment and correction
 
 Clean install, file verification, profile creation and active gameplay passed.
-Bluetooth controller/keyboard reliability failed; neither disabling vibration,
+Bluetooth controller/keyboard reliability failed in v0.1.0; neither disabling vibration,
 stopping UI automation nor switching to raw basic reports is a confirmed fix.
 Local bluetoothd records match the controller disconnections in run 87. The run-88
 keyboard log also records a disconnection, but its timestamp may reflect the
@@ -62,15 +63,15 @@ A macOS Bluetooth/HID interaction remains a hypothesis. Related first-person rep
 These involve different hardware and do not establish causation for this port.
 Do not treat older, fixed SDL2 disconnect crashes as a patch for this SDL3 setup.
 
-Next checks: complete USB/manual typing comparison; if needed isolate host audio
-initialization separately. No speculative runtime or driver change has been shipped.
+USB comparison passed in run 90. A concrete SDL threading defect was then
+corrected and tested separately, as described below.
 
 
 A concrete runtime defect was identified during this audit: SDL audio-subsystem
 initialization happened on a guest thread. The separate candidate moves it to the
 main thread before starting guest code, matching the documented SDL contract.
-Device-stream creation may remain on a worker thread. This does not yet establish
-causation for the Bluetooth failures; tests and candidate comparison are pending.
+Device-stream creation may remain on a worker thread. The short successful
+comparisons below do not establish causation for every Bluetooth failure.
 [SDL initialization threading](https://wiki.libsdl.org/SDL3/SDL_InitSubSystem),
 [stream threading](https://wiki.libsdl.org/SDL3/SDL_OpenAudioDeviceStream).
 
@@ -79,5 +80,57 @@ Candidate result: the corrected backend initialized on the main thread before
 guest entry, and the Bluetooth run passed for 240.1 seconds with no removals or
 fatal imports. User typing was explicitly confirmed. Full suites passed after the
 change: standalone 60/60, dual-game Burnout 62/62 and Most Wanted 61/61. These
-results justify a v0.1.1 hotfix; they do not prove every Bluetooth failure shares
-this cause. The published v0.1.1 package still needs download/runtime verification.
+results justified packaging a candidate, but run 93 later reproduced the keyboard
+failure. The audio defect is corrected; input reliability remains unresolved. The downloaded v0.1.1 package was subsequently checked in runs 92/93.
+
+## Downloaded v0.1.1 package
+
+Source/tag: `cda797a` / `v0.1.1`. Assets were downloaded from the authenticated
+GitHub draft before publication; publication retains those exact bytes.
+
+- DMG SHA-256: `2f44edf493b409367f6aa474cedb976b79cb6a441922b17e287beccfe6d8ab5f`.
+- LGPL source archive SHA-256: `561d0e7f323662946af2512d3cdb6b39a301ab6926951e270c95ca86896dab65`.
+- Installed executable SHA-256: `4a4b8a6230d009cdcc30599704c5c7b55d02aba102538726b4d24271a8246bb7`.
+
+Both downloaded archives match SHA256SUMS. Signature, bundled dependencies and
+macOS 15 API-floor checks passed. Final standalone suite: 60/60 (28.65 s).
+Shared-runtime suites: Burnout 62/62 and Most Wanted 61/61.
+
+| Run | Scope | Result |
+| --- | --- | --- |
+| 92 | Downloaded app, empty isolated data/cache | First screen captured at 5/12 s, exactly ISO and optional add-on choices. Exit 0 at 16.1 s. This does not repeat ISO installation. |
+| 93 | Same installed downloaded app, clean-test profile, empty shader cache, Bluetooth, normal sound/vibration | Exit 0 at 240.1 s, zero controller removals/fatal imports. Profile loaded; active Traffic Attack at 153 MPH captured. User reports Magic Keyboard failed system-wide after returning to Burnout, requiring power cycle. Input validation FAILED. |
+
+The full manual ISO/add-on install and new profile were verified in v0.1.0;
+installer/profile code did not change in the hotfix. Run 92 verifies the hotfix's
+empty first screen; run 93 verifies profile reuse and active gameplay. Original
+user data are restored and kept separate from all later test runs. Live frame
+generation remains off. These checks do not cover full career or every Mac.
+
+### Final user feedback — release gate failed
+
+The user confirmed the failure happened after returning to **Burnout**, before
+the separate Most Wanted smoke. Magic Keyboard required off/on again. The app's
+zero gamepad-removal count is insufficient evidence of system-wide keyboard
+health. v0.1.1 is kept as a draft; it is NOT a proven Bluetooth fix. No new runtime
+claim or release publication follows from the earlier positive candidate reply.
+
+Run 94 (shared Most Wanted development build): 35.0 s, exit 0, sound enabled,
+main-thread audio initialization confirmed, zero fatal imports. Capture shows the
+career main menu. Only the virtual test pad was enabled; physical joystick
+providers were disabled. This validates startup/menu, not a race or real keyboard.
+
+## Input research follow-up
+
+A separate development tranche uses Takedawn's focus/lifecycle approach, not a
+replacement runtime. It suppresses every new rumble request while unfocused or
+suspended, treats hide/minimize as inactive, and excludes Command shortcuts from
+the game's keyboard map. No global OS keyboard hook. See
+[the adoption plan](EXTERNAL_PORTS_PLAN.md).
+
+Final suites with this new tranche: standalone 61/61, shared Burnout 63/63,
+Most Wanted 62/62. Run 95: virtual pad only, physical SDL providers disabled,
+24.1 s, exit 0, two internal focus-loss/gain pairs, grab=0 on return. This cannot
+validate real Bluetooth hardware. Run 96 begins the user's physical comparison;
+its transport API reports unknown under the native driver, not verified wired.
+The cda797a draft DMG and Applications app do not contain these new focus changes.

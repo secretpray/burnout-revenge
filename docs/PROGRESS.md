@@ -1,6 +1,7 @@
 # Progress and known limitations
 
-Updated 2026-10-18. [Experimental v0.1.0 is published](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.0).
+Updated 2026-10-18. v0.1.0 is public; v0.1.1 remains a draft.
+**Current work:** [open tasks and staged plan](ACTIVE_WORK.md).
 
 ## Verified before standalone extraction
 
@@ -20,14 +21,14 @@ import audit, 218 imports had 161 handlers and 57 fatal unsupported stubs. Teste
 paths do not invoke those stubs; other modes can. Online/multiplayer, full career,
 all track/car combinations and every crash/replay path are not verified.
 
-Magic Keyboard was reported to stop responding across macOS applications after
-leaving the game with DualSense connected. The user later confirmed USB for
-the controller, so Bluetooth contention is not an established explanation. Local bluetoothd logs show
-actual disconnections for both devices; they do not establish causation. Apple's
-native controller backend is now the Mac default, with raw HID opt-in/restart.
-Focus loss releases all input grabs and clears keyboard state. Actual Bluetooth
-reliability requires user hardware confirmation; automated keyboard events cannot
-prove physical accessory health. Raw device logs are private and not published.
+Magic Keyboard can stop responding system-wide after returning to Burnout with
+Bluetooth DualSense. Run 93 reproduced this even with the corrected main-thread
+SDL audio initialization; zero gamepad removals in the app log did not detect the
+keyboard failure. Neither native/raw drivers nor vibration-off proved a fix.
+A four-minute USB comparison passed. USB is the locally tested workaround, not a
+universal guarantee. Physical typing after **both** focus directions is required.
+No UI automation is used. The v0.1.1 audio fix is valid independently, but its
+release remains a draft while this input issue is investigated.
 
 Live frame generation is off. GOD, other game revisions and Xbox save import are
 not supported. First-time shader creation can hitch. No 120/144 FPS claim.
@@ -38,8 +39,8 @@ not supported. First-time shader creation can hitch. No 120/144 FPS claim.
   and DMG checks passed for the final icon package.
 - [x] Fresh ISO install with optional add-ons and direct second startup.
 - [x] Active race with FSR and live switching of upscale modes (run 85).
-- [ ] Real Magic Keyboard focus-switch checks, including the reported USB
-  DualSense configuration, without remote UI automation.
+- [ ] Resolve the reproduced Magic Keyboard failure after returning to Burnout
+  over Bluetooth (run 93); USB short comparison passed. No UI automation used.
 - [x] First release source/package/license audit and publication. See
   [release validation](RELEASE_0.1.0.md).
 - [ ] Full career and broader track/car coverage.
@@ -275,3 +276,54 @@ and zero gamepad-removal events. Final capture shows active Traffic Attack at
 confirmation after switching out of the game. This is one successful Bluetooth
 candidate run after the correction, not a universal hardware/root-cause guarantee.
 v0.1.1 packaging and download verification follow; v0.1.0 is retained unchanged.
+
+### Run 92 — downloaded v0.1.1, empty first start
+
+Downloaded the draft assets from GitHub (same files retained for final publication);
+both DMG and LGPL archive passed the downloaded SHA256SUMS. Installed the downloaded
+app in Applications, preserving the v0.1.0 app as a private backup. Source/tag
+cda797a/v0.1.1, executable SHA-256 4a4b8a6230d009cdcc30599704c5c7b55d02aba102538726b4d24271a8246bb7.
+Empty isolated data/cache, no game override: first-run screen captured at 5/12 s;
+16.1 s, normal bounded stop, exit 0. This checks initial UI only, not ISO installation
+or a race. Original user data/settings/save hashes remain unchanged. Runtime
+validation of the downloaded package with the clean-test profile follows.
+
+### Run 93 — installed downloaded v0.1.1, Bluetooth and cold shaders
+
+The actual Applications app from the GitHub draft DMG (cda797a/v0.1.1) ran for
+240.1 seconds, bounded stop, exit 0. Test profile from the manual clean install,
+new empty shader cache, native Bluetooth DualSense, normal sound and vibration.
+Main-thread CoreAudio initialization precedes guest entry. Profile reload works;
+captures show active Traffic Attack (153 MPH at 180 s). Zero controller removals
+and zero fatal imports. No OS input injection or virtual controller. Physical
+post-game typing was confirmed for run 91, but the user then reported another
+system-wide Magic Keyboard failure after returning to Burnout in run 93, requiring
+a power cycle. This overrides any provisional success assessment: the keyboard
+issue remains OPEN, and v0.1.1 stays a draft.
+This is a functional cold-cache test, not a performance benchmark.
+
+### Run 95 — focus regression, virtual controller only (started)
+
+Development candidate after the external-input review. Physical HIDAPI/MFi/IOKit
+providers are disabled; only the virtual pad is opened. Isolated clean-test data.
+Internal SDL focus events scheduled at 6/10/14/18 seconds, screenshot at 21 s.
+This does not switch macOS apps, inject OS keys or prove physical keyboard health.
+Final result will be recorded after exit.
+
+Run 95 completed: 24.1 s, bounded stop, exit 0, no fatal imports. Only the
+virtual pad opened; two internal focus-loss/gain pairs logged, with grab=0 on
+return. New rumble-focus regression and full suites passed: standalone 61/61
+(27.69 s), shared Burnout 63/63 (30.02 s), Most Wanted 62/62 (41.52 s).
+Initial sandbox runs could not map VM / use Metal; the thread-contention stress
+also missed its sampling threshold under parallel build load. Full suites were
+rerun sequentially with required VM/Metal access, unchanged tests, all passing.
+This is not physical Bluetooth/typing validation.
+
+### Run 96 — focus candidate, native Bluetooth (started)
+
+Separate development binary with the new output/focus/shortcut handling, native
+Apple DualSense, normal audio and vibration, archived clean-test profile/cache.
+No input script, virtual pad, automated name response or OS UI automation. Only
+internal screenshots; the user is asked to test real typing in both directions
+of Cmd+Tab and hide/restore. Applications still contains downloaded cda797a;
+this candidate is not published. Physical result pending.

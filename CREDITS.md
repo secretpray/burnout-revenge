@@ -25,3 +25,13 @@ Additional bundled components, their authors and licenses are listed in
 
 Changing the product's name does not remove inherited copyrights. The upstream
 project name in source license headers is retained deliberately.
+
+## External port research
+
+[Xerenge](https://github.com/shipa-2/Xerenge), its
+[xenophobentx fork](https://github.com/xenophobentx/Xerenge),
+[Takedawn](https://github.com/xenophobentx/takedawn) and its
+[xboxrecomp toolkit](https://github.com/xenophobentx/xboxrecomp) were studied for
+input lifecycle, graphics preparation and interpolation approaches. This tranche
+copies no source blocks from them. See the pinned revisions and boundaries in
+[the adoption plan](docs/EXTERNAL_PORTS_PLAN.md).
