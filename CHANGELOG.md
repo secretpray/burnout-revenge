@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.1.7
+
+- Save backups: each launch backs up your saves when they changed (the newest 10
+  are kept, in the data folder's backups/). Settings > Advanced > Save Backups
+  restores one: your current saves are backed up first, the game quits, and the
+  next launch puts the chosen saves in place.
+
 ## v0.1.6
 
 - Dialogs (Quit Game, Reset page, add-ons, update notes) look like the game's own

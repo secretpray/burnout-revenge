@@ -21,6 +21,8 @@ sb_test(rectangle_list_test)
 sb_test(temporal_history_test)
 sb_test(burnout_motion_test)
 sb_test(xma_mmio_test)
+# Save backups at launch and restores (user/save_backup.h), in a scratch folder.
+sb_test(save_backup_test SOURCES ${RT}/user/save_backup.cpp ARGS ${CMAKE_BINARY_DIR})
 sb_test(rumble_focus_test)
 # The XMA decoder's bit copies (apu/bit_copy.h, header only), with
 # AddressSanitizer: no byte outside the bits copied is read or written.

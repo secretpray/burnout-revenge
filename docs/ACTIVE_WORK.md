@@ -32,7 +32,11 @@
   чужого порта здесь не возникает.
 - [ ] GPU history consumer/leases/events и MetalFX FI; сравнить draw-state interpolation.
   Сначала Crash 30→60, затем 60→120. Live FG пока выключена.
-- [ ] Save backup/restore, controller glyphs, custom music, полное Add-on покрытие.
+- [x] Резервные копии сохранений (v0.1.7): копия при запуске, если сохранения изменились
+  (10 последних, атомарно через .incoming-), восстановление из Advanced → Save Backups с
+  подтверждением, применяется при следующем запуске до старта игры, текущие сохранения
+  — в копию «before-restore». Тест save_backup_test; прогоны 139–144 на изолированном профиле.
+- [ ] Подсказки кнопок по последнему устройству, своя музыка, полное Add-on покрытие.
 - [ ] 57 fatal imports, career/Crash/replay матрица; регионы/GOD/online отдельно позже.
 
 Начать с [подробного плана](ROADMAP_RU.md), затем нужных разделов

@@ -21,6 +21,7 @@
 #include <gpu/renderer.h>
 #include <hid/input.h>
 #include <apu/audio.h>
+#include <user/save_backup.h>
 #include <cpu/guest_thread.h>
 #include <cpu/host_cpu.h>
 #include <install/install_cli.h>
@@ -552,6 +553,11 @@ int main(int argc, char** argv)
     module::Initialize(file, uint32_t(image.base), image.size, uint32_t(image.entry_point));
     WireImports(file);
     game::InitializeBurnoutAddons();
+
+    // The player's saves, backed up (or a restore asked for in Settings done)
+    // now, while nothing writes them: user/save_backup.h.
+    for (const std::string& line : user::save_backup::OnLaunch(GetSavePath(true), GetUserPath() / "backups"))
+        fprintf(stderr, "%s\n", line.c_str());
 
     // SDL_InitSubSystem belongs to the main thread, before guest callbacks.
     apu::InitializeOutputBackend();

@@ -14,6 +14,7 @@
 #include "quit_game.h"
 #include "burnout_setup.h"  // the game's look: its faces, hazard dashes, button glyphs
 #include "menu_sounds.h"    // and its clicks
+#include "save_backups.h"
 
 #include <report/report.h>
 #include <user/settings.h>
@@ -51,6 +52,7 @@ namespace ui
         bool s_opened = true;        // just opened: take focus
         bool s_describedAddons = false;
         bool s_describedAbout = false;
+        bool s_describedSaveBackups = false;
         bool s_openAddons = false;
         std::mutex s_addonPickerMutex;
         bool s_addonPickerOpen = false;
@@ -758,6 +760,11 @@ namespace ui
 
         void HelpLine()
         {
+            if (s_describedSaveBackups)
+            {
+                ImGui::TextWrapped("%s", SaveBackupsHelp());
+                return;
+            }
             if (s_describedAbout)
             {
                 // GPL-3.0 section 5(d): the interface shows the legal
@@ -928,6 +935,7 @@ namespace ui
         // Pages: LB/RB (Q/E) or the tabs; not under a dialog, which keeps them.
         const bool dialog = ImGui::IsPopupOpen("reset") || UpdateDialogOpen() || QuitPromptOpen()
             || ImGui::IsPopupOpen("burnout-addons")
+            || ImGui::IsPopupOpen("save-backups")
             ;
         if (int delta = dialog ? 0 : PageDelta())
         {
@@ -957,6 +965,7 @@ namespace ui
         s_describedUpdate = false;
         s_describedAddons = false;
         s_describedAbout = false;
+        s_describedSaveBackups = false;
         if (s_waiting != Id::Count && settings::Info(s_waiting).category != s_category)
             EndWait();
         // For the B check at the end: B's nav cancel (in ImGui's NewFrame,
@@ -1026,7 +1035,7 @@ namespace ui
                             if (o.category == category && !o.hidden)
                                 valueWidth = std::max(valueWidth, ValueWidth(o));
                     if (category == Category::Advanced)
-                        for (const char* text : { "Saving...", "Checking...", UpdateRowValue() })
+                        for (const char* text : { "Saving...", "Checking...", "Restore pending", UpdateRowValue() })
                             valueWidth = std::max(valueWidth, ImGui::CalcTextSize(Upper(text).c_str()).x);
                     valueWidth += 2 * kSpaceM * s;
                     float arrow = ImGui::GetFrameHeight();
@@ -1054,6 +1063,8 @@ namespace ui
                             std::string count = std::format("{} connected", game::BurnoutAddons().size());
                             if (ActionRow("burnout-addons", "Burnout Revenge Add-ons", count.c_str(), valueWidth, s_describedAddons))
                                 s_openAddons = true;
+                            if (ActionRow("save-backups", "Save Backups", SaveBackupsRowValue().c_str(), valueWidth, s_describedSaveBackups))
+                                OpenSaveBackups();
                             // The version, a row like the others; its help
                             // line has the build and the legal notices.
                             const std::string version = Upper((std::string("v") + report::Version()).c_str());
@@ -1159,6 +1170,7 @@ namespace ui
         if (DrawUpdateDialog())
             popup = true;
         if (DrawAddons()) popup = true;
+        if (DrawSaveBackups()) popup = true;
 #if BR_QUIT_GAME
         if (DrawQuitPrompt())
             popup = true;
