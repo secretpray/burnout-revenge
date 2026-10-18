@@ -83,7 +83,9 @@ Bluetooth test with real typing after each direction of Cmd+Tab, repeated hide /
 restore and normal exit. Compare USB separately. Keep logs private and report
 keyboard and pad outcomes independently. Only passing physical checks can clear
 the release gate. Stop/drain on exit and short renewable rumble leases are a
-follow-up experiment, not a confirmed Bluetooth repair.
+follow-up experiment, not a confirmed Bluetooth repair. An isolated SDL probe
+without game/Vulkan has now been built for the next controlled comparison; its
+physical checks remain pending.
 
 ## Stage 1 — optional graphics preparation (next performance feature)
 

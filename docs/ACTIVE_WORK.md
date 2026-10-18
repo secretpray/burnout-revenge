@@ -36,3 +36,6 @@ in PROGRESS.md; completed stages are not carried as active tasks.
 See [source evidence, integration decisions and acceptance gates](EXTERNAL_PORTS_PLAN.md)
 and [release validation](RELEASE_VALIDATION_2026-10-18.md). No proprietary assets,
 saves or raw device identifiers belong in the public repository.
+
+Isolated fallback: [SDL keyboard/controller matrix](INPUT_DIAGNOSTICS.md).
+The probe is built; physical probe runs are pending.
