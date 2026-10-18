@@ -54,9 +54,9 @@
   (Auto по умолчанию / Xbox / PlayStation / Keyboard), смена на лету; `BURNOUT_PAD_GLYPHS`
   перекрывает. Прогоны в glyphs-research 02–13. Проверить вручную на DualSense: стик в
   PS-наборе остаётся игровым («RS», а не R3).
-- [ ] Add-on: пакеты — ключи разблокировки (один Content.txt «ThisIsContent» в каждом), машины
-  уже в данных игры. Игра перечисляет все 6 (`game enumerates 6 pack(s)`). Осталось вручную
-  проверить в Car Select шесть машин: Spike TV, Monster, Plantronics, 360 livery, Yellowcard, Dolby.
+- [x] Add-on: пакеты — ключи разблокировки (один Content.txt «ThisIsContent» в каждом), машины
+  уже в данных игры. Игра перечисляет все 6 (`game enumerates 6 pack(s)`). Пользователь 18.10
+  (сборка 4d4a46d из /Applications): машины в Car Select есть, на двух проехал гонку.
 - [x] v0.1.10 опубликован (1ec3e46): импорт сейвов, 100% сейв (только Player Files), пропуск
   трека в Crash, сохранение Burnout Clips.
 - [x] v0.1.11 опубликован (Latest), установлен в Applications: ползунки Bloom/Motion Blur 0–100%,
