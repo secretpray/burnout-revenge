@@ -11,12 +11,17 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <unistd.h>
 #include <cerrno>
 
 PPC_EXTERN_FUNC(__imp__XMsgStartIORequest);
 uint32_t NtWaitForMultipleObjectsEx(uint32_t count, be<uint32_t>* handles, uint32_t waitType,
     uint32_t waitMode, uint32_t alertable, be<int64_t>* timeout);
+uint32_t NtCreateEvent(be<uint32_t>* handle, XOBJECT_ATTRIBUTES* attributes, uint32_t eventType, uint32_t initialState);
+uint32_t NtSetEvent(uint32_t handle, be<uint32_t>* previousState);
+uint32_t NtClearEvent(uint32_t handle);
+uint32_t NtClose(uint32_t handle);
 
 // Guest FP traps are not delivered by this runtime. Keep the host's FP
 // exceptions masked, as on the other guest-entry paths.
@@ -296,4 +301,325 @@ PPC_FUNC(__imp__NetDll_closesocket)
         ReleaseKernelObject(socket);
         ctx.r3.u64 = 0;
     }
+}
+
+// ---- The rest of the title's network calls, offline ----------------------
+//
+// Choosing Xbox Live in the main menu starts EA's network layer: its thread
+// polls the sockets above with select, and it looks up EA's servers. Offline,
+// as a console without a connection: sockets stay on loopback (what is sent
+// elsewhere is dropped, as a datagram may be), name and QoS lookups find
+// nothing, connections fail. Behaviour after Xenia's xam_net.cc; code ours.
+
+namespace
+{
+    OfflineSocket* SocketFromHandle(uint32_t handle)
+    {
+        if (handle == 0xFFFFFFFF || !IsKernelObject(handle))
+            return nullptr;
+        return dynamic_cast<OfflineSocket*>(GetKernelObject(handle));
+    }
+
+    uint32_t ErrnoToWsa(int error)
+    {
+        switch (error)
+        {
+        case EWOULDBLOCK: return 10035;   // WSAEWOULDBLOCK
+        case EMSGSIZE: return 10040;      // WSAEMSGSIZE
+        case ENOTCONN: return 10057;      // WSAENOTCONN
+        case ECONNRESET: return 10054;    // WSAECONNRESET
+        case ECONNREFUSED: return 10061;  // WSAECONNREFUSED
+        case EINTR: return 10004;         // WSAEINTR
+        default: return 10022;            // WSAEINVAL
+        }
+    }
+
+    // Guest sockaddr_in: family (big-endian 16 bits), port and address in
+    // network order.
+    void StoreGuestAddress(uint8_t* base, uint32_t address, uint32_t lengthAddress, const sockaddr_in& from)
+    {
+        if (address && (!lengthAddress || PPC_LOAD_U32(lengthAddress) >= 16))
+        {
+            memset(base + address, 0, 16);
+            PPC_STORE_U16(address, 2);
+            memcpy(base + address + 2, &from.sin_port, 2);
+            memcpy(base + address + 4, &from.sin_addr.s_addr, 4);
+        }
+        if (lengthAddress)
+            PPC_STORE_U32(lengthAddress, 16);
+    }
+
+    // Guest fd_set: a count, then up to 64 socket handles (big-endian).
+    struct GuestSet
+    {
+        uint32_t address = 0;
+        uint32_t count = 0;
+        uint32_t handles[64]{};
+        int fds[64]{};
+    };
+
+    bool LoadSet(uint8_t* base, uint32_t address, GuestSet& set)
+    {
+        set.address = address;
+        if (!address)
+            return true;
+        set.count = std::min<uint32_t>(PPC_LOAD_U32(address), 64);
+        for (uint32_t i = 0; i < set.count; ++i)
+        {
+            set.handles[i] = PPC_LOAD_U32(address + 4 + i * 4);
+            auto* socket = SocketFromHandle(set.handles[i]);
+            if (!socket)
+                return false;
+            set.fds[i] = socket->fd;
+        }
+        return true;
+    }
+
+    uint32_t s_dnsLookups = 0;
+
+    // BURNOUT_LOG_NET=1: each network call below but select (counted).
+    bool LogNet()
+    {
+        static const bool log = std::getenv("BURNOUT_LOG_NET") != nullptr;
+        return log;
+    }
+}
+
+#define NET_LOG(...) do { if (LogNet()) fprintf(stderr, "[net] " __VA_ARGS__); } while (0)
+
+PPC_FUNC(__imp__NetDll_select)
+{
+    GuestSet sets[3];
+    if (!LoadSet(base, ctx.r5.u32, sets[0]) || !LoadSet(base, ctx.r6.u32, sets[1]) || !LoadSet(base, ctx.r7.u32, sets[2]))
+    {
+        ctx.r3.u64 = SocketFailure(10038);  // WSAENOTSOCK
+        return;
+    }
+    static constexpr short kEvents[3] = { POLLIN, POLLOUT, POLLPRI };
+    std::vector<pollfd> fds;
+    for (int k = 0; k < 3; ++k)
+        for (uint32_t i = 0; i < sets[k].count; ++i)
+            fds.push_back({ sets[k].fds[i], kEvents[k], 0 });
+    int timeoutMs = -1;
+    if (const uint32_t timeout = ctx.r8.u32)
+    {
+        const int64_t seconds = int32_t(PPC_LOAD_U32(timeout)), micros = int32_t(PPC_LOAD_U32(timeout + 4));
+        timeoutMs = int(std::clamp<int64_t>(seconds * 1000 + (micros + 999) / 1000, 0, INT32_MAX));
+    }
+    const int result = poll(fds.data(), nfds_t(fds.size()), timeoutMs);
+    if (LogNet())
+    {
+        static std::atomic<uint32_t> calls{ 0 };
+        const uint32_t n = ++calls;
+        if ((n & (n - 1)) == 0)
+            NET_LOG("select #%u: %zu sockets, timeout %d ms -> %d\n", n, fds.size(), timeoutMs, result);
+    }
+    if (result < 0)
+    {
+        ctx.r3.u64 = SocketFailure(ErrnoToWsa(errno));
+        return;
+    }
+    // Each set keeps its ready sockets; the result is their number.
+    uint32_t ready = 0;
+    size_t next = 0;
+    for (int k = 0; k < 3; ++k)
+    {
+        if (!sets[k].address)
+            continue;
+        uint32_t kept = 0;
+        for (uint32_t i = 0; i < sets[k].count; ++i, ++next)
+        {
+            const short revents = fds[next].revents;
+            const bool isReady = k == 0 ? (revents & (POLLIN | POLLHUP | POLLERR)) != 0
+                : k == 1 ? (revents & (POLLOUT | POLLERR)) != 0 : (revents & POLLPRI) != 0;
+            if (isReady)
+                PPC_STORE_U32(sets[k].address + 4 + kept++ * 4, sets[k].handles[i]);
+        }
+        PPC_STORE_U32(sets[k].address, kept);
+        ready += kept;
+    }
+    ctx.r3.u64 = ready;
+}
+
+static void Receive(PPCContext& ctx, uint8_t* base, uint32_t from, uint32_t fromLength)
+{
+    auto* socket = SocketFromHandle(ctx.r4.u32);
+    if (!socket)
+    {
+        ctx.r3.u64 = SocketFailure(10038);
+        return;
+    }
+    sockaddr_in source{};
+    socklen_t sourceLength = sizeof(source);
+    const ssize_t n = recvfrom(socket->fd, base + ctx.r5.u32, ctx.r6.u32, 0, reinterpret_cast<sockaddr*>(&source), &sourceLength);
+    if (n < 0)
+    {
+        ctx.r3.u64 = SocketFailure(ErrnoToWsa(errno));
+        return;
+    }
+    if (from || fromLength)
+        StoreGuestAddress(base, from, fromLength, source);
+    NET_LOG("recv %08X: %zd bytes\n", ctx.r4.u32, n);
+    ctx.r3.u64 = uint64_t(n);
+}
+
+PPC_FUNC(__imp__NetDll_recv) { Receive(ctx, base, 0, 0); }
+PPC_FUNC(__imp__NetDll_recvfrom) { Receive(ctx, base, ctx.r8.u32, ctx.r9.u32); }
+
+static void Send(PPCContext& ctx, uint8_t* base, uint32_t to, uint32_t toLength)
+{
+    auto* socket = SocketFromHandle(ctx.r4.u32);
+    if (!socket)
+    {
+        ctx.r3.u64 = SocketFailure(10038);
+        return;
+    }
+    ssize_t n;
+    if (to && toLength >= 16)
+    {
+        uint8_t address[4];
+        memcpy(address, base + to + 4, 4);
+        NET_LOG("sendto %08X: %u bytes to %u.%u.%u.%u:%u\n", ctx.r4.u32, ctx.r6.u32, address[0], address[1], address[2], address[3],
+            uint32_t(base[to + 2]) << 8 | base[to + 3]);
+        if (address[0] != 127 && (address[0] | address[1] | address[2] | address[3]) != 0)
+        {
+            ctx.r3.u64 = ctx.r6.u32;  // elsewhere: dropped on the way
+            return;
+        }
+        sockaddr_in target{};
+        target.sin_len = sizeof(target);
+        target.sin_family = AF_INET;
+        memcpy(&target.sin_port, base + to + 2, 2);
+        target.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+        n = sendto(socket->fd, base + ctx.r5.u32, ctx.r6.u32, 0, reinterpret_cast<sockaddr*>(&target), sizeof(target));
+    }
+    else
+        n = send(socket->fd, base + ctx.r5.u32, ctx.r6.u32, 0);
+    ctx.r3.u64 = n < 0 ? SocketFailure(ErrnoToWsa(errno)) : uint64_t(n);
+}
+
+PPC_FUNC(__imp__NetDll_send) { Send(ctx, base, 0, 0); }
+PPC_FUNC(__imp__NetDll_sendto) { Send(ctx, base, ctx.r8.u32, ctx.r9.u32); }
+
+PPC_FUNC(__imp__NetDll_getsockname)
+{
+    auto* socket = SocketFromHandle(ctx.r4.u32);
+    sockaddr_in local{};
+    socklen_t length = sizeof(local);
+    if (!socket)
+        ctx.r3.u64 = SocketFailure(10038);
+    else if (getsockname(socket->fd, reinterpret_cast<sockaddr*>(&local), &length) < 0)
+        ctx.r3.u64 = SocketFailure(ErrnoToWsa(errno));
+    else
+    {
+        StoreGuestAddress(base, ctx.r5.u32, ctx.r6.u32, local);
+        ctx.r3.u64 = 0;
+    }
+}
+
+// No connection is ever made.
+PPC_FUNC(__imp__NetDll_connect) { NET_LOG("connect %08X: unreachable\n", ctx.r4.u32); ctx.r3.u64 = SocketFailure(SocketFromHandle(ctx.r4.u32) ? 10051 : 10038); }  // WSAENETUNREACH
+PPC_FUNC(__imp__NetDll_getpeername) { ctx.r3.u64 = SocketFailure(SocketFromHandle(ctx.r4.u32) ? 10057 : 10038); }  // WSAENOTCONN
+PPC_FUNC(__imp__NetDll_accept) { ctx.r3.u64 = SocketFailure(SocketFromHandle(ctx.r4.u32) ? 10035 : 10038); }  // WSAEWOULDBLOCK
+PPC_FUNC(__imp__NetDll_listen) { ctx.r3.u64 = SocketFromHandle(ctx.r4.u32) ? 0 : SocketFailure(10038); }
+PPC_FUNC(__imp__NetDll_shutdown) { ctx.r3.u64 = SocketFromHandle(ctx.r4.u32) ? 0 : SocketFailure(10038); }
+// Options (broadcast, buffer sizes, non-blocking VDP) change nothing on loopback.
+PPC_FUNC(__imp__NetDll_setsockopt) { ctx.r3.u64 = SocketFromHandle(ctx.r4.u32) ? 0 : SocketFailure(10038); }
+
+// Overlapped receives: nothing ever arrives (as Xenia: an error, so the
+// title doesn't wait for it).
+PPC_FUNC(__imp__NetDll_WSARecv) { ctx.r3.u64 = SocketFailure(10050); }  // WSAENETDOWN
+PPC_FUNC(__imp__NetDll_WSARecvFrom) { ctx.r3.u64 = SocketFailure(10050); }
+PPC_FUNC(__imp__NetDll_WSAGetOverlappedResult) { GuestThread::SetLastError(10050); ctx.r3.u64 = 0; }
+
+// WSA events are kernel events (manual reset), as WSAWaitForMultipleEvents
+// above waits on them.
+PPC_FUNC(__imp__NetDll_WSACreateEvent)
+{
+    be<uint32_t> handle = 0;
+    ctx.r3.u64 = NtCreateEvent(&handle, nullptr, 0, 0) == 0 ? uint32_t(handle) : 0;
+}
+PPC_FUNC(__imp__NetDll_WSACloseEvent) { ctx.r3.u64 = NtClose(ctx.r3.u32) == 0; }
+PPC_FUNC(__imp__NetDll_WSASetEvent) { ctx.r3.u64 = NtSetEvent(ctx.r3.u32, nullptr) == 0; }
+PPC_FUNC(__imp__NetDll_WSAResetEvent) { ctx.r3.u64 = NtClearEvent(ctx.r3.u32) == 0; }
+
+// Secure-association keys: accepted, never used.
+PPC_FUNC(__imp__NetDll_XNetCreateKey)
+{
+    // (caller, XNKID* 8 bytes, XNKEY* 16 bytes)
+    if (ctx.r4.u32) arc4random_buf(base + ctx.r4.u32, 8);
+    if (ctx.r5.u32) arc4random_buf(base + ctx.r5.u32, 16);
+    ctx.r3.u64 = 0;
+}
+PPC_FUNC(__imp__NetDll_XNetRegisterKey) { ctx.r3.u64 = 0; }
+PPC_FUNC(__imp__NetDll_XNetUnregisterKey) { ctx.r3.u64 = 0; }
+PPC_FUNC(__imp__NetDll_XNetXnAddrToInAddr)
+{
+    // The address's own IP (0 offline).
+    if (ctx.r6.u32)
+        memcpy(base + ctx.r6.u32, ctx.r4.u32 ? base + ctx.r4.u32 : (const uint8_t*)"\0\0\0\0", 4);
+    ctx.r3.u64 = 0;
+}
+PPC_FUNC(__imp__NetDll_XNetConnect) { ctx.r3.u64 = 0; }
+PPC_FUNC(__imp__NetDll_XNetGetConnectStatus) { NET_LOG("XNetGetConnectStatus: lost\n"); ctx.r3.u64 = 3; }  // XNET_CONNECT_STATUS_LOST
+
+// Lookups complete at once and find nothing: an XNDNS with an error status
+// (WSAHOST_NOT_FOUND), an XNQOS with no entries; the event is set.
+static uint32_t AllocZeroed(uint32_t size)
+{
+    void* p = g_userHeap.Alloc(size);
+    if (!p) return 0;
+    memset(p, 0, size);
+    return g_memory.MapVirtual(p);
+}
+
+PPC_FUNC(__imp__NetDll_XNetDnsLookup)
+{
+    if (s_dnsLookups++ < 4)
+        fprintf(stderr, "[net] offline: DNS lookup of \"%s\" finds nothing\n", ctx.r4.u32 ? reinterpret_cast<const char*>(base + ctx.r4.u32) : "");
+    if (const uint32_t out = ctx.r6.u32)
+    {
+        const uint32_t dns = AllocZeroed(40);
+        if (dns) PPC_STORE_U32(dns, 11001);  // WSAHOST_NOT_FOUND
+        PPC_STORE_U32(out, dns);
+    }
+    if (ctx.r5.u32) NtSetEvent(ctx.r5.u32, nullptr);
+    ctx.r3.u64 = 0;
+}
+
+static void ReleaseLookup(PPCContext& ctx)
+{
+    if (ctx.r4.u32) g_userHeap.Free(g_memory.Translate(ctx.r4.u32));
+    ctx.r3.u64 = ctx.r4.u32 ? 0 : 0x80070057;
+}
+PPC_FUNC(__imp__NetDll_XNetDnsRelease) { ReleaseLookup(ctx); }
+PPC_FUNC(__imp__NetDll_XNetQosRelease) { ReleaseLookup(ctx); }
+
+PPC_FUNC(__imp__NetDll_XNetQosServiceLookup)
+{
+    NET_LOG("XNetQosServiceLookup: nothing\n");
+    // (caller, flags, event, XNQOS** out)
+    if (ctx.r6.u32) PPC_STORE_U32(ctx.r6.u32, AllocZeroed(48));
+    if (ctx.r5.u32) NtSetEvent(ctx.r5.u32, nullptr);
+    ctx.r3.u64 = 0;
+}
+
+PPC_FUNC(__imp__NetDll_XNetQosLookup)
+{
+    NET_LOG("XNetQosLookup: %u addresses, no answer\n", ctx.r4.u32);
+    // (caller, cxna, apxna, apxnkid, apxnkey, cina, aina, adwServiceId,
+    // cProbes, dwBitsPerSec, dwFlags, hEvent, XNQOS** out): the last five on
+    // the stack. No probes answer: count 0.
+    // the stack (each in an 8-byte slot from r1+0x54).
+    const uint32_t event = PPC_LOAD_U32(ctx.r1.u32 + 0x6C), out = PPC_LOAD_U32(ctx.r1.u32 + 0x74);
+    if (out) PPC_STORE_U32(out, AllocZeroed(48));
+    if (event) NtSetEvent(event, nullptr);
+    ctx.r3.u64 = 0;
+}
+
+PPC_FUNC(__imp__XNetLogonGetTitleID) { ctx.r3.u64 = 0x454107DC; }
+PPC_FUNC(__imp__XNetLogonGetMachineID)
+{
+    if (ctx.r3.u32) PPC_STORE_U64(ctx.r3.u32, 0xFA00000000000001ull);
+    ctx.r3.u64 = 0;
 }

@@ -5,6 +5,9 @@
 - A rare black screen at launch (about 1 in 100, with Skip Intro Movies) is
   fixed: the film player's helper threads could miss a wake-up and leave the
   game waiting for them.
+- Choosing Xbox Live in the main menu no longer closes the game: offline, the
+  game's network calls now answer as a console without a connection, and the
+  menu stays.
 
 ## v0.1.11
 
