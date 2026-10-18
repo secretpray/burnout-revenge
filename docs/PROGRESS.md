@@ -1,7 +1,8 @@
 # Progress and known limitations
 
 Updated 2026-10-18. v0.1.0 is public; v0.1.1 remains a draft.
-**Current work:** [open tasks and staged plan](ACTIVE_WORK.md).
+**Current work:** [open tasks](ACTIVE_WORK.md), [detailed roadmap](ROADMAP_RU.md),
+[new-chat prompt](NEW_CHAT_PROMPT_RU.md).
 
 ## Verified before standalone extraction
 
@@ -327,3 +328,22 @@ No input script, virtual pad, automated name response or OS UI automation. Only
 internal screenshots; the user is asked to test real typing in both directions
 of Cmd+Tab and hide/restore. Applications still contains downloaded cda797a;
 this candidate is not published. Physical result pending.
+
+Run 96 completed: 313.5 s, exit 0 after targeted normal SIGTERM following user
+confirmation. Zero gamepad removals and fatal imports. Actual focus-loss/gain
+logged, including return with grab=0. Native backend reports transport unknown;
+Bluetooth was the requested physical setup, not inferred from that API. User
+explicitly confirmed Magic Keyboard worked after returning and stayed stable in
+game. This is a positive short physical keyboard check, not a universal cure;
+controller/audio results were not separately reconfirmed in that reply. Caffeinate
+was process-bound and ended with the run; no permanent lock settings changed.
+Downloaded cda797a in Applications and draft release remain unchanged. Next: package
+this candidate, repeat the downloaded-artifact check, then longer input testing.
+
+### Handoff checkpoint
+
+Run 96 is a positive short physical keyboard check after the focus changes;
+Applications/draft cda797a still lack those changes. Package validation remains
+open. Keep the current name-entry UI unless the actual Burnout APT screen is
+proved more faithful and complete; Xerenge's ImGui dialog is not that screen.
+Detailed open work and a compact new-chat prompt are now maintained separately.

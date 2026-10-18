@@ -181,3 +181,13 @@ network play and matchmaking remain outside the next stable-input release.
 A new public release requires resolved/clearly scoped input behavior, complete
 suites for both development games, downloaded-package first-run/profile/race
 validation, updated source/licenses/checksums, and documentation after every run.
+
+### Latest input checkpoint
+
+Run 96 completed at 313.5 s, exit 0. User confirms the physical keyboard remains
+stable in game and after returning; zero pad removals/fatal imports in the log.
+This is a positive short check of the separate focus candidate. Installed/draft
+cda797a still lacks that correction. Next gate: the actual packaged/downloaded
+candidate, with controller/audio separately confirmed. Current name-entry UI is
+retained unless the genuine Burnout APT screen can be verified; see the keyboard
+research note. Full stages and handoff are in the active roadmap/prompt documents.

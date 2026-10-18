@@ -1,41 +1,28 @@
-# Active work only
+# Открытые задачи
 
-Updated 2026-10-18. This is the compact working context. Historical evidence lives
-in PROGRESS.md; completed stages are not carried as active tasks.
+Обновлено 18.10.2026. Только незавершённая/плановая работа; история — отдельно.
 
-## Release blocker
+- [ ] Собрать и проверить конечный пакет с focus-правками. В Applications всё ещё
+  скачанный v0.1.1/cda797a, без них; этот пакет воспроизводил отказ Magic Keyboard.
+  Тег v0.1.1 не менять. Новый source-кандидат успешно прошёл короткую ручную
+  keyboard-проверку 96; окончательный package/hardware gate ещё открыт.
+- [ ] В пакете отдельно подтвердить реальное управление контроллером и звук,
+  Cmd+Tab в обе стороны, Cmd+H/restore, exit/relaunch, USB/Bluetooth. Нужен пользователь;
+  не применять OS UI automation/CUA. До прохождения не публиковать hotfix как исправленный.
+- [ ] Родной APT-экран Burnout исследовать ограниченным экспериментом. Сейчас
+  оставить нашу клавиатуру: перенос ImGui-диалога Xerenge оригинал не восстанавливает.
+  Заменять только после доказанной большей точности и проверки полного пути.
+- [ ] Optional shader/PSO preparation из пользовательского ISO; coverage manifest,
+  cancellation/resume и cold/prepared сравнение.
+- [ ] SMAA/CAS и bloom/LOD audit с одинаковой сценой и GPU замерами.
+- [ ] GPU history consumer/leases/events и MetalFX FI; сравнить draw-state interpolation.
+  Сначала Crash 30→60, затем 60→120. Live FG пока выключена.
+- [ ] Save backup/restore, controller glyphs, custom music, полное Add-on покрытие.
+- [ ] 57 fatal imports, career/Crash/replay матрица; регионы/GOD/online отдельно позже.
 
-- [ ] Magic Keyboard fails system-wide after returning to Burnout over Bluetooth
-  (run 93, user-confirmed power cycle). App logs with zero pad removals do not prove
-  keyboard health. USB short comparison passed; root cause remains unknown.
-- [ ] v0.1.1 remains a draft. Applications contains the downloaded cda797a package;
-  new focus changes are a development candidate, not that installed package.
-- [ ] Validate both directions of physical Cmd+Tab/typing, hide/restore and exit;
-  record keyboard and gamepad separately. No OS UI automation.
-
-## Current tranche
-
-- [x] Read the three requested projects and actual underlying input layers.
-- [x] Compare official SDL 3.4.16 -> 3.4.18 changes; no identified keyboard fix.
-- [x] Implement background-output gate + Command shortcut isolation locally.
-- [x] Builds and full suites: standalone 61/61, shared Burnout 63/63, NFSMW 62/62.
-- [x] Virtual-only focus regression (run 95), 24.1 s, exit 0, no fatal imports.
-- [ ] Physical comparison (run 96 in progress); not a confirmed keyboard fix.
-- [ ] Publish source/docs checkpoint without publishing the failed release.
-
-## Queued work, in order
-
-1. Optional shader/pipeline preparation from the user's disc, coverage manifest,
-   cancellation/resume and measured cold/prepared comparison.
-2. SMAA/CAS evaluation; bloom downsample/LOD audit, same-scene GPU comparison.
-3. Safe MetalFX history consumer and compare draw-state interpolation; 30->60
-   Crash first, then 60->120. Live FG remains disabled.
-4. Save backup/restore, controller prompts, custom music and add-on coverage.
-5. Fatal-import audit (57 remain), broader career/Crash testing; later regions/GOD.
-
-See [source evidence, integration decisions and acceptance gates](EXTERNAL_PORTS_PLAN.md)
-and [release validation](RELEASE_VALIDATION_2026-10-18.md). No proprietary assets,
-saves or raw device identifiers belong in the public repository.
-
-Isolated fallback: [SDL keyboard/controller matrix](INPUT_DIAGNOSTICS.md).
-The probe is built; physical probe runs are pending.
+Начать с [подробного плана](ROADMAP_RU.md), затем нужных разделов
+[исследования внешних портов](EXTERNAL_PORTS_PLAN.md),
+[экранной клавиатуры](NATIVE_KEYBOARD_RU.md),
+[SDL диагностики](INPUT_DIAGNOSTICS.md) и
+[аудита релиза](RELEASE_VALIDATION_2026-10-18.md).
+Не читать PROGRESS.md целиком ради восстановления контекста.

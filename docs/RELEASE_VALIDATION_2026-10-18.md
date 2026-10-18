@@ -134,3 +134,11 @@ Most Wanted 62/62. Run 95: virtual pad only, physical SDL providers disabled,
 validate real Bluetooth hardware. Run 96 begins the user's physical comparison;
 its transport API reports unknown under the native driver, not verified wired.
 The cda797a draft DMG and Applications app do not contain these new focus changes.
+
+Run 96 final: 313.5 s, normal targeted SIGTERM, exit 0. No gamepad removals or
+fatal imports. Real focus loss/return logged with grab=0. User explicitly confirms
+Magic Keyboard stayed stable in game and after returning. This supersedes the
+pending state above for this **separate focus candidate**, not the cda797a DMG.
+The response did not separately reconfirm real controller/audio. Package validation
+is still required; input root cause across all hardware is not claimed. All
+caffeinate assertions from this stage ended; permanent lock settings unchanged.
