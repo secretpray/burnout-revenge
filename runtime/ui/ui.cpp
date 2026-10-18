@@ -1174,6 +1174,10 @@ namespace ui
         ImFontBaked* baked = ImGui::GetFontBaked();
         const ImFontGlyph* h = baked->FindGlyph('H');
         float baseline = h ? h->Y1 : baked->Ascent;
+        // Another face (the settings rows' Barlow): its own 'H' gives the
+        // capitals' height; kCapHeight is Roboto's.
+        if (h && ImGui::GetFont() != ImGui::GetIO().Fonts->Fonts[0])
+            return std::round(y - (h->Y0 + h->Y1) * 0.5f);
         return std::round(y - (baseline - ImGui::GetFontSize() * kCapHeight * 0.5f));
     }
 

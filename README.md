@@ -48,8 +48,8 @@ upscaling; neither generates frames. The game's simulation remains capped at 60.
 On Mac, DualSense defaults to Apple's controller backend. A restart-only
 **DualSense Raw HID Driver** option selects SDL's raw backend. The reported
 system-wide Magic Keyboard failure after playing over Bluetooth followed macOS
-Game Mode in the system log on the test Mac; v0.1.2 opts out of Game Mode and is
-being validated. See [validation](docs/RELEASE_VALIDATION_0.1.2.md) and the
+Game Mode in the system log on the test Mac; v0.1.2 opts out of Game Mode, and
+the failing sequence then passed on that Mac. See [validation](docs/RELEASE_VALIDATION_0.1.2.md) and the
 [current work plan](docs/ACTIVE_WORK.md).
 
 Add-ons can also be imported from Settings. Automatic import searches mounted

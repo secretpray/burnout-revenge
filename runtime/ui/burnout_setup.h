@@ -4,6 +4,27 @@
 namespace ui::burnout
 {
     void LoadFonts();  // ui::Initialize, after the UI font (the default stays first)
+    // The headings' and the labels' faces (the default font until LoadFonts).
+    ImFont* DisplayFont();
+    ImFont* LabelFont();
+    ImFont* RowFont();  // upright, as the game's option rows
+
+    // A controller button as the game draws it in its hints: a coloured disc
+    // with its letter ("A", "B", "X", "Y"), or a dark pill for "LB", "RB",
+    // "D-PAD". Drawn at `at` (top left), `height` tall; returns its width
+    // (only that with no `draw`).
+    float ButtonGlyph(ImDrawList* draw, ImVec2 at, float height, const char* button);
+    // Two rows of yellow dashes on dark, from a.x to b.x at heights a.y and b.y.
+    void HazardDashes(ImDrawList* draw, ImVec2 a, ImVec2 b);
+    // The game's chosen row: a yellow line above and below (a.y, b.y),
+    // fading out at both ends.
+    void SelectorLines(ImDrawList* draw, ImVec2 a, ImVec2 b);
+    // The thin dark rule under one of the game's other rows, at y.
+    void RowRule(ImDrawList* draw, float x0, float x1, float y);
+    // A screen's heading band: dark, slanted, with a strip of yellow
+    // chevrons running into the heading as on the game's screens (still for
+    // Reduce motion), from `a` to `b`. Returns where the heading's text starts.
+    float TitleBand(ImDrawList* draw, ImVec2 a, ImVec2 b);
     void LoadArt();
     void ReleaseArt(); // after renderer shutdown, before destroying ImGui
     // BR_REDUCED_MOTION=1, or macOS's Reduce motion: nothing slides or drifts.

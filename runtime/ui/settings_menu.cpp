@@ -12,6 +12,7 @@
 #include <stdafx.h>
 #include "ui.h"
 #include "quit_game.h"
+#include "burnout_setup.h"  // the game's look: its faces, hazard dashes, button glyphs
 
 #include <report/report.h>
 #include <user/settings.h>
@@ -48,6 +49,7 @@ namespace ui
         bool s_describedUpdate = false;     // ...or Check for Updates'
         bool s_opened = true;        // just opened: take focus
         bool s_describedAddons = false;
+        bool s_describedAbout = false;
         bool s_openAddons = false;
         std::mutex s_addonPickerMutex;
         bool s_addonPickerOpen = false;
@@ -115,8 +117,8 @@ namespace ui
         SDL_Scancode s_takenKey = SDL_SCANCODE_UNKNOWN;  // the key a wait took or refused, until its release
         Id s_slotRow = Id::Count;    // the row whose chosen cell s_slot is
         int s_slot = 0;              // 0: the row's first key, 1: its second
-        constexpr const char* kPressAKey = "Press a key";
-        constexpr const char* kNoKey = "none";
+        constexpr const char* kPressAKey = "PRESS A KEY";
+        constexpr const char* kNoKey = "NONE";
 
         void EndWait()
         {
@@ -157,9 +159,21 @@ namespace ui
             return true;
         }
 
+        // The game's menus set their labels and values in capitals.
+        std::string Upper(const char* text)
+        {
+            std::string upper(text);
+            for (char& c : upper)
+                if (c >= 'a' && c <= 'z')
+                    c = char(c - 'a' + 'A');
+            return upper;
+        }
+
         // A key's name for a cell: on this keyboard's layout ("Z" on a
-        // French Mac for the position the file calls "w"), else SDL's name
-        // of the position (the platform's: "Left Option" on a Mac), else the
+        // French Mac for the position the file calls "w") when that is
+        // Latin, else SDL's name of the position ("W" for that key under a
+        // Cyrillic layout, which would show "Ц", and keep showing it after
+        // a switch back: the menu reads the layout, not the key), else the
         // file's. "none" for no key. Main thread.
         std::string KeyLabel(double stored)
         {
@@ -169,11 +183,13 @@ namespace ui
                 return "?";
             SDL_Scancode sc = SDL_Scancode(int(stored));
             const char* name = SDL_GetKeyName(SDL_GetKeyFromScancode(sc, SDL_KMOD_NONE, false));
+            if (name && std::any_of(name, name + strlen(name), [](char c) { return (unsigned char)c >= 0x80; }))
+                name = nullptr;  // not Latin: the position's name instead
             if (!name || !name[0])
                 name = SDL_GetScancodeName(sc);
             if (!name || !name[0])
                 name = settings::keynames::Token(uint16_t(stored));
-            return name && name[0] ? name : "?";
+            return name && name[0] ? Upper(name) : "?";
         }
 
         // A key the wait refused, for the help line.
@@ -224,7 +240,7 @@ namespace ui
         float ValueWidth(const settings::Option& o)
         {
             float width = 0.0f;
-            auto measure = [&](double v) { width = std::max(width, ImGui::CalcTextSize(settings::FormatValue(o.id, v).c_str()).x); };
+            auto measure = [&](double v) { width = std::max(width, ImGui::CalcTextSize(Upper(settings::FormatValue(o.id, v).c_str()).c_str()).x); };
             switch (o.type)
             {
             case settings::Type::Bool:
@@ -294,13 +310,103 @@ namespace ui
             return std::max(0.0f, LabelInset() - ((arrow - font) * 0.5f + font * 0.2f));
         }
 
+        // The size of the rows' face (Barlow Condensed, set narrower than
+        // the body text's Roboto at the same size).
+        constexpr float kRowFontSize = 26.0f;
+        // The game's settings rows: orange labels; the chosen one white.
+        constexpr ImU32 kRowOrange = IM_COL32(242, 154, 34, 255);
+        constexpr ImU32 kRowWhite = IM_COL32(246, 242, 232, 255);
+
         // A row's label, drawn here rather than by its Selectable (after it:
-        // the highlight is the Selectable's item rect).
+        // the highlight is the Selectable's item rect). As the game's
+        // Settings screen: an orange label over a dark rule; the chosen row
+        // white between two yellow lines.
         float RowLabel(ImVec2 pos, const char* label)
         {
-            float mid = (ImGui::GetItemRectMin().y + ImGui::GetItemRectMax().y) * 0.5f;
-            ImGui::GetWindowDrawList()->AddText(ImVec2(pos.x, CentredTextTop(mid)), ImGui::GetColorU32(ImGuiCol_Text), label);
+            ImVec2 min = ImGui::GetItemRectMin(), max = ImGui::GetItemRectMax();
+            float mid = (min.y + max.y) * 0.5f;
+            bool focused = ImGui::IsItemFocused();
+            ImDrawList* draw = ImGui::GetWindowDrawList();
+            if (focused)
+                burnout::SelectorLines(draw, min, max);
+            else
+                burnout::RowRule(draw, min.x, max.x, max.y - 2 * Scale());
+            draw->AddText(ImVec2(pos.x, CentredTextTop(mid)), focused ? kRowWhite : kRowOrange, Upper(label).c_str());
             return mid;
+        }
+
+        // SETTINGS over [BURNOUT REVENGE FOR MAC], as the game heads its
+        // own (DRIVER DETAILS over [SETTINGS]) on a dark band, and the keys
+        // that open it on the right.
+        void MenuTitle(const char* hint)
+        {
+            const float s = Scale();
+            ImDrawList* draw = ImGui::GetWindowDrawList();
+            const ImVec2 at = ImGui::GetCursorScreenPos();
+            const float right = at.x + ImGui::GetContentRegionAvail().x;
+            ImGui::PushFont(burnout::DisplayFont(), 46.0f);
+            const ImVec2 title = ImGui::CalcTextSize("SETTINGS");
+            ImGui::PopFont();
+            ImGui::PushFont(burnout::LabelFont(), 21.0f);
+            const char* sub = "[BURNOUT REVENGE FOR MAC]";
+            const ImVec2 subSize = ImGui::CalcTextSize(sub);
+            ImGui::PopFont();
+            const float subTop = at.y + title.y - 4 * s;
+            const float bandTop = at.y - 2 * s, bandBottom = subTop + subSize.y + 4 * s;
+            // The heading starts after the band's chevrons.
+            const ImVec2 text(burnout::TitleBand(draw, ImVec2(at.x, bandTop), ImVec2(at.x + std::max(title.x, subSize.x) + 40 * s, bandBottom)),
+                at.y);
+            ImGui::PushFont(burnout::DisplayFont(), 46.0f);
+            draw->AddText(ImVec2(text.x + 2 * s, text.y + 2 * s), IM_COL32(0, 0, 0, 200), "SETTINGS");
+            draw->AddText(text, kRowWhite, "SETTINGS");
+            ImGui::PopFont();
+            ImGui::PushFont(burnout::LabelFont(), 21.0f);
+            draw->AddText(ImVec2(text.x + 4 * s, subTop), kRowOrange, sub);
+            if (hint)
+                draw->AddText(ImVec2(right - ImGui::CalcTextSize(hint).x, at.y + 6 * s), ImGui::GetColorU32(ImGuiCol_TextDisabled), hint);
+            ImGui::PopFont();
+            ImGui::Dummy(ImVec2(0, subTop + subSize.y - at.y + 6 * s));
+        }
+
+        // The footer's legend as the game writes its own: "Back" and the
+        // button, right-aligned on this line. A glyph of "LB RB" is two.
+        void Legend(std::initializer_list<std::pair<const char*, const char*>> items)
+        {
+            const float s = Scale();
+            ImGui::PushFont(burnout::LabelFont(), 18.0f);
+            const float h = ImGui::GetFontSize() * 1.1f, gap = 6 * s, between = 18 * s;
+            auto glyphs = [&](ImDrawList* draw, ImVec2 at, const char* list) {
+                float x = at.x;
+                std::string all(list);
+                for (size_t start = 0; start <= all.size();)
+                {
+                    size_t space = all.find(' ', start);
+                    std::string one = all.substr(start, space == std::string::npos ? std::string::npos : space - start);
+                    x += burnout::ButtonGlyph(draw, ImVec2(x, at.y), h, one.c_str()) + 3 * s;
+                    if (space == std::string::npos)
+                        break;
+                    start = space + 1;
+                }
+                return x - at.x - 3 * s;
+            };
+            float width = 0;
+            for (auto [label, button] : items)
+                width += ImGui::CalcTextSize(label).x + gap + glyphs(nullptr, ImVec2(), button) + between;
+            width -= between;
+            ImVec2 at = ImGui::GetCursorScreenPos();
+            const float frame = ImGui::GetFrameHeight();
+            at.x = std::max(at.x, ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x - width);
+            at.y += (frame - h) * 0.5f;
+            ImDrawList* draw = ImGui::GetWindowDrawList();
+            for (auto [label, button] : items)
+            {
+                const ImVec2 size = ImGui::CalcTextSize(label);
+                draw->AddText(ImVec2(at.x, at.y + (h - size.y) * 0.5f), ImGui::GetColorU32(ImGuiCol_Text), label);
+                at.x += size.x + gap;
+                at.x += glyphs(draw, at, button) + between;
+            }
+            ImGui::Dummy(ImVec2(0, frame));
+            ImGui::PopFont();
         }
 
         void OptionRow(const settings::Option& o, float valueWidth, bool focus)
@@ -333,7 +439,7 @@ namespace ui
 
             // Markers after the label: set by the environment, waits for a restart.
             {
-                float x = labelPos.x + ImGui::CalcTextSize(o.label).x + 10.0f * s;
+                float x = labelPos.x + ImGui::CalcTextSize(Upper(o.label).c_str()).x + 10.0f * s;
                 ImDrawList* draw = ImGui::GetWindowDrawList();
                 auto marker = [&](const char* text, ImU32 color) {
                     ImGui::PushFont(nullptr, 15.0f);
@@ -383,6 +489,9 @@ namespace ui
             ImGui::SetCursorPosY(ImGui::GetCursorPosY() + (rowHeight - arrow) * 0.5f);
             ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true);
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+            // The game's yellow chevrons on the chosen row; faint elsewhere,
+            // still there for a pointer.
+            ImGui::PushStyleColor(ImGuiCol_Text, focused ? ImVec4(0.96f, 0.71f, 0.15f, 1) : ImVec4(1, 1, 1, 0.14f));
             ImGui::BeginDisabled(locked);
             if (ImGui::ArrowButton("##less", ImGuiDir_Left))
                 delta = -1;
@@ -393,21 +502,31 @@ namespace ui
             if (ImGui::ArrowButton("##more", ImGuiDir_Right))
                 delta = 1;
             ImGui::EndDisabled();
-            ImGui::PopStyleColor();
+            ImGui::PopStyleColor(2);
             ImGui::PopItemFlag();
 
-            std::string text = settings::FormatValue(o.id, stored);
+            std::string text = Upper(settings::FormatValue(o.id, stored).c_str());
             ImVec2 size = ImGui::CalcTextSize(text.c_str());
             ImDrawList* draw = ImGui::GetWindowDrawList();
-            ImU32 color = ImGui::GetColorU32(focused ? ImGuiCol_PlotLines : ImGuiCol_Text);
+            ImU32 color = locked ? ImGui::GetColorU32(ImGuiCol_TextDisabled) : kRowWhite;
             draw->AddText(ImVec2(valueMin.x + (valueWidth - size.x) * 0.5f, CentredTextTop(mid)), color, text.c_str());
-            // Numbers get a bar showing where they sit in their range.
+            // Numbers get the game's volume bar under them: orange blocks
+            // up to where they sit in their range, outlines after.
             if ((o.type == settings::Type::Int || o.type == settings::Type::Float) && o.max > o.min)
             {
                 float t = float(std::clamp((stored - o.min) / (o.max - o.min), 0.0, 1.0));
-                float y = valueMin.y + arrow - 3.0f * s;
-                draw->AddRectFilled(ImVec2(valueMin.x, y), ImVec2(valueMin.x + valueWidth, y + 2.0f * s), ImGui::GetColorU32(ImGuiCol_FrameBg));
-                draw->AddRectFilled(ImVec2(valueMin.x, y), ImVec2(valueMin.x + valueWidth * t, y + 2.0f * s), ImGui::GetColorU32(ImGuiCol_SliderGrab));
+                constexpr int kBlocks = 20;
+                const float pitch = valueWidth / kBlocks, w = pitch * 0.7f, h = 7.0f * s;
+                const float y = valueMin.y + arrow - h + 2.0f * s;
+                const int lit = int(std::round(t * kBlocks));
+                for (int i = 0; i < kBlocks; i++)
+                {
+                    ImVec2 a(valueMin.x + i * pitch + (pitch - w) * 0.5f, y), b(a.x + w, y + h);
+                    if (i < lit)
+                        draw->AddRectFilled(a, b, kRowOrange, 1.0f * s);
+                    else
+                        draw->AddRect(a, b, IM_COL32(200, 200, 200, 110), 1.0f * s, 0, 1.0f * s);
+                }
             }
 
             if (delta && !locked)
@@ -551,9 +670,10 @@ namespace ui
             ImGui::SetCursorPosY(ImGui::GetCursorPosY() + (rowHeight - arrow) * 0.5f);
             ImVec2 min = ImGui::GetCursorScreenPos();
             ImGui::Dummy(ImVec2(valueWidth + arrow * 2, arrow));
-            ImVec2 size = ImGui::CalcTextSize(value);
+            const std::string text = Upper(value);
+            ImVec2 size = ImGui::CalcTextSize(text.c_str());
             ImGui::GetWindowDrawList()->AddText(ImVec2(min.x + arrow + (valueWidth - size.x) * 0.5f, CentredTextTop(mid)),
-                ImGui::GetColorU32(focused ? ImGuiCol_PlotLines : ImGuiCol_Text), value);
+                kRowWhite, text.c_str());
             ImGui::PopID();
             return activated;
         }
@@ -652,6 +772,15 @@ namespace ui
 
         void HelpLine()
         {
+            if (s_describedAbout)
+            {
+                // GPL-3.0 section 5(d): the interface shows the legal
+                // notices (NOTICE, THIRD_PARTY_NOTICES.md), on this row.
+                ImGui::TextWrapped("%s %s. Free software under the GPL-3.0-or-later, with no warranty; third-party "
+                                   "licenses come with the game.", game::kApplication, report::VersionString());
+                ImGui::TextDisabled("Copyright (C) 2026 project(u) and SpeedBreaker contributors. Not affiliated with Electronic Arts or Apple.");
+                return;
+            }
             if (s_describedAddons)
             {
                 ImGui::TextWrapped("View connected Burnout Revenge car packs or import your own Add-on folder. New packs connect on the next launch.");
@@ -770,7 +899,7 @@ namespace ui
     {
         float s = Scale();
         ImGuiViewport* viewport = ImGui::GetMainViewport();
-        ImVec2 size(std::min(viewport->WorkSize.x - 2 * kSpaceL * s, 860.0f * s), std::min(viewport->WorkSize.y - 2 * kSpaceL * s, 600.0f * s));
+        ImVec2 size(std::min(viewport->WorkSize.x - 2 * kSpaceL * s, 900.0f * s), std::min(viewport->WorkSize.y - 2 * kSpaceL * s, 640.0f * s));
         ImGui::SetNextWindowPos(viewport->GetWorkCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
         ImGui::SetNextWindowSize(size, ImGuiCond_Always);
         constexpr ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
@@ -784,7 +913,17 @@ namespace ui
             s_opened = false;
             s_focusFirstRow = true;
         }
-        if (!ImGui::Begin("Settings", nullptr, flags))
+        // The game's look: square, the game dimmed behind a dark glass.
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.03f, 0.028f, 0.025f, 0.72f));
+        // The game behind dims, as under its own menus.
+        ImGui::GetBackgroundDrawList()->AddRectFilled(viewport->Pos,
+            ImVec2(viewport->Pos.x + viewport->Size.x, viewport->Pos.y + viewport->Size.y), IM_COL32(10, 8, 6, 120));
+        const bool shown = ImGui::Begin("Settings", nullptr, flags);
+        ImGui::PopStyleColor();
+        ImGui::PopStyleVar(2);
+        if (!shown)
         {
             ImGui::End();
             return;
@@ -795,7 +934,7 @@ namespace ui
         // are View and Menu on an Xbox pad), or touch.
         TitleText("Settings", "View + Menu on a controller, or tap with three fingers");
 #elif defined(__APPLE__)
-        TitleText("Burnout Revenge Settings", "F1 or Cmd+, / Back + Start");
+        MenuTitle("F1  /  CMD+,  /  BACK + START");
 #else
         TitleText("Settings", "F1 / Back + Start");
 #endif
@@ -831,13 +970,18 @@ namespace ui
         s_describedBugReport = false;
         s_describedUpdate = false;
         s_describedAddons = false;
+        s_describedAbout = false;
         if (s_waiting != Id::Count && settings::Info(s_waiting).category != s_category)
             EndWait();
         // For the B check at the end: B's nav cancel (in ImGui's NewFrame,
         // before this) takes the waiting row's focus, and KeyRow then ends
         // the wait before that check could see it.
         const bool wasWaiting = s_waiting != Id::Count;
-        if (ImGui::BeginTabBar("pages", ImGuiTabBarFlags_NoTooltip))
+        // Tabs in the labels' face, the chosen one lit yellow.
+        ImGui::PushStyleColor(ImGuiCol_TabHovered, ImVec4(1, 1, 1, 0.06f));
+        ImGui::PushStyleColor(ImGuiCol_TabSelected, ImVec4(0.96f, 0.71f, 0.15f, 0.16f));
+        const bool tabs = ImGui::BeginTabBar("pages", ImGuiTabBarFlags_NoTooltip);
+        if (tabs)
         {
             for (int c = 0; c < kCategories; c++)
             {
@@ -846,7 +990,10 @@ namespace ui
                     continue;
                 ImGuiTabItemFlags tabFlags = (s_tabPending && category == s_category) ? ImGuiTabItemFlags_SetSelected : 0;
                 ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true);
-                bool open = ImGui::BeginTabItem(settings::CategoryName(category), nullptr, tabFlags);
+                ImGui::PushFont(burnout::LabelFont(), 22.0f);
+                bool open = ImGui::BeginTabItem((Upper(settings::CategoryName(category)) + "###" + settings::CategoryName(category)).c_str(),
+                    nullptr, tabFlags);
+                ImGui::PopFont();
                 ImGui::PopItemFlag();
                 if (!open)
                     continue;
@@ -876,6 +1023,13 @@ namespace ui
                 ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, overhang));
                 bool rows = ImGui::BeginChild("rows", ImVec2(0, -footer), ImGuiChildFlags_NavFlattened | ImGuiChildFlags_AlwaysUseWindowPadding);
                 ImGui::PopStyleVar();
+                // The rows in the game's face; the focused one is marked by
+                // RowLabel (yellow between hazard dashes), not ImGui's box.
+                ImGui::PushFont(burnout::RowFont(), kRowFontSize);
+                ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0, 0, 0, 0));
+                ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(1, 1, 1, 0.04f));
+                ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(0.96f, 0.71f, 0.15f, 0.10f));
+                ImGui::PushStyleColor(ImGuiCol_NavCursor, ImVec4(0, 0, 0, 0));
                 if (rows)
                 {
                     float valueWidth = 0.0f;
@@ -887,7 +1041,7 @@ namespace ui
                                 valueWidth = std::max(valueWidth, ValueWidth(o));
                     if (category == Category::Advanced)
                         for (const char* text : { "Saving...", "Checking...", UpdateRowValue() })
-                            valueWidth = std::max(valueWidth, ImGui::CalcTextSize(text).x);
+                            valueWidth = std::max(valueWidth, ImGui::CalcTextSize(Upper(text).c_str()).x);
                     valueWidth += 2 * kSpaceM * s;
                     float arrow = ImGui::GetFrameHeight();
                     ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, cellPadding);
@@ -914,72 +1068,62 @@ namespace ui
                             std::string count = std::format("{} connected", game::BurnoutAddons().size());
                             if (ActionRow("burnout-addons", "Burnout Revenge Add-ons", count.c_str(), valueWidth, s_describedAddons))
                                 s_openAddons = true;
+                            // The version, a row like the others; its help
+                            // line has the build and the legal notices.
+                            const std::string version = Upper((std::string("v") + report::Version()).c_str());
+                            ActionRow("about", "About", version.c_str(), valueWidth, s_describedAbout);
                         }
                         ImGui::EndTable();
                     }
                     ImGui::PopStyleVar();
-                    // Which build this is, for bug reports by hand: under
-                    // the rows, lined up with their labels.
-                    if (category == Category::Advanced)
-                    {
-                        ImGui::Spacing();
-                        ImGui::Indent(LabelInset());
-                        ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - LabelInset());
-                        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-                        ImGui::TextWrapped("%s %s", game::kApplication, report::BuildString());
-                        ImGui::TextWrapped("Burnout Revenge for Apple silicon. Experimental release; see the project release notes for updates.");
-                        // GPL-3.0 section 5(d): the interface shows the
-                        // legal notices (NOTICE, THIRD_PARTY_NOTICES.md).
-                        ImGui::TextWrapped("Copyright (C) 2026 project(u) and SpeedBreaker contributors. Free software under the "
-                                           "GPL-3.0-or-later, with no warranty; third-party licenses come with the game. Not affiliated "
-                                           "with Electronic Arts or Apple.");
-                        ImGui::PopStyleColor();
-                        ImGui::PopTextWrapPos();
-                        ImGui::Unindent(LabelInset());
-                    }
                 }
+                ImGui::PopStyleColor(4);
+                ImGui::PopFont();
                 ImGui::EndChild();
                 ImGui::EndTabItem();
             }
             ImGui::EndTabBar();
         }
+        ImGui::PopStyleColor(2);
 
         ImGui::Separator();
         HelpLine();
 
-        // Buttons (the help above runs to one, two or three lines).
+        // Buttons (the help above runs to one, two or three lines), in the
+        // labels' face.
+        ImGui::PushFont(burnout::LabelFont(), 20.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0.0f);
         ButtonRowAtBottom();
         bool anyChanged = false;
         for (const auto& o : settings::Options())
             if (o.category == s_category && !o.hidden && !settings::IsDefault(o.id))
                 anyChanged = true;
         ImGui::BeginDisabled(!anyChanged);
-        if (ImGui::Button("Reset page"))
+        if (ImGui::Button("RESET PAGE###Reset page"))
             ImGui::OpenPopup("reset");
         ImGui::EndDisabled();
         ImGui::SameLine();
-        if (ImGui::Button("Close"))
+        if (ImGui::Button("CLOSE###Close"))
             CloseSettings();
 #if BR_QUIT_GAME
         // Last, after Close: Down from the rows lands on the footer's first
         // button, so Quit Game takes a Right more, and then asks.
         ImGui::SameLine();
-        if (ImGui::Button("Quit Game") && s_quit.Choose() == quit::Outcome::Asking)
+        if (ImGui::Button("QUIT GAME###Quit Game") && s_quit.Choose() == quit::Outcome::Asking)
         {
             fprintf(stderr, "[ui] Quit Game: asking\n");
             ImGui::OpenPopup(kQuitPopup);
         }
 #endif
+        ImGui::PopStyleVar();
+        ImGui::PopFont();
         ImGui::SameLine();
-        {
-            // (The Controls page leaves out "D-pad: choose": with Quit Game in the
-            // footer its legend was wider than the window and lost "B: close".)
-            const char* legend = s_category == Category::Controls ? "A: set key   Y: clear   X: default   LB RB: page   B: close"
-                                                                 : "D-pad: choose, change   LB RB: page   B: close";
-            float w = ImGui::CalcTextSize(legend).x;
-            ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), ImGui::GetWindowContentRegionMax().x - w));
-            ImGui::TextDisabled("%s", legend);
-        }
+        // (The Controls page leaves out the D-pad: with Quit Game in the
+        // footer its legend was wider than the window and lost Close.)
+        if (s_category == Category::Controls)
+            Legend({ { "Set key", "A" }, { "Clear", "Y" }, { "Default", "X" }, { "Page", "LB RB" }, { "Close", "B" } });
+        else
+            Legend({ { "Choose", "D-PAD" }, { "Page", "LB RB" }, { "Close", "B" } });
 
         if (s_openAddons) { ImGui::OpenPopup("burnout-addons"); s_openAddons = false; }
         bool popup = false;  // a dialog has the input: B is its, not the menu's

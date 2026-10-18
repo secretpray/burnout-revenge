@@ -276,13 +276,13 @@ namespace
         {
             const std::string& l = lines[i];
             // Everything of Quit Game's is compiled only where it's offered.
-            for (const char* name : { "\"Quit Game\"", "SDL_EVENT_QUIT", "SDL_PushEvent", "s_quit", "kQuitPopup", "Quit BurnoutRevenge" })
+            for (const char* name : { "QUIT GAME###Quit Game", "SDL_EVENT_QUIT", "SDL_PushEvent", "s_quit", "kQuitPopup", "Quit BurnoutRevenge" })
                 if (Has(l, name))
                     CHECK(gated[i], "settings_menu.cpp:%zu: %s outside #if BR_QUIT_GAME: %s", i + 1, name, Trim(l).c_str());
             // No way out of its own.
             for (const char* name : { "exit(", "_Exit(", "abort(", "SDL_Quit(", "terminate(" })
                 CHECK(!Has(l, name), "settings_menu.cpp:%zu: %s: %s", i + 1, name, Trim(l).c_str());
-            if (Has(l, "ImGui::Button(\"Quit Game\")"))
+            if (Has(l, "ImGui::Button(\"QUIT GAME###Quit Game\")"))
                 button = int(i);
             if (Has(l, "\"Quit Burnout Revenge? Progress since your last save will be lost.\""))
                 text = int(i);
@@ -298,7 +298,7 @@ namespace
                 push = int(i);
             if (Has(l, "s_quit.Back()"))
                 back = int(i);
-            if (Has(l, "ImGui::Button(\"Close\")"))
+            if (Has(l, "ImGui::Button(\"CLOSE###Close\")"))
                 close = int(i);
         }
         CHECK(button > 0, "the footer has a Quit Game button");

@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.1.3
+
+Settings menu restyled after the game's own Settings screen.
+
+- Orange upright labels, the chosen row white between yellow lines with yellow
+  arrows, volume-style bars for numbers, a SETTINGS [BURNOUT REVENGE FOR MAC]
+  heading with a running chevron strip (still for Reduce motion) and
+  button-glyph hints (Back B, Select A).
+- Key names on the Controls page stay Latin (W, A, S, D) under Cyrillic and
+  other non-Latin layouts; bindings were always physical keys.
+- Advanced: version and legal notices moved into an About row.
+
 ## v0.1.2
 
 Input focus hotfix. Includes the v0.1.1 audio-startup correction.

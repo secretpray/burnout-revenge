@@ -32,8 +32,12 @@ namespace ui::burnout
         const unsigned char kLabelFont[] = {
 #include "barlow_BoldItalic.inc"
         };
+        const unsigned char kRowFont[] = {
+#include "barlow_Bold.inc"
+        };
         ImFont* s_display = nullptr;  // headings
         ImFont* s_label = nullptr;    // buttons, eyebrows, steps
+        ImFont* s_row = nullptr;      // the settings rows (upright)
 
         std::unique_ptr<ImTextureData> s_cover;
         constexpr ImU32 kInk = IM_COL32(19, 18, 17, 255);
@@ -72,6 +76,88 @@ namespace ui::burnout
         config.FontDataOwnedByAtlas = false;
         s_display = io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(kDisplayFont), int(sizeof(kDisplayFont)), 0, &config);
         s_label = io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(kLabelFont), int(sizeof(kLabelFont)), 0, &config);
+        s_row = io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(kRowFont), int(sizeof(kRowFont)), 0, &config);
+    }
+
+    ImFont* DisplayFont() { return Or(s_display); }
+    ImFont* LabelFont() { return Or(s_label); }
+    ImFont* RowFont() { return Or(s_row); }
+
+    void SelectorLines(ImDrawList* draw, ImVec2 a, ImVec2 b)
+    {
+        float s = Scale(), h = 3 * s, fade = std::min(60 * s, (b.x - a.x) * .2f);
+        const ImU32 solid = Faded(kYellow), clear = Faded(kYellow & ~IM_COL32_A_MASK);
+        for (float y : { a.y + h * .5f, b.y - h * .5f })
+        {
+            draw->AddRectFilledMultiColor({a.x, y - h * .5f}, {a.x + fade, y + h * .5f}, clear, solid, solid, clear);
+            draw->AddRectFilled({a.x + fade, y - h * .5f}, {b.x - fade, y + h * .5f}, solid);
+            draw->AddRectFilledMultiColor({b.x - fade, y - h * .5f}, {b.x, y + h * .5f}, solid, clear, clear, solid);
+        }
+    }
+
+    void RowRule(ImDrawList* draw, float x0, float x1, float y)
+    {
+        float s = Scale(), fade = std::min(60 * s, (x1 - x0) * .2f);
+        const ImU32 dark = Faded(IM_COL32(0, 0, 0, 170)), clear = Faded(IM_COL32(0, 0, 0, 0));
+        draw->AddRectFilledMultiColor({x0, y}, {x0 + fade, y + 2 * s}, clear, dark, dark, clear);
+        draw->AddRectFilled({x0 + fade, y}, {x1 - fade, y + 2 * s}, dark);
+        draw->AddRectFilledMultiColor({x1 - fade, y}, {x1, y + 2 * s}, dark, clear, clear, dark);
+    }
+
+    float TitleBand(ImDrawList* draw, ImVec2 a, ImVec2 b)
+    {
+        float s = Scale(), h = b.y - a.y, cut = h * .35f;
+        // Six chevrons, a strip as long as three of the old ones were wide
+        // twice over, scrolling towards the heading.
+        constexpr int kChevrons = 6;
+        const float w = h * .30f, pitch = w * 1.1f, strip = pitch * kChevrons;
+        const float x0 = a.x - 30 * s, text = x0 + strip + 12 * s;
+        Slab(draw, {a.x - 40 * s, a.y}, {std::max(b.x, text + (b.x - a.x)) + 60 * s, b.y}, Faded(IM_COL32(0, 0, 0, 150)), cut);
+        const float phase = ReducedMotion() ? 0.0f : std::fmod(float(ImGui::GetTime()) * pitch * 1.6f, pitch);
+        draw->PushClipRect({x0, a.y}, {x0 + strip, b.y}, true);
+        for (int i = -1; i < kChevrons; i++)
+        {
+            float x = x0 + i * pitch + phase;
+            // Dim at the far end, full yellow nearest the heading.
+            float t = std::clamp((x - x0) / strip, 0.0f, 1.0f);
+            ImU32 color = IM_COL32(int(110 + 135 * t), int(80 + 102 * t), int(22 + 16 * t), int(90 + 165 * t));
+            const ImVec2 points[] = { {x, a.y + h * .18f}, {x + w * .55f, a.y + h * .18f}, {x + w, a.y + h * .5f},
+                {x + w * .55f, b.y - h * .18f}, {x, b.y - h * .18f}, {x + w * .45f, a.y + h * .5f} };
+            draw->AddConcavePolyFilled(points, 6, Faded(color));
+        }
+        draw->PopClipRect();
+        return text;
+    }
+
+    float ButtonGlyph(ImDrawList* draw, ImVec2 at, float height, const char* button)
+    {
+        float s = Scale();
+        ImFont* font = Or(s_label);
+        float size = height * .72f;
+        ImVec2 text = font->CalcTextSizeA(size, FLT_MAX, 0, button);
+        // The Xbox 360 pad's colours, as the game's own hints show them.
+        ImU32 fill = IM_COL32(70, 66, 60, 255);
+        if (!std::strcmp(button, "A")) fill = IM_COL32(96, 168, 36, 255);
+        else if (!std::strcmp(button, "B")) fill = IM_COL32(200, 40, 32, 255);
+        else if (!std::strcmp(button, "X")) fill = IM_COL32(32, 104, 196, 255);
+        else if (!std::strcmp(button, "Y")) fill = IM_COL32(232, 180, 24, 255);
+        bool disc = std::strlen(button) == 1;
+        float w = disc ? height : text.x + height * .7f;
+        if (!draw)
+            return w;  // measured only
+        ImVec2 b(at.x + w, at.y + height);
+        draw->AddRectFilled(at, b, Faded(fill), height * .5f);
+        draw->AddRect(at, b, Faded(IM_COL32(255, 255, 255, 70)), height * .5f, 0, 1.2f * s);
+        draw->AddText(font, size, {at.x + (w - text.x) * .5f, at.y + (height - text.y) * .5f}, Faded(kPaper), button);
+        return w;
+    }
+
+    void HazardDashes(ImDrawList* draw, ImVec2 a, ImVec2 b)
+    {
+        float s = Scale();
+        float h = 4 * s;
+        for (float y : { a.y, b.y })
+            Stripes(draw, {a.x, y - h * .5f}, {b.x, y + h * .5f}, 28 * s, 0, Faded(kYellow), Faded(IM_COL32(30, 27, 22, 255)));
     }
 
     bool ReducedMotion()

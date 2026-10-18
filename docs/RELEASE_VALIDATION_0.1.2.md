@@ -57,6 +57,30 @@ M1 Pro. Next: the same fullscreen + Quit Game sequence with the new package, the
 system log checked for Game Mode and the retry loop, and the user's keyboard
 confirmation after exit; then a relaunch.
 
+## Run 104: Game Mode opt-out (478cf28)
+
+Downloaded 478cf28 package (`LSSupportsGameMode` false), /Applications, the run-103
+profile: also the relaunch check. Log: no installer, game started directly; DualSense
+connected at 7.4 s and stayed; fullscreen set at 23.6 s; Quit Game at 217 s, exit 0;
+0 fatal imports. No focus loss was logged, so Cmd+Tab/Cmd+H were not exercised.
+System log for the session and two minutes after: no gamepolicyd Game Mode entry,
+0 LE parameter-update errors, 0 Bluetooth disconnects (run 103: ~170/min, 3 drops).
+User confirmation: the game worked and Magic Keyboard kept working after Quit Game,
+with no power cycle (the sequence that failed in runs 93 and 103).
+
+## Run 105 and publication
+
+Run 105 (same package and profile): 153.8 s, Quit Game, exit 0, 0 fatal imports;
+system log: no Game Mode, no LE retries, no disconnects. No focus loss was logged,
+so Cmd+Tab/Cmd+H while fullscreen remain unchecked. The user reported everything
+working. v0.1.2 published as Latest at 478cf28; the public download matched
+SHA256SUMS and the built DMG byte for byte. v0.1.0 notes link to it; v0.1.1 stays a
+draft; tags v0.1.0/v0.1.1 untouched.
+
+Runs 106–112 (development builds, test profile): reference captures of the game's
+own menus (the user's screenshots of DRIVER DETAILS [SETTINGS] and the main menu)
+and of the restyled settings menu for v0.1.3. Visual checks only.
+
 ## Process notes
 
 Run 97 opened a visible window without warning, and run 98 followed: the user saw
