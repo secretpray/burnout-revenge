@@ -147,6 +147,52 @@ namespace settings
             { kAnisotropyGame, "game", "Original" },
         };
 
+        // Settings > Wheel > Steering Range: the degrees of the wheel's
+        // turn that reach full lock, of the 900 a G29 and its family turn
+        // (hid/wheel_map.h). 0: all of it, whatever the wheel turns.
+        constexpr EnumEntry kSteeringRangeEntries[] = {
+            { 180, "180", "180" },
+            { 270, "270", "270" },
+            { 360, "360", "360" },
+            { 450, "450", "450" },
+            { 540, "540", "540" },
+            { 720, "720", "720" },
+            { 900, "900", "900" },
+            { 0, "all", "All" },
+        };
+
+        // One of the wheel's axes, as the device numbers them: what
+        // Settings > Wheel > Pedals assigned. Hidden (the page's own row
+        // shows them, and shows them being pressed), and -1 by default:
+        // hid/wheel_map.h's Detect then works it out from the device.
+        constexpr Option WheelAxis(Id id, const char* key, const char* label, const char* env)
+        {
+            return { .id = id, .category = Category::Wheel, .type = Type::Int, .apply = Apply::Live, .hidden = true,
+                     .table = "wheel", .key = key, .label = label,
+                     .description = "Which of the wheel's axes this is, as the device numbers them. -1: from the device.",
+                     .env = env, .defaultValue = -1, .min = -1, .max = 31, .step = 1 };
+        }
+
+        // One end of a pedal's travel, as Settings > Wheel > Calibrate
+        // measured it (hidden). Equal ends: not measured.
+        constexpr Option WheelPoint(Id id, const char* key, const char* label, const char* env)
+        {
+            return { .id = id, .category = Category::Wheel, .type = Type::Int, .apply = Apply::Live, .hidden = true,
+                     .table = "wheel", .key = key, .label = label,
+                     .description = "What the pedal's axis reads there, as Calibrate measured it.",
+                     .env = env, .defaultValue = 0, .min = -32768, .max = 32767, .step = 1 };
+        }
+
+        // The joystick button Settings > Wheel > Calibrate gave a pad
+        // control (hidden). -1: none, and the wheel's model decides.
+        constexpr Option WheelButton(Id id, const char* key, const char* label, const char* env)
+        {
+            return { .id = id, .category = Category::Wheel, .type = Type::Int, .apply = Apply::Live, .hidden = true,
+                     .table = "wheel", .key = key, .label = label,
+                     .description = "Which of the wheel's buttons this control is, as Calibrate recorded it.",
+                     .env = env, .defaultValue = -1, .min = -1, .max = 255, .step = 1 };
+        }
+
         // A Controls row's key: the key (user/key_names.h, by its name
         // there) that drives one Xbox 360 control. Two per control, the
         // second named <key>_2 with the same label. No environment
@@ -290,7 +336,7 @@ namespace settings
               .env = "BURNOUT_TRIGGER_DEADZONE", .defaultValue = 0.02, .min = 0, .max = 0.9, .step = 0.01, .unit = "%" },
             { .id = Id::Vibration, .category = Category::Input, .type = Type::Bool, .apply = Apply::Live,
               .table = "input", .key = "vibration", .label = "Vibration",
-              .description = "Controller rumble.",
+              .description = "Controller rumble, and the knocks a steering wheel's force feedback passes on (Settings > Wheel).",
               .env = "BURNOUT_VIBRATION", .defaultValue = 1 },
             { .id = Id::ButtonPrompts, .category = Category::Input, .type = Type::Enum, .apply = Apply::Live,
               .table = "input", .key = "button_prompts", .label = "Button Prompts",
@@ -300,6 +346,63 @@ namespace settings
               .table = "input", .key = "dualsense_hidapi", .label = "DualSense Raw HID Driver",
               .description = "Off uses Apple's controller driver on Mac, avoiding raw Bluetooth report-mode changes. Try Off if a Bluetooth Magic Keyboard disconnects while a DualSense is connected. On uses SDL's raw HID driver. Restart the game after changing this; controller features depend on the selected driver.",
               .env = "BR_DUALSENSE_HIDAPI", .defaultValue = 0 },
+            // Wheel (Settings > Wheel; hid/wheel_map.h and hid/wheel.cpp
+            // read them). The page shows only while a wheel is connected.
+            { .id = Id::Wheel, .category = Category::Wheel, .type = Type::Bool, .apply = Apply::Live,
+              .table = "wheel", .key = "enabled", .label = "Steering Wheel",
+              .description = "Drive with a connected USB steering wheel. Off: the game ignores it and a controller or the keyboard plays, but it still works these menus.",
+              .env = "BURNOUT_WHEEL", .defaultValue = 1 },
+            { .id = Id::SteeringRange, .category = Category::Wheel, .type = Type::Enum, .apply = Apply::Live,
+              .table = "wheel", .key = "steering_range", .label = "Steering Range",
+              .description = "How many degrees of the wheel's turn reach full lock. Less is quicker to steer; All uses the whole turn. The degrees assume a 900-degree wheel, as the G29 is.",
+              .env = "BURNOUT_STEERING_RANGE", .defaultValue = 540, .min = 0, .max = 900, .entries = kSteeringRangeEntries },
+            { .id = Id::InvertSteering, .category = Category::Wheel, .type = Type::Bool, .apply = Apply::Live,
+              .table = "wheel", .key = "invert_steering", .label = "Invert Steering",
+              .description = "For a wheel whose axis runs the other way: turning left steers left again. Calibrate sets this for you.",
+              .env = "BURNOUT_INVERT_STEERING", .defaultValue = 0 },
+            { .id = Id::SteeringDeadzone, .category = Category::Wheel, .type = Type::Float, .apply = Apply::Live,
+              .table = "wheel", .key = "steering_deadzone", .label = "Steering Deadzone",
+              .description = "How far the wheel turns before the game sees it. A wheel needs none; raise it only if the car pulls to one side.",
+              .env = "BURNOUT_STEERING_DEADZONE", .defaultValue = 0, .min = 0, .max = 0.3, .step = 0.01, .unit = "%" },
+            { .id = Id::SteeringResponse, .category = Category::Wheel, .type = Type::Float, .apply = Apply::Live,
+              .table = "wheel", .key = "steering_response", .label = "Steering Response",
+              .description = "1.00 steers in step with the wheel. Higher is gentler near the centre and sharper near full lock; lower, the other way round.",
+              .env = "BURNOUT_STEERING_RESPONSE", .defaultValue = 1.0, .min = 0.5, .max = 2.0, .step = 0.05 },
+            { .id = Id::ForceFeedback, .category = Category::Wheel, .type = Type::Int, .apply = Apply::Live,
+              .table = "wheel", .key = "force_feedback", .label = "Force Feedback",
+              .description = "How strongly the knocks the game asks for reach the wheel. Needs a wheel whose force feedback this system drives; Vibration (Input) turns it off too.",
+              .env = "BURNOUT_FORCE_FEEDBACK", .defaultValue = 100, .min = 0, .max = 100, .step = 5, .unit = "%" },
+            { .id = Id::CenteringForce, .category = Category::Wheel, .type = Type::Int, .apply = Apply::Live,
+              .table = "wheel", .key = "centering_force", .label = "Centering Force",
+              .description = "How hard the wheel pulls back to straight ahead. A wheel with no spring of its own needs this; it needs force feedback too.",
+              .env = "BURNOUT_WHEEL_CENTERING", .defaultValue = 50, .min = 0, .max = 100, .step = 5, .unit = "%" },
+            // The axes Settings > Wheel > Pedals assigned, as the device
+            // numbers them; -1: work them out from the device itself
+            // (hid/wheel_map.h's Detect).
+            WheelAxis(Id::WheelSteerAxis, "steer_axis", "Steering Axis", "BURNOUT_WHEEL_STEER_AXIS"),
+            WheelAxis(Id::WheelThrottleAxis, "throttle_axis", "Throttle Axis", "BURNOUT_WHEEL_THROTTLE_AXIS"),
+            WheelAxis(Id::WheelBrakeAxis, "brake_axis", "Brake Axis", "BURNOUT_WHEEL_BRAKE_AXIS"),
+            WheelAxis(Id::WheelClutchAxis, "clutch_axis", "Clutch Axis", "BURNOUT_WHEEL_CLUTCH_AXIS"),
+            WheelPoint(Id::ThrottleRest, "throttle_rest", "Throttle at Rest", "BURNOUT_WHEEL_THROTTLE_REST"),
+            WheelPoint(Id::ThrottleFull, "throttle_full", "Throttle Pressed", "BURNOUT_WHEEL_THROTTLE_FULL"),
+            WheelPoint(Id::BrakeRest, "brake_rest", "Brake at Rest", "BURNOUT_WHEEL_BRAKE_REST"),
+            WheelPoint(Id::BrakeFull, "brake_full", "Brake Pressed", "BURNOUT_WHEEL_BRAKE_FULL"),
+            WheelPoint(Id::ClutchRest, "clutch_rest", "Clutch at Rest", "BURNOUT_WHEEL_CLUTCH_REST"),
+            WheelPoint(Id::ClutchFull, "clutch_full", "Clutch Pressed", "BURNOUT_WHEEL_CLUTCH_FULL"),
+            WheelPoint(Id::SteerLeft, "steer_left", "Steering Full Left", "BURNOUT_WHEEL_STEER_LEFT"),
+            WheelPoint(Id::SteerRight, "steer_right", "Steering Full Right", "BURNOUT_WHEEL_STEER_RIGHT"),
+            WheelButton(Id::ButtonA, "button_a", "A Button", "BURNOUT_WHEEL_BUTTON_A"),
+            WheelButton(Id::ButtonB, "button_b", "B Button", "BURNOUT_WHEEL_BUTTON_B"),
+            WheelButton(Id::ButtonX, "button_x", "X Button", "BURNOUT_WHEEL_BUTTON_X"),
+            WheelButton(Id::ButtonY, "button_y", "Y Button", "BURNOUT_WHEEL_BUTTON_Y"),
+            WheelButton(Id::ButtonLB, "button_lb", "LB Button", "BURNOUT_WHEEL_BUTTON_LB"),
+            WheelButton(Id::ButtonRB, "button_rb", "RB Button", "BURNOUT_WHEEL_BUTTON_RB"),
+            WheelButton(Id::ButtonBack, "button_back", "Back Button", "BURNOUT_WHEEL_BUTTON_BACK"),
+            WheelButton(Id::ButtonStart, "button_start", "Start Button", "BURNOUT_WHEEL_BUTTON_START"),
+            WheelButton(Id::ButtonLS, "button_ls", "Left Stick Click", "BURNOUT_WHEEL_BUTTON_LS"),
+            WheelButton(Id::ButtonRS, "button_rs", "Right Stick Click", "BURNOUT_WHEEL_BUTTON_RS"),
+            WheelButton(Id::ButtonShiftUp, "button_shift_up", "Right Stick Up", "BURNOUT_WHEEL_BUTTON_SHIFT_UP"),
+            WheelButton(Id::ButtonShiftDown, "button_shift_down", "Right Stick Down", "BURNOUT_WHEEL_BUTTON_SHIFT_DOWN"),
             // Controls (Settings > Controls; hid/key_map.h reads them). The
             // defaults are v0.1.4's keys: the arrows steer as well as A
             // and D, and are the D-pad; O/L/K/; are the right stick.
@@ -1169,6 +1272,7 @@ namespace settings
         case Category::Audio: return "Audio";
         case Category::Input: return "Input";
         case Category::Controls: return "Controls";
+        case Category::Wheel: return "Wheel";
         case Category::Advanced: return "Advanced";
         default: return "";
         }

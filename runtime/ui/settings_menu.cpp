@@ -19,6 +19,7 @@
 #include <report/report.h>
 #include <user/settings.h>
 #include <hid/key_map.h>     // the Controls page: one row per control, two keys each
+#include <hid/wheel.h>       // the Wheel page: the device, its pedals and what they read
 #include <user/key_names.h>  // a key's name in the file, when SDL has none
 #include <video/frame_rate.h>
 #include <video/presenter.h>
@@ -134,6 +135,12 @@ namespace ui
         int s_slot = 0;              // 0: the row's first key, 1: its second
         constexpr const char* kPressAKey = "PRESS A KEY";
         constexpr const char* kNoKey = "NONE";
+        // The Wheel page's Calibrate row (CalibrateRow): which step is
+        // running, or none. Each one waits for A, so one long pedal press
+        // can't run through the lot (hid/wheel.h).
+        bool s_calibrating = false;
+        hid::wheel::Step s_calStep = hid::wheel::Step::SteerLeft;
+        bool s_describedCal = false;  // the help line describes that row
 
         void EndWait()
         {
@@ -164,9 +171,15 @@ namespace ui
         }
 
         // iPhone and iPad: the Controls page only while a keyboard is
-        // connected (nothing to bind without one).
+        // connected (nothing to bind without one). The Wheel page, on every
+        // device, only while a wheel is plugged in: nothing on it means
+        // anything otherwise. Switching the wheel off doesn't take the page
+        // away with it (hid/wheel.h's Found against Playing), or the row
+        // that switched it off couldn't switch it back on.
         bool PageShown(Category c)
         {
+            if (c == Category::Wheel)
+                return hid::wheel::Found();
 #if defined(__APPLE__) && TARGET_OS_IOS
             if (c == Category::Controls)
                 return SDL_HasKeyboard();
@@ -671,6 +684,78 @@ namespace ui
             return activated;
         }
 
+        // Settings > Wheel > Calibrate. The wheels we know say which axis
+        // each pedal is, and where the axes rest tells a pedal from the
+        // wheel itself (hid/wheel_map.h) - but three identical springs on a
+        // wheel we don't know can only be told apart by someone pressing
+        // them, and which way the wheel turns only by someone turning it.
+        //
+        // So: one step at a time, each showing what it has found and
+        // waiting for A to accept it. B gives up. The help line shows what
+        // every axis reads as it happens, so a wheel can be checked over
+        // without leaving the page.
+        using Step = hid::wheel::Step;
+
+        void CancelCalibrate()
+        {
+            s_calibrating = false;
+            hid::wheel::CancelAssign();
+        }
+
+        void AskFor(Step step)
+        {
+            if (size_t(step) >= hid::wheel::kStepCount)
+            {
+                s_calibrating = false;
+                fprintf(stderr, "[settings] menu: calibrate: done\n");
+                return;
+            }
+            s_calibrating = true;
+            s_calStep = step;
+            hid::wheel::BeginAssign(step);
+        }
+
+        // Every axis and what it reads now, for the help line.
+        std::string WheelReadings()
+        {
+            const hid::wheel::Assignment axes = hid::wheel::Axes();
+            const hid::wheel::Reading now = hid::wheel::Last();
+            std::string text = axes.steer < 0
+                ? "Steering: none"
+                : std::format("Steering axis {}{}: {:+.0f}%", axes.steer,
+                      settings::GetBool(Id::InvertSteering) ? " inverted" : "", double(now.steer) * 100.0);
+            struct Row { const char* name; int axis; float value; };
+            for (const Row& row : { Row{ "Throttle", axes.throttle, now.throttle }, Row{ "Brake", axes.brake, now.brake },
+                                    Row{ "Clutch", axes.clutch, now.clutch } })
+                text += row.axis < 0 ? std::format("   {}: none", row.name)
+                                     : std::format("   {} {}: {:.0f}%", row.name, row.axis, double(row.value) * 100.0);
+            return text;
+        }
+
+        void CalibrateRow(float valueWidth)
+        {
+            // While it runs, the value column counts the steps off: the
+            // names are too long for it, and the help line has them.
+            const std::string value = s_calibrating
+                ? std::format("{}/{}", size_t(s_calStep) + 1, hid::wheel::kStepCount)
+                : std::string("Start");
+            const bool activated = ActionRow("wheel-calibrate", "Calibrate", value.c_str(), valueWidth, s_describedCal);
+            if (!s_calibrating)
+            {
+                if (activated)
+                    AskFor(Step::SteerLeft);
+                return;
+            }
+            // A keeps what the step found, wherever the cursor is: it may
+            // have wandered off the row while both hands were on the wheel.
+            // Nothing happens until the step has something.
+            const bool confirm = activated || ImGui::IsKeyPressed(ImGuiKey_GamepadFaceDown, false) ||
+                ImGui::IsKeyPressed(ImGuiKey_Enter, false) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false) ||
+                ImGui::IsKeyPressed(ImGuiKey_Space, false);
+            if (confirm && hid::wheel::ConfirmAssign())
+                AskFor(Step(size_t(s_calStep) + 1));
+        }
+
         // A (or a click) saves the report.
         void BugReportRow(float valueWidth)
         {
@@ -868,6 +953,31 @@ namespace ui
                     ImGui::TextDisabled("%s", message.empty() ? " " : message.c_str());
                 return;
             }
+            if (s_describedCal)
+            {
+                if (s_calibrating)
+                {
+                    const hid::wheel::Candidate c = hid::wheel::Watch();
+                    PushAccentText();
+                    if (!c.found)
+                        ImGui::Text("%zu of %zu, %s. %s. B stops here, keeping what you've set.", size_t(s_calStep) + 1,
+                            hid::wheel::kStepCount, hid::wheel::StepName(s_calStep), hid::wheel::StepAsk(s_calStep));
+                    else if (hid::wheel::StepIsButton(s_calStep))
+                        ImGui::Text("%s: button %d. A keeps it, or press another.", hid::wheel::StepName(s_calStep), c.button);
+                    else
+                        ImGui::Text("%s: axis %d at %+d, %.0f%% of its travel. A keeps it, or do it again.",
+                            hid::wheel::StepName(s_calStep), c.axis, int(c.full), double(c.moved) * 100.0);
+                    PopAccentText();
+                }
+                else
+                    ImGui::TextWrapped("Teaches the game your wheel: both ends of its turn, each pedal, and a button for "
+                                       "every control. It asks for one at a time and waits for A to keep what it saw. Only "
+                                       "a wheel that comes out wrong needs this.");
+                ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+                ImGui::TextWrapped("%s", WheelReadings().c_str());
+                ImGui::PopStyleColor();
+                return;
+            }
             if (s_described == Id::Count)
             {
                 ImGui::TextDisabled(" ");
@@ -935,6 +1045,20 @@ namespace ui
                 ImGui::TextDisabled("Changes take effect the next time the game starts.");
             else if (std::string note = o.id == Id::FrameRate ? video::AutoFrameRateNote() : std::string(); !note.empty())
                 ImGui::TextDisabled("%s", note.c_str());  // what Auto runs at now
+            // The wheel the page is about - and, for the two rows that need
+            // its motors, whether this system can drive them at all (macOS
+            // has no driver for these wheels, so it cannot).
+            else if (o.category == Category::Wheel)
+            {
+                const std::string name = hid::wheel::Name();
+                if ((o.id == Id::ForceFeedback || o.id == Id::CenteringForce) && !hid::wheel::HasForceFeedback())
+                    ImGui::TextDisabled("%s: this system can't drive its motors, so this does nothing. Steering, the pedals and "
+                                        "the buttons all work.", name.empty() ? "This wheel" : name.c_str());
+                else if (!name.empty())
+                    ImGui::TextDisabled("%s is connected.", name.c_str());
+                else
+                    ImGui::TextDisabled(" ");
+            }
             else
                 ImGui::TextDisabled(" ");
         }
@@ -999,7 +1123,7 @@ namespace ui
             s_tabPending = true;
             s_focusFirstRow = true;
         }
-        if (!PageShown(s_category))  // the keyboard went away while on Controls
+        if (!PageShown(s_category))  // the keyboard, or the wheel, went away while on its page
         {
             s_category = Category::Input;
             s_tabPending = true;
@@ -1019,8 +1143,11 @@ namespace ui
         s_describedAbout = false;
         s_describedSaveBackups = false;
         s_describedMusicFolder = false;
+        s_describedCal = false;
         if (s_waiting != Id::Count && settings::Info(s_waiting).category != s_category)
             EndWait();
+        if (s_calibrating && s_category != Category::Wheel)
+            CancelCalibrate();  // the page has gone (or the wheel has)
         // For the B check at the end: B's nav cancel (in ImGui's NewFrame,
         // before this) takes the waiting row's focus, and KeyRow then ends
         // the wait before that check could see it.
@@ -1092,6 +1219,9 @@ namespace ui
                     if (category == Category::Advanced)
                         for (const char* text : { "Saving...", "Checking...", "Restore pending", UpdateRowValue() })
                             valueWidth = std::max(valueWidth, ImGui::CalcTextSize(Upper(text).c_str()).x);
+                    if (category == Category::Wheel)
+                        for (const char* text : { "START", "17/17" })
+                            valueWidth = std::max(valueWidth, ImGui::CalcTextSize(text).x);
                     valueWidth += 2 * kSpaceM * s;
                     float arrow = ImGui::GetFrameHeight();
                     ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, cellPadding);
@@ -1114,6 +1244,8 @@ namespace ui
                                 }
                         if (category == Category::Audio)
                             MusicFolderRow(valueWidth);
+                        if (category == Category::Wheel)
+                            CalibrateRow(valueWidth);
                         if (category == Category::Advanced)
                         {
                             BugReportRow(valueWidth);
@@ -1152,8 +1284,11 @@ namespace ui
         ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0.0f);
         ButtonRowAtBottom();
         bool anyChanged = false;
+        // The Wheel page's pedal axes are hidden options, and Reset page
+        // does put them back, so they count as a change of the page.
+        const bool hiddenCounts = s_category == Category::Wheel;
         for (const auto& o : settings::Options())
-            if (o.category == s_category && !o.hidden && !settings::IsDefault(o.id))
+            if (o.category == s_category && (!o.hidden || hiddenCounts) && !settings::IsDefault(o.id))
                 anyChanged = true;
         ImGui::BeginDisabled(!anyChanged);
         if (ImGui::Button("RESET PAGE###Reset page"))
@@ -1215,6 +1350,14 @@ namespace ui
                         double from = settings::GetStoredValue(o.id);
                         LogChange(o, from, settings::Reset(o.id));
                     }
+                // The pedals' axes are hidden options: the loop above
+                // leaves them, so the wheel puts them back itself.
+                if (s_category == Category::Wheel)
+                {
+                    CancelCalibrate();
+                    hid::wheel::ResetAxes();
+                    fprintf(stderr, "[settings] menu: calibrate: back to the device's own axes\n");
+                }
                 ImGui::CloseCurrentPopup();
             }
             if (burnout::DialogOption("Cancel", width) || ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight, false) || ImGui::IsKeyPressed(ImGuiKey_Escape, false))
@@ -1244,6 +1387,11 @@ namespace ui
             menu_sounds::Play(menu_sounds::Sound::Back);
             if (wasWaiting)
                 EndWait();
+            else if (s_calibrating)
+            {
+                fprintf(stderr, "[settings] menu: calibrate: stopped at %s\n", hid::wheel::StepName(s_calStep));
+                CancelCalibrate();
+            }
             else
                 CloseSettings();
         }
@@ -1261,6 +1409,7 @@ namespace ui
         s_opened = true;
         menu_sounds::Play(menu_sounds::Sound::Select);
         EndWait();  // a wait the menu was closed under is over
+        CancelCalibrate();  // ...and so is a step it was asking for
         s_takenKey = SDL_SCANCODE_UNKNOWN;
         s_slotRow = Id::Count;
         s_slot = 0;

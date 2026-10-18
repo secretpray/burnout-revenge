@@ -70,6 +70,39 @@ namespace settings
         Vibration,
         ButtonPrompts,  // the game's own prompts' button pictures (gpu/pad_glyphs.h)
         DualSenseHidapi,
+        // Wheel (the [wheel] table): a USB steering wheel as the pad
+        // (hid/wheel_map.h). The page shows itself only while one is
+        // connected; the four axis options are hidden, and hold what
+        // Settings > Wheel > Pedals assigned (-1: work it out from the
+        // device).
+        Wheel,
+        SteeringRange,
+        InvertSteering,
+        SteeringDeadzone,
+        SteeringResponse,
+        ForceFeedback,
+        CenteringForce,
+        WheelSteerAxis,     // hidden
+        WheelThrottleAxis,  // hidden
+        WheelBrakeAxis,     // hidden
+        WheelClutchAxis,    // hidden
+        // Each pedal's two ends, as Calibrate measured them: where it rests
+        // and where it reads fully pressed (hidden; equal values: not
+        // measured, and the wheel's model or its axis is used instead).
+        ThrottleRest, ThrottleFull,
+        BrakeRest, BrakeFull,
+        ClutchRest, ClutchFull,
+        // The wheel's own two ends, as Calibrate measured them at full lock
+        // each way (hidden; equal values: not measured). Between them they
+        // give the centre, how far it turns each way, and which way round
+        // it is.
+        SteerLeft, SteerRight,
+        // The joystick button Calibrate gave each pad control, in
+        // hid/wheel_map.h's Control order (hidden; -1: none of the
+        // player's doing, so the wheel's model decides).
+        ButtonA, ButtonB, ButtonX, ButtonY,
+        ButtonLB, ButtonRB, ButtonBack, ButtonStart,
+        ButtonLS, ButtonRS, ButtonShiftUp, ButtonShiftDown,
         // Controls (the [keys] table): the two keyboard keys that drive
         // each Xbox 360 control, as key codes (user/key_names.h); the
         // second of a pair is always the first's id + 1 (hid/key_map.h
@@ -110,7 +143,7 @@ namespace settings
     // Key: a key code of user/key_names.h (0: no key), saved by its name
     // there ("w", "left_shift", "none"); the menu takes it from a key press.
     enum class Type : uint8_t { Bool, Int, Float, Enum, Key };
-    enum class Category : uint8_t { Display, Graphics, Audio, Input, Controls, Advanced, Count };
+    enum class Category : uint8_t { Display, Graphics, Audio, Input, Wheel, Controls, Advanced, Count };
     enum class Apply : uint8_t { Live, Restart };
 
     // Values of the enum options (GetInt returns them).

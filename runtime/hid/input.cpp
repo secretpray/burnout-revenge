@@ -1,8 +1,11 @@
 // SpeedBreaker runtime. GPL-3.0-or-later (see COPYING). See input.h.
+// A steering wheel's own side of this is hid/wheel.cpp.
 #include <stdafx.h>
 #include "input.h"
 #include "key_map.h"
 #include "rumble_focus.h"
+#include "virtual_wheel.h"
+#include "wheel.h"
 #include <cpu/guest_time.h>
 #include <kernel/function.h>
 #include <ui/ui.h>
@@ -443,9 +446,15 @@ namespace
         }
         int count = 0;
         SDL_JoystickID* ids = SDL_GetGamepads(&count);
-        if (ids && count > 0)
+        // A wheel SDL happens to have a gamepad mapping for belongs to the
+        // wheel, not to this path: one device, one owner (hid/wheel.h).
+        SDL_JoystickID pick = 0;
+        for (int i = 0; ids && i < count && !pick; i++)
+            if (!hid::wheel::Owns(ids[i]))
+                pick = ids[i];
+        if (pick)
         {
-            s_gamepad = SDL_OpenGamepad(ids[0]);
+            s_gamepad = SDL_OpenGamepad(pick);
             if (s_gamepad)
             {
                 // What it can do: a pad without motors takes rumble and ignores it.
@@ -491,7 +500,7 @@ namespace
             return;
         s_noControllerAt = 0;
         // (BURNOUT_INPUT_SCRIPT is the controller of an automated run.)
-        if (s_gamepad || SDL_HasKeyboard() || !s_script.empty())
+        if (s_gamepad || hid::wheel::Playing() || SDL_HasKeyboard() || !s_script.empty())
             return;
         fprintf(stderr, "[input] no controller: %s\n", s_noControllerText);
         ui::Toast(s_noControllerText, 10.0);
@@ -554,6 +563,15 @@ namespace hid
         SDL_SetHint(SDL_HINT_HIDAPI_ENUMERATE_ONLY_CONTROLLERS, "1");
 #endif
         AttachVirtualPad();
+        // A steering wheel (hid/wheel.h), unless this run has the test's
+        // own controller: then that is the only device. The test's own
+        // wheel (BURNOUT_VIRTUAL_WHEEL, hid/virtual_wheel.h) is found as a
+        // real one would be.
+        if (!s_virtualPad)
+        {
+            virtual_wheel::Attach();
+            wheel::Initialize();
+        }
         OpenFirstGamepad();
         std::lock_guard lock(s_mutex);
         s_deviceConnected = true;  // the keyboard always counts as controller 0
@@ -608,6 +626,8 @@ namespace hid
             int count = 0;
             SDL_JoystickID* ids = SDL_GetGamepads(&count);
             Glyphs best = Glyphs::Keyboard;
+            if (wheel::Playing())
+                best = wheel::PlayStationButtons() ? Glyphs::PlayStation : Glyphs::Xbox;
             for (int i = 0; i < count; i++)
                 if (best != Glyphs::PlayStation)
                     best = GlyphsOf(ids[i]);
@@ -637,6 +657,7 @@ namespace hid
 
     void HandleEvent(const SDL_Event& e)
     {
+        wheel::HandleEvent(e);  // a wheel coming or going
         // The hints follow the last real input: a key (not a Command
         // shortcut, not a repeat), a button, or a stick pushed past halfway.
         if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat && !(e.key.mod & SDL_KMOD_GUI))
@@ -645,6 +666,9 @@ namespace hid
             NoteGlyphs(GlyphsOf(e.gbutton.which));
         else if (e.type == SDL_EVENT_GAMEPAD_AXIS_MOTION && (e.gaxis.value > 16384 || e.gaxis.value < -16384))
             NoteGlyphs(GlyphsOf(e.gaxis.which));
+        else if ((e.type == SDL_EVENT_JOYSTICK_BUTTON_DOWN && wheel::Owns(e.jbutton.which)) ||
+                 (e.type == SDL_EVENT_JOYSTICK_HAT_MOTION && e.jhat.value && wheel::Owns(e.jhat.which)))
+            NoteGlyphs(wheel::PlayStationButtons() ? Glyphs::PlayStation : Glyphs::Xbox);  // a steering wheel's
         else if (!s_glyphsKnown && (e.type == SDL_EVENT_GAMEPAD_ADDED || e.type == SDL_EVENT_GAMEPAD_REMOVED))
             LastGlyphs();  // (publishes what is connected)
 
@@ -684,7 +708,7 @@ namespace hid
         {
             OpenFirstGamepad();
 #if defined(__APPLE__) && TARGET_OS_IOS
-            if (s_gamepad)
+            if (s_gamepad || wheel::Playing())
                 WithdrawNoControllerNotice();
 #endif
         }
@@ -695,7 +719,7 @@ namespace hid
             fprintf(stderr, "[input] gamepad removed\n");
             OpenFirstGamepad();
 #if defined(__APPLE__) && TARGET_OS_IOS
-            if (!s_gamepad)
+            if (!s_gamepad && !wheel::Playing())
                 NoControllerNoticeIn(1'000'000'000, kControllerGone);
 #endif
         }
@@ -704,6 +728,7 @@ namespace hid
 
     void Shutdown()
     {
+        wheel::Shutdown();
         if (s_gamepad)
         {
             SendRumble(0, 0);
@@ -717,6 +742,7 @@ namespace hid
         // Update sends a rumble for 5 s at a time and doesn't run meanwhile:
         // stop it now rather than buzz on for a game that stands still.
         ApplyRumbleActivity(s_rumbleFocus.SetSuspended(true));
+        wheel::Suspend();
     }
 
     void Resume()
@@ -753,9 +779,31 @@ namespace hid
         bool padBack = false;  // the controller's Back, as the device reports it
         float rawX = 0, rawY = 0;  // the left stick before its deadzone (BURNOUT_INPUT_LOG)
         const std::string padSteps = StepVirtualPad();
+        if (const std::string wheelSteps = virtual_wheel::Step(SecondsSinceLaunch()); !wheelSteps.empty())
+            fprintf(stderr, "[wheel] virtual wheel %s\n", wheelSteps.c_str());
         const float deadzone = settings::GetFloat(settings::Id::StickDeadzone);
         const float triggerDeadzone = settings::GetFloat(settings::Id::TriggerDeadzone);
-        if (s_gamepad)
+        // A steering wheel first, while one is plugged in and Settings >
+        // Wheel has it on: it brings its own steering curve and its pedals
+        // their own calibration (hid/wheel_map.h), so the stick's radial
+        // deadzone has nothing to do here. A button bound to push the right
+        // stick (none by default in Burnout: hid/wheel_map.h) does so.
+        wheel::Reading wheelRead;
+        const bool onWheel = wheel::Sample(wheelRead);
+        if (onWheel)
+        {
+            p.buttons = uint16_t(wheelRead.buttons & ~uint16_t(XAMINPUT_GAMEPAD_BACK));
+            padBack = wheelRead.back;
+            if (PadBackForGame(padBack, wheelRead.start))
+                p.buttons |= XAMINPUT_GAMEPAD_BACK;
+            lx = wheelRead.steer;
+            ry = float(wheelRead.rightY) / 32767.0f;
+            lt = wheelRead.brake;
+            rt = wheelRead.throttle;
+            rawX = lx;
+            rawY = ly;
+        }
+        else if (s_gamepad)
         {
             static const std::pair<SDL_GamepadButton, uint16_t> map[] = {
                 { SDL_GAMEPAD_BUTTON_SOUTH, XAMINPUT_GAMEPAD_A }, { SDL_GAMEPAD_BUTTON_EAST, XAMINPUT_GAMEPAD_B },
@@ -823,7 +871,7 @@ namespace hid
         p.ry = ToShort(ry);
         p.leftTrigger = Trigger(lt, triggerDeadzone);
         p.rightTrigger = Trigger(rt, triggerDeadzone);
-        if (s_gamepad)
+        if (s_gamepad || onWheel)
             LogStick(rawX, rawY, lx, ly, rawLt, rawRt, p.leftTrigger, p.rightTrigger);
         if (!padSteps.empty())
             fprintf(stderr, "[input] virtual pad %s: left stick raw (%+.4f, %+.4f) -> game (%d, %d), right (%d, %d); "
@@ -898,6 +946,11 @@ namespace hid
         s_rumbleFocus.Filter(low, high);
         if (rumble && s_gamepad)
             SendRumble(low, high);
+        // The wheel's own force feedback: every frame, since Settings >
+        // Wheel > Force Feedback and Centering Force can change under it
+        // without the game asking for anything new.
+        wheel::Rumble(low, high, vibration);
+        wheel::Update();
     }
 }
 
@@ -994,6 +1047,12 @@ namespace
     }
 }
 
+// XInput's device subtypes, of which xbox.h names only the gamepad. The
+// Xbox 360 version of the game supports racing wheels and asks what is
+// connected through XamInputGetCapabilities (its own code queries it in two
+// places), so a wheel says so for itself instead of passing as a pad.
+constexpr uint8_t XAMINPUT_DEVSUBTYPE_WHEEL = 0x02;
+
 uint32_t XamInputGetCapabilities(uint32_t userIndex, uint32_t flags, XAMINPUT_CAPABILITIES* caps)
 {
     bool scripted = !s_script.empty();
@@ -1002,9 +1061,22 @@ uint32_t XamInputGetCapabilities(uint32_t userIndex, uint32_t flags, XAMINPUT_CA
         if ((userIndex != 0 && userIndex != 0xFF) || !(s_deviceConnected || scripted))
             return ERROR_DEVICE_NOT_CONNECTED;
     }
+    // A wheel in play says it is one. The type stays the gamepad one, as
+    // it is for every XInput device; only the subtype differs.
+    //
+    // Reporting a real wheel's narrower capabilities as well (no sticks but
+    // its own axis, the force-feedback flag) was tried and changed nothing
+    // the game does, so it is not worth the risk to the paddles: they reach
+    // the game as the right stick, which such a wheel hasn't got.
+    const bool asWheel = hid::wheel::Playing();
     memset(caps, 0, sizeof(*caps));
     caps->Type = XAMINPUT_DEVTYPE_GAMEPAD;
-    caps->SubType = XAMINPUT_DEVSUBTYPE_GAMEPAD;
+    caps->SubType = asWheel ? XAMINPUT_DEVSUBTYPE_WHEEL : XAMINPUT_DEVSUBTYPE_GAMEPAD;
+    // What the device has stays the pad's whole set, whichever subtype it
+    // reports: the wheel's paddles reach the game as the right stick and
+    // its buttons as the pad's, so the game is told those exist. A real
+    // 360 wheel reports no right stick at all, and the game would have no
+    // reason to read one.
     caps->Gamepad.wButtons = ByteSwap(uint16_t(0xF3FF));
     caps->Gamepad.bLeftTrigger = 0xFF;
     caps->Gamepad.bRightTrigger = 0xFF;
@@ -1012,6 +1084,14 @@ uint32_t XamInputGetCapabilities(uint32_t userIndex, uint32_t flags, XAMINPUT_CA
         *v = ByteSwap(int16_t(0xFFC0));
     caps->Vibration.wLeftMotorSpeed = 0xFFFF;
     caps->Vibration.wRightMotorSpeed = 0xFFFF;
+    // On the first ask, and on any change: whether the game looks at all,
+    // and what it was told.
+    static int told = -1;
+    if (int(asWheel) != told)
+    {
+        told = int(asWheel);
+        fprintf(stderr, "[input] the game asked what is connected: told it a %s\n", asWheel ? "racing wheel" : "gamepad");
+    }
     return ERROR_SUCCESS;
 }
 

@@ -106,6 +106,9 @@
 
 - Xbox controllers and DualSense through SDL, with vibration. Back + Start
   (Share + Options on a DualSense) opens the settings anywhere.
+- USB steering wheels (Logitech G29 and its family): wheel, pedals, buttons
+  and Settings > Wheel with a Calibrate row; force feedback where the
+  system can drive the wheel.
 - Full keyboard play. Every Xbox 360 control can take two keys, remapped in
   the Controls page; bindings are physical keys, so they work on any layout.
 - Button prompts follow the device you use, in the port's menus and in the

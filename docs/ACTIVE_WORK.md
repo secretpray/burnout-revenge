@@ -1,6 +1,6 @@
 # Открытые задачи
 
-Обновлено 19.10.2026 (v0.1.13). Только незавершённая/плановая работа; история — отдельно.
+Обновлено 19.10.2026 (v0.1.13 + руль). Только незавершённая/плановая работа; история — отдельно.
 
 - [x] v0.1.2 опубликован (Latest, 478cf28): отказ от macOS Game Mode; прогоны 104/105 чистые
   по системному журналу, клавиатура после Quit Game подтверждена пользователем.
@@ -170,7 +170,20 @@
    __C_specific_handler (исключения), XamParseGamerTileKey/ReadTileToTexture, XamSession*,
    XamShow{Friends,GamerCardForXUID,MessageCompose,PlayerReview}UI, XamUserAreUsersFriends — ни
    один не встречен офлайн. Не проверены: Player File, Multiplayer на двух падах.
-8. Руль (SpeedBreaker PR #29, открыт): G29 через SDL joystick, на macOS без force feedback — позже.
+8. [~] **Руль** (19.10, перенос SpeedBreaker PR #29 с `ae418a8`; руля у пользователя нет):
+   `hid/wheel.*`, `hid/wheel_map.h`, Settings > Wheel (Calibrate), тест wheel_map_test (70/70).
+   Под Burnout: передач нет — лепестки G29 = RB/LB как R1/L1 у DualSense, R2/L2 свободны,
+   шаги калибровки «правый стик вверх/вниз» убраны (остались в `BURNOUT_WHEEL_BUTTONS`);
+   значки подсказок с руля — PlayStation (G920/G923 Xbox — Xbox). Исправлено против PR:
+   без SDL-геймпада ImGui обнулял кнопки руля в меню (флаг HasGamepad); калибровка педали
+   принимала отпущенный газ/возврат руля к центру за нажатие (тормоз получал ось газа).
+   Проверка на виртуальном G29 (`BURNOUT_VIRTUAL_WHEEL`, hid/virtual_wheel.h; папка
+   speedbreaker/build/wheel-validation, прогоны w1–w4, p1): по логу руль ±1 → стик ±32766,
+   газ/тормоз → 255; по кадрам — меню и заезд Race с руля, Settings > Wheel по аккорду
+   Share + Options и R1, калибровка 1/15…5/15 (оси 0/2/3/1). XamInputGetCapabilities игра
+   не вызывает — подтип «wheel» ни на что не влияет. Геймпад (p1) без изменений.
+   **Нужно вручную на настоящем руле:** оси/педали без калибровки, кнопки, force feedback
+   (виртуальное устройство его не имеет).
 9. [x] **HUD на ultrawide по краям** (идея Takedawn; 18.10, прогоны 390–405 в окнах 2,13:1 и 32:9,
    кадры): символов нет (RTTI только std), поэтому элементы находятся по отрисовке —
    `game/hud_anchor.h`: куски HUD гонки (flush `sub_82355FD0`, цепочка вызовов 0x8218–0x8219xxxx,

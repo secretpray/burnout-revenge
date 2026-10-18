@@ -18,6 +18,10 @@
   incorporated through SpeedBreaker v0.1.5.
 - **aleszczynskig**: transparent macOS title bar (SpeedBreaker PR #23).
 - **love-gamer**: keyboard remapping contributions to SpeedBreaker.
+- **byteofmydream**: USB steering wheel support (SpeedBreaker PR #29, branch
+  `claude/macos-usb-steering-wheel-dca9ae` at `ae418a8`): `hid/wheel.*`,
+  `hid/wheel_map.h`, Settings > Wheel and `wheel_map_test`, adapted here to
+  Burnout's controls (no gear shift).
 - **secretpray**: Burnout Revenge macOS integration, testing and project direction.
 
 Additional bundled components, their authors and licenses are listed in
