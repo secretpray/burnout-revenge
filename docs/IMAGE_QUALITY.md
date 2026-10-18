@@ -110,3 +110,32 @@ neighbour difference, lower-left road): 100% median 7.6, 50% 8.9, 0% 12.5. The 5
 of the 7 (6.8–15.1 against 9.9–15.9). Bloom 100/50/0 at the same moment (palms
 against the sky under the arch): the haze steps down, the sky stays as bright. No
 GLSL compile failures in any run.
+
+## HDR/EDR: reconnaissance (run hdr-1, 18.10)
+
+What the game has to give before its grade:
+
+- Every colour target of a race frame is `k_8_8_8_8` UNORM (`RB_COLOR_INFO` format 0 on
+  all 1478 draws of run 172's frame): the scene itself never holds values above 1.
+- The composite (`ps_2072de…`) sums the 8 scene taps, scales them by an exposure
+  constant, adds the bloom, mixes towards a tint, then looks the colour up in the
+  grade LUT (`t3d_2`), which clamps it to [0, 1]. Only that sum can pass 1.
+- Measured by replacing the LUT fetch with the incoming colour halved (an
+  uncommitted experiment, `BURNOUT_PRELUT_VIEW=1`; display gamma, sharpening and AA
+  off): in race frames the colour going into the LUT averages 0.3–0.6; 1–3% of the
+  pixels pass 1 (sparks, lamps, sky edges under the bloom), up to 2 (the view's own
+  limit). The LUT then expands the rest: the sky at ~0.8 comes out near white.
+
+So an EDR picture would be the SDR grade as it is, with those few highlights
+extended past white: an inverse tone map rather than recovered HDR. The way there:
+an `R16G16B16A16_SFLOAT` swapchain in `VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT`
+(MoltenVK lists it among the 60 formats it offers; the presenter picks sRGB
+`B8G8R8A8_UNORM` today), the excess over 1 carried from the composite to the
+presenter (the front image is 8-bit), and the screen's headroom from
+`NSScreen.maximumExtendedDynamicRangeColorComponentValue`.
+
+The development machine's display (Samsung Smart M70D, 4K, the main display)
+reports a potential EDR headroom of 1.0: HDR is off or unavailable there, and
+EDR output would change nothing on it. Not started; worth it only with an HDR
+display to judge it on (a MacBook Pro's XDR screen, or HDR enabled for the monitor).
+
