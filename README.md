@@ -46,12 +46,10 @@ GPU time is too high. FSR 1 and experimental MetalFX Spatial are available for
 upscaling; neither generates frames. The game's simulation remains capped at 60.
 
 On Mac, DualSense defaults to Apple's controller backend. A restart-only
-**DualSense Raw HID Driver** option selects SDL's raw backend. Neither driver
-proved a fix for the reported system-wide Magic Keyboard failure after returning
-to the game over Bluetooth. A short USB comparison passed. The corrected SDL
-audio-startup candidate still reproduced the keyboard issue; v0.1.1 remains a
-draft. A later focus-handling candidate passed a short physical keyboard test;
-its final package is still pending. See [validation](docs/RELEASE_VALIDATION_2026-10-18.md) and the
+**DualSense Raw HID Driver** option selects SDL's raw backend. The reported
+system-wide Magic Keyboard failure after playing over Bluetooth followed macOS
+Game Mode in the system log on the test Mac; v0.1.2 opts out of Game Mode and is
+being validated. See [validation](docs/RELEASE_VALIDATION_0.1.2.md) and the
 [current work plan](docs/ACTIVE_WORK.md).
 
 Add-ons can also be imported from Settings. Automatic import searches mounted

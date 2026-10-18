@@ -4,6 +4,8 @@
 
 Input focus hotfix. Includes the v0.1.1 audio-startup correction.
 
+- Opts out of macOS Game Mode. On the test Mac, Game Mode's Bluetooth retuning
+  preceded DualSense drops and the system-wide Magic Keyboard failure.
 - Controller vibration requests are dropped while the game is unfocused,
   hidden, minimized or suspended; pending output is stopped on focus loss.
 - Hiding or minimizing the window releases held keys; restore re-checks focus.
@@ -14,9 +16,8 @@ Input focus hotfix. Includes the v0.1.1 audio-startup correction.
 - Once your disc checks out, the setup plays EA Trax from your own copy
   (M switches it off; Mute and volume settings apply). Nothing is shipped.
 
-A short Bluetooth test kept Magic Keyboard working in the game and after returning
-to it. This is not a guarantee for every Bluetooth accessory or Mac; USB remains a
-fallback. Live frame generation is still off.
+Tested on one M1 Pro with its own Bluetooth peripherals; not a guarantee for
+every accessory or Mac. USB remains a fallback. Live frame generation is still off.
 
 ## v0.1.1
 

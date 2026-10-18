@@ -7,7 +7,7 @@
 # The release's checks of a Mac app (scripts/macos/make_app.py), that it opens on the oldest macOS it
 # says it does (default: CMakeLists.txt's BR_OSX_DEFAULT_TARGET, 15.0) and needs nothing outside itself.
 # A .dmg is checked against its .sha256 (when there is one) and mounted read-only to check the app in it.
-#   1. Info.plist: LSMinimumSystemVersion is that macOS.
+#   1. Info.plist: LSMinimumSystemVersion is that macOS, and LSSupportsGameMode is false (make_app.py says why).
 #   2. Every Mach-O in the app: arm64 only, built for that macOS or an older one; the game for exactly it.
 #   3. Loads nothing outside the app or the system: every library @rpath/ or /usr/lib/ or /System/, and
 #      rpaths only @executable_path/../Frameworks and @loader_path; no build machine's folders in the files
@@ -312,6 +312,9 @@ def check(app, minimum, sdk):
     print(f'1. Info.plist: LSMinimumSystemVersion {declared}, v{plist.get("CFBundleShortVersionString")} '
           f'({plist.get("BurnoutRevengeCommit")}): {"ok" if good else "FAIL"}')
     ok &= bool(good)
+    game_mode = plist.get('LSSupportsGameMode')
+    print(f'   LSSupportsGameMode {game_mode}: {"ok" if game_mode is False else "FAIL (Game Mode must stay off)"}')
+    ok &= game_mode is False
     files = macho_files(app)
     exe = os.path.join(app, 'Contents/MacOS', plist.get('CFBundleExecutable', 'BurnoutRevenge'))
     floor = version_tuple(minimum)

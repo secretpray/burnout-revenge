@@ -655,9 +655,15 @@ def main():
             'CFBundleVersion': build_number(commit),
             'BurnoutRevengeCommit': commit + ('-dirty' if dirty else ''),
             'LSMinimumSystemVersion': minimum,
-            # A game: macOS Game Mode (CPU/GPU priority, lower Bluetooth
-            # latency for controllers) when it runs fullscreen.
+            # A game, but without macOS Game Mode. Game Mode's Bluetooth
+            # retuning (shorter HID intervals) was logged by bluetoothd
+            # failing and retrying ~3 times a second for the whole fullscreen
+            # session; the DualSense dropped 6 s in and Magic Keyboard was
+            # lost 5 s after Game Mode ended (runs 93 and 103). The same game
+            # outside Game Mode (run 96) had neither. See
+            # docs/RELEASE_VALIDATION_0.1.2.md.
             'LSApplicationCategoryType': 'public.app-category.racing-games',
+            'LSSupportsGameMode': False,
             'GCSupportsControllerUserInteraction': True,
             'NSHighResolutionCapable': True,
             'NSHumanReadableCopyright': 'Copyright (C) 2026 project(u) and SpeedBreaker contributors. Free software '

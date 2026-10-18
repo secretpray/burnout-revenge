@@ -12,9 +12,9 @@ runtime целиком. Открытые задачи — в ACTIVE_WORK.md; и�
 | Рабочая копия для нового чата | `/Users/secretpray/Documents/Projects/XBOX360/burnout-revenge` |
 | Существующая сборочная копия | `/Users/secretpray/Documents/Projects/XBOX360/speedbreaker/build/standalone/burnout-revenge` |
 | Последний runtime checkpoint | `2cf1d87`: focus/suspension gate, Cmd shortcuts, diagnostics; `99fcf50`: отдельный SDL probe. Последующие docs-коммиты не меняют этот код. |
-| Установлено в Applications | **v0.1.1 / cda797a**, скачанный DMG. Новых focus-правок в нём НЕТ. |
-| Публикация | v0.1.0 опубликован; v0.1.1 остаётся draft. Тег v0.1.1 уже существует; не передвигать. |
-| Ручной тест нового input-кандидата | 96: 313,5 с, exit 0; пользователь подтвердил работу Magic Keyboard в игре и после возврата. Это короткая положительная проверка, не универсальная гарантия. |
+| Установлено в Applications | Скачанный draft **v0.1.2 / cb135aa**; v0.1.1 сохранён в приватном backup. |
+| Публикация | v0.1.0 опубликован; v0.1.1 и v0.1.2 — draft. Тег v0.1.1 не передвигать; тег v0.1.2 создаётся только при публикации. |
+| Ввод / Bluetooth | 103 повторил отказ в пакете. Журнал связывает отказы с macOS Game Mode (96 прошёл без Game Mode). Кандидат с `LSSupportsGameMode=false` проверяется. |
 | Автоматические тесты | standalone 61/61; общий Burnout 63/63; NFSMW 62/62. Все прошли с нужным VM/Metal-доступом, последовательно. |
 | Экранная клавиатура | Пока оставить нашу. Оригинальный игровой APT-путь не восстановлен; диалог Xerenge тоже ImGui. |
 | Графика | Live FG выключена. FSR 1 и MetalFX Spatial уже есть. |
