@@ -55,6 +55,9 @@
 - [ ] Add-on: пакеты — ключи разблокировки (один Content.txt «ThisIsContent» в каждом), машины
   уже в данных игры. Игра перечисляет все 6 (`game enumerates 6 pack(s)`). Осталось вручную
   проверить в Car Select шесть машин: Spike TV, Monster, Plantronics, 360 livery, Yellowcard, Dolby.
+- [x] v0.1.9 опубликован (Latest, ee4fc99), установлен в Applications: кнопки игры по устройству,
+  Bloom/Motion Blur, Skip Intro Movies, подсказка о частоте экрана, 11 импортов; README и
+  скриншоты (Graphics/Bloom, Input/Button Prompts, гонка с Bloom off и DualSense) обновлены.
 - [x] Этап 7, начало: пропуск заставок (game/movies.cpp: sub_821FEBC0 запоминает ролик, sub_82357CC0
   отвечает «закончился» только для плеера заставки; прогоны 163/164: титул к 8 с, гонка к 45 с);
   11 импортов (kernel/imports_offline.cpp, поведение Xenia/rexglue, код свой) — fatal stubs 57 → 46.

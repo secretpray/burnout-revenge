@@ -12,10 +12,10 @@ runtime целиком. Открытые задачи — в ACTIVE_WORK.md; и�
 | Рабочая копия для нового чата | `/Users/secretpray/Documents/Projects/XBOX360/burnout-revenge` |
 | Существующая сборочная копия | `/Users/secretpray/Documents/Projects/XBOX360/speedbreaker/build/standalone/burnout-revenge` |
 | Последний runtime checkpoint | `2cf1d87`: focus/suspension gate, Cmd shortcuts, diagnostics; `99fcf50`: отдельный SDL probe. Последующие docs-коммиты не меняют этот код. |
-| Установлено в Applications | **v0.1.8 / 38bb8e2** (build 37), опубликованный пакет. Предыдущий .app (build 35) — в приватном backup. |
-| Публикация | **v0.1.8 — Latest** (38bb8e2); v0.1.7…v0.1.2 и v0.1.0 опубликованы; v0.1.1 — draft. Теги не передвигать. |
+| Установлено в Applications | **v0.1.9 / ee4fc99** (build 49), скачанный опубликованный пакет. Предыдущий .app (0.1.8 build 37) — в приватном backup. |
+| Публикация | **v0.1.9 — Latest** (ee4fc99); v0.1.8…v0.1.2 и v0.1.0 опубликованы; v0.1.1 — draft. Теги не передвигать. |
 | Ввод / Bluetooth | Отказы связаны с macOS Game Mode; v0.1.2 отказывается от него, 104/105 чистые. Fullscreen Cmd+Tab не проверен. |
-| Автоматические тесты | standalone 61/61; общий Burnout 63/63; NFSMW 62/62. Все прошли с нужным VM/Metal-доступом, последовательно. |
+| Автоматические тесты | standalone 65/65 (v0.1.9). |
 | Экранная клавиатура | Пока оставить нашу. Оригинальный игровой APT-путь не восстановлен; диалог Xerenge тоже ImGui. |
 | Графика | Live FG выключена. FSR 1, MetalFX Spatial и SMAA 1x (по умолчанию с v0.1.5) уже есть. |
 | Совместимость | Последний аудит: 218 импортов, 161 обработчик, 57 fatal stubs. Полная карьера/все режимы не подтверждены. |
