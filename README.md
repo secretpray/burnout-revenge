@@ -1,75 +1,225 @@
-# Burnout Revenge for Mac
+<p align="center">
+  <img src="assets/AppIcon.png" alt="The app icon: the Burnout Revenge cover art" width="128">
+</p>
 
-An experimental, unofficial native port of **Burnout Revenge (Xbox 360, USA)**
-for Apple silicon. PowerPC code is recompiled ahead of time; graphics run through
-Vulkan/MoltenVK. Bring your own disc image: no ISO, extracted game files, add-on
-packs or generated PPC source files are included in this repository or the
-downloads. The application contains native code recompiled from the supported
-executable and requires the matching user-supplied ISO for its assets.
+<h1 align="center">Burnout Revenge for Mac</h1>
 
-[Download](https://github.com/secretpray/burnout-revenge/releases) ·
-[Build](docs/BUILD.md) · [Progress and limitations](docs/PROGRESS.md) ·
-[Rendering research](docs/RENDERING.md) · [Credits](CREDITS.md)
+<p align="center">
+  An unofficial native port of <i>Burnout Revenge</i> (Xbox 360, USA) for Apple silicon Macs.<br>
+  The game's PowerPC code is recompiled ahead of time into an arm64 program; graphics run on Metal through Vulkan/MoltenVK.<br>
+  You bring the game from your own disc.
+</p>
 
-## Install
+<p align="center">
+  <a href="https://github.com/secretpray/burnout-revenge/releases/latest"><b>Download</b></a>
+  &nbsp;·&nbsp;
+  <a href="#quick-start">Quick start</a>
+  &nbsp;·&nbsp;
+  <a href="#highlights">Highlights</a>
+  &nbsp;·&nbsp;
+  <a href="#settings">Settings</a>
+  &nbsp;·&nbsp;
+  <a href="CHANGELOG.md">Changelog</a>
+  &nbsp;·&nbsp;
+  <a href="docs/BUILD.md">Build</a>
+</p>
 
-1. Download and open the macOS Apple silicon DMG from Releases, then drag
+> [!IMPORTANT]
+> This is a non-commercial fan project, not affiliated with or endorsed by
+> Electronic Arts, Criterion Games, Microsoft, Sony or Apple. No game data is
+> included or distributed: no disc image, extracted files, add-on packs, music
+> or generated PPC sources. You need your own USA Xbox 360 disc image. Please do
+> not ask for game files or attach them to issues.
+
+<p align="center">
+  <img src="docs/screenshots/race-boost.jpg" alt="Traffic Attack in Sunshine Keys: the red car boosts down a seafront road, sparks flying off a railing, the timer at 17.04" width="100%">
+</p>
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/crash-camera.jpg" alt="The crash camera: the player's car slides into the traffic in a spray of sparks"><br><sub>The crash camera.</sub></td>
+    <td width="50%"><img src="docs/screenshots/race-near-miss-my-music.jpg" alt="A near miss at 137 mph on a city road, with a Now playing notice at the bottom naming the player's own song"><br><sub>A near miss, with your own music playing.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/replay-wide-window.jpg" alt="The Replay screen after a race in a window wider than 16:9: the street fills the whole width, the replay controls below"><br><sub>Replay after a race, in a wider-than-16:9 window.</sub></td>
+    <td width="50%"><img src="docs/screenshots/race-wide-window.jpg" alt="A race in the same wide window: the scene widens to the edges, the HUD keeps its shape"><br><sub>Wide windows show more of the road (Hor+).</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/settings-graphics.jpg" alt="The port's settings menu over the title screen, on the Graphics page: Anti-Aliasing, SMAA, MetalFX Spatial upscaling, Sharpening, Anisotropic Filtering, Mipmaps"><br><sub>The port's settings, Graphics page.</sub></td>
+    <td width="50%"><img src="docs/screenshots/setup-make-it-yours.jpg" alt="The first-run setup on its second page: the cover art on the left, the install folder and the add-on car packs on the right"><br><sub>First-run setup.</sub></td>
+  </tr>
+</table>
+
+<sub>Unedited screenshots from this port on an M1 Pro. The game content in them belongs to its owners.</sub>
+
+**TL;DR**
+
+- The original 2006 Xbox 360 game runs as a native Mac app: its own cars, tracks,
+  physics, menus, EA Trax and saves. Nothing is remastered; the extras are
+  options on top.
+- Compared with the console: up to 4K internal resolution, SMAA or FXAA,
+  FSR 1 or MetalFX upscaling, 16x anisotropic filtering, any window shape,
+  your own music instead of EA Trax, keyboard play and save backups.
+- [Download](https://github.com/secretpray/burnout-revenge/releases/latest) the DMG, drag the app to
+  Applications, open it and choose your disc image. It checks and installs the
+  game, then you play.
+- Updates install over the old version. Saves and settings stay.
+- Settings: **F1**, **Cmd+,** or **Back + Start** on a controller.
+
+## Highlights
+
+**Picture**
+
+- Internal resolution from 1x (720p, as on the console) to 3x (2160p). Auto
+  picks it from the size of the window.
+- SMAA 1x (default) or FXAA anti-aliasing. SMAA keeps text, number plates and
+  textures sharper for about 0.4 ms more GPU time at 1080p.
+- Upscaling with Bicubic, Bilinear, AMD FSR 1 or Apple MetalFX Spatial
+  (experimental), with adjustable sharpening.
+- Up to 16x anisotropic filtering, mipmaps, a brightness control and the Xbox
+  360's own display gamma ramp.
+- Any window shape: a wider window shows more at the sides (Hor+), a taller one
+  (16:10, 4:3) more above and below (Vert+), with the HUD kept in shape.
+  Widescreen keeps the original 16:9 with bars.
+- 60 fps, as the console. Fullscreen, V-Sync, and Cmd+H and Cmd+Tab that work
+  in fullscreen.
+
+**Sound and music**
+
+- The game's own engines, crashes and EA Trax, decoded from your disc.
+- **My Music**: Settings > Audio > Music plays your own MP3, AAC, ALAC, FLAC,
+  WAV or AIFF files instead of EA Trax, shuffled, with a "Now playing" notice
+  naming each song. The game's pauses, fades and crash silence apply to them.
+- The game's sound steps back while the settings menu is open. Mute, Mute in
+  Background and a master volume.
+
+**Controls**
+
+- Xbox controllers and DualSense through SDL, with vibration. Back + Start
+  (Share + Options on a DualSense) opens the settings anywhere.
+- Full keyboard play. Every Xbox 360 control can take two keys, remapped in
+  the Controls page; bindings are physical keys, so they work on any layout.
+- Button hints in the port's menus follow the device you use: PlayStation
+  shapes, Xbox buttons or key caps.
+
+**A menu in the game's own style**
+
+- A settings menu modelled on the game's Settings screen: its fonts, its
+  orange rows and yellow bands, its running chevrons and button hints. Every
+  change applies live, and each row explains itself.
+- Dialogs, notices and the "What's new" note look like the game's own prompts.
+
+**Setup and saves**
+
+- A first-run setup in the game's style: choose your ISO, and all 802 files are
+  checked against the supported release before anything is installed. EA Trax
+  from your own disc plays while it installs.
+- Add-on car packs: choose a folder at setup, import later from Settings, or
+  let the game find `XBOX360/454107DC/00000002` on a mounted drive.
+- Save backups: each launch backs up your saves when they changed (the newest
+  10 are kept). Settings > Advanced > Save Backups restores one.
+- Save Bug Report gathers the logs and settings into one file; Check for
+  Updates asks GitHub for a newer release.
+
+## Quick start
+
+1. Download **BurnoutRevenge-x.y.z-macos.dmg** from
+   [Releases](https://github.com/secretpray/burnout-revenge/releases/latest) and drag
    **Burnout Revenge.app** to Applications.
-2. Open it. The app is signed ad hoc, not notarized. If macOS blocks it, use
-   System Settings → Privacy & Security → Open Anyway.
-3. On the first launch, choose your **USA Xbox 360 ISO**. Optionally choose the
-   folder with your own add-on car packs, then install. All 802 game files are
-   checked against the supported version.
-4. Later launches go directly to the game. Settings and saves are kept in
-   `~/Library/Application Support/BurnoutRevenge`; caches in
-   `~/Library/Caches/BurnoutRevenge`.
+2. Open it. The app is signed ad hoc, not notarized: if macOS blocks it, use
+   System Settings > Privacy & Security > Open Anyway.
+3. Choose your **USA Xbox 360 disc image** (.iso). Optionally choose an install
+   folder and your add-on car packs, then Install & Verify.
+4. Start your engines. Later launches go straight to the game.
 
-Requires an Apple silicon Mac with macOS 15 or later. Development and races were
-checked on an M1 Pro running macOS 27.0.1; other Mac models and a complete career
-playthrough are not yet verified. PAL/Japanese discs, title updates, GOD packages
-and Xbox save imports are not supported in this release.
+<table>
+  <tr>
+    <td width="25%"><img src="docs/screenshots/setup-choose-iso.jpg" alt="Setup page 1: Get ready to drive, Choose ISO"><br><sub>1. Your game.</sub></td>
+    <td width="25%"><img src="docs/screenshots/setup-make-it-yours.jpg" alt="Setup page 2: install folder and add-on car packs"><br><sub>2. Setup.</sub></td>
+    <td width="25%"><img src="docs/screenshots/setup-installing.jpg" alt="Setup page 3: Building your garage, 41 percent, every file verified"><br><sub>3. Install, every file verified.</sub></td>
+    <td width="25%"><img src="docs/screenshots/setup-ready.jpg" alt="Setup done: Ready for Revenge, Start your engines"><br><sub>Ready.</sub></td>
+  </tr>
+</table>
 
-## Play and configure
+Settings, saves and the installed game live in
+`~/Library/Application Support/BurnoutRevenge`; shader caches in
+`~/Library/Caches/BurnoutRevenge`.
 
-Xbox-compatible controllers and DualSense work through SDL. Keyboard defaults
-map W/S to right/left trigger, A/D and arrows to steering, Space to A, Backspace
-to B, Left Shift to X, Left Control to Y, Q/E to shoulder buttons, and Return to
-Start. See the game's own control options for each action. Every keyboard
-mapping can be changed in the port's **Controls** page.
+**Requirements:** an Apple silicon Mac with macOS 15 or later, and the USA
+Xbox 360 disc image of Burnout Revenge. Developed and tested on an M1 Pro.
+PAL and Japanese discs, title updates, GOD packages and Xbox save imports are
+not supported.
 
-Open settings with **F1**, **Cmd+,**, or **Back + Start** on a controller
-(Share/Create + Options on DualSense). Changes apply live unless marked restart.
+## Settings
 
-Recommended starting point on M1 Pro: 1.5x internal resolution (1080p), Bicubic,
-anti-aliasing enabled, sharpening 0.3 and 16x anisotropic filtering. Use 1x when
-GPU time is too high. FSR 1 and experimental MetalFX Spatial are available for
-upscaling; neither generates frames. The game's simulation remains capped at 60.
+Open with **F1**, **Cmd+,** or **Back + Start**. LB/RB (Q/E) switch pages.
 
-On Mac, DualSense defaults to Apple's controller backend. A restart-only
-**DualSense Raw HID Driver** option selects SDL's raw backend. The reported
-system-wide Magic Keyboard failure after playing over Bluetooth followed macOS
-Game Mode in the system log on the test Mac; v0.1.2 opts out of Game Mode, and
-the failing sequence then passed on that Mac. See [validation](docs/RELEASE_VALIDATION_0.1.2.md) and the
-[current work plan](docs/ACTIVE_WORK.md).
+<table>
+  <tr>
+    <td width="33%"><img src="docs/screenshots/settings-display.jpg" alt="Settings, Display page: Fullscreen, V-Sync, Frame Rate, Aspect Ratio, Brightness, Xbox 360 Display Gamma"><br><sub>Display.</sub></td>
+    <td width="33%"><img src="docs/screenshots/settings-graphics.jpg" alt="Settings, Graphics page"><br><sub>Graphics.</sub></td>
+    <td width="33%"><img src="docs/screenshots/settings-audio-my-music.jpg" alt="Settings, Audio page: Music set to My Music, Music Folder with 2 files"><br><sub>Audio, with My Music.</sub></td>
+  </tr>
+</table>
 
-Add-ons can also be imported from Settings. Automatic import searches mounted
-`XBOX360/454107DC/00000002` folders. Imported packs connect at the next game
-startup. Six user-supplied packs were enumerated locally; every car's unlock and
-availability has not been exhaustively verified.
+| Page | What's there |
+|---|---|
+| Display | Fullscreen, V-Sync, Frame Rate, Aspect Ratio (fill any window, or 16:9), Brightness, Xbox 360 Display Gamma |
+| Graphics | Anti-Aliasing and its type (SMAA, FXAA), Upscaling (Bicubic, Bilinear, FSR 1, MetalFX Spatial), Sharpening, Anisotropic Filtering, Mipmaps, Internal Resolution |
+| Audio | Master Volume, Mute, Mute in Background, Music (EA Trax or My Music), Music Folder |
+| Input | Stick and trigger deadzones, Vibration, DualSense raw HID driver |
+| Controls | Two keys for each Xbox 360 control |
+| Advanced | Asynchronous Shaders, Performance Overlay, Auto-import Add-ons, Save Bug Report, Check for Updates, Add-ons, Save Backups, About |
+
+A good start on an M1 Pro: 1.5x internal resolution (1080p), SMAA, Bicubic,
+sharpening 0.3 and 16x anisotropic filtering. Use 1x if the GPU can't keep
+60 fps.
+
+<p align="center">
+  <img src="docs/screenshots/main-menu-now-playing.jpg" alt="The game's main menu, World Tour selected, with a Now playing notice naming the player's own song in Cyrillic" width="70%">
+  <br>
+  <sub>My Music in the main menu. Song names in any script are shown.</sub>
+</p>
+
+### Keyboard
+
+| Action | Keys |
+|---|---|
+| Accelerate / brake | W / S (right / left trigger) |
+| Steer | A / D or the arrows |
+| Boost (A) | Space |
+| B / X / Y | Backspace / Left Shift / Left Control |
+| Shoulders (LB / RB) | Q / E |
+| Start | Return |
+
+Every key can be changed in Settings > Controls.
+
+## Known limits
+
+- Tested on one M1 Pro with its own controllers; other Macs and accessories
+  may behave differently. USB is the fallback for a Bluetooth pad.
+- A complete career playthrough isn't verified yet. Online play and Xbox Live
+  don't work.
+- 57 rarely used system functions are still stubs; none was called in tested
+  races.
+- The game's own button prompts (inside its menus and HUD) still show Xbox 360
+  buttons.
+- Live frame generation is not enabled.
+
+More detail: [progress and limitations](docs/PROGRESS.md),
+[rendering notes](docs/RENDERING.md), [image quality measurements](docs/IMAGE_QUALITY.md).
 
 ## Origins and license
 
-This project was built on the work of
-[SpeedBreaker](https://github.com/SpeedBreakerProject/speedbreaker), updated to
-its v0.1.6 runtime, and the Burnout research in
+Built on [SpeedBreaker](https://github.com/SpeedBreakerProject/speedbreaker)
+(its v0.1.6 runtime) and the Burnout research in
 [Xbox360-Native-Ports](https://github.com/CrownParkComputing/Xbox360-Native-Ports/releases/tag/burnoutrevenge-v1).
-It also relies on XenonRecomp, Xenia research, SDL, MoltenVK, FFmpeg, AMD FidelityFX
-and other projects listed in [CREDITS.md](CREDITS.md) and
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+It also relies on XenonRecomp, Xenia research, SDL, MoltenVK, FFmpeg, AMD
+FidelityFX, SMAA, Dear ImGui and the Barlow Condensed fonts; see
+[CREDITS.md](CREDITS.md) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-Runtime modifications are **GPL-3.0-or-later**; original authors' notices and
-third-party licenses are retained. See [COPYING](COPYING) and [NOTICE](NOTICE).
-Cover artwork and the Burnout name belong to their respective owners and are not
-covered by the code license. This fan project is not affiliated with or endorsed
-by Electronic Arts, Criterion Games, Sony or Apple. Software is provided without
-warranty. Do not submit game files, disc images or private profiles to issues.
+The runtime and its changes are **GPL-3.0-or-later**; original authors'
+notices and third-party licenses are kept. See [COPYING](COPYING) and
+[NOTICE](NOTICE). Each release ships the exact sources of its statically linked
+LGPL libraries. The cover art and the Burnout name belong to their owners and
+aren't covered by the code license. The software comes with no warranty.
