@@ -8,6 +8,9 @@
   Motion Blur at 100% is the game's, at 50% its streaks half as long, at 0%
   v0.1.9's Motion Blur off. Your v0.1.9 choices carry over: on reads as 100%,
   off as 0%.
+- Menu sounds: the Settings menu and the first-run screens click as the game's
+  front end does, with its own sounds read from your copy (sound/fe.xwb), at
+  the game's Volume and Mute. Nothing of the game is shipped.
 
 ## v0.1.10
 
