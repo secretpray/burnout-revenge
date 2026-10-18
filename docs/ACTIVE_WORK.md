@@ -22,8 +22,10 @@
 - [ ] Родной APT-экран Burnout исследовать ограниченным экспериментом. Сейчас
   оставить нашу клавиатуру: перенос ImGui-диалога Xerenge оригинал не восстанавливает.
   Заменять только после доказанной большей точности и проверки полного пути.
-- [ ] Optional shader/PSO preparation из пользовательского ISO; coverage manifest,
-  cancellation/resume и cold/prepared сравнение.
+- [ ] Shader/PSO preparation: базовый замер ([SHADER_PREP_BASELINE](SHADER_PREP_BASELINE.md)).
+  Холодные прогоны 126/128: компиляция ≈15 мс за весь 2-минутный маршрут до гонки, ~115
+  пайплайнов, худший кадр 133 мс — загрузка, не шейдеры. Нужен чистый тёплый прогон (окно
+  на виду ~2 мин) и выборочно другие трассы/режимы; если подтвердится — этап 3 отложить.
 - [ ] SMAA/CAS и bloom/LOD audit с одинаковой сценой и GPU замерами.
 - [ ] GPU history consumer/leases/events и MetalFX FI; сравнить draw-state interpolation.
   Сначала Crash 30→60, затем 60→120. Live FG пока выключена.
