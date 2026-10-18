@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.1.13
 
 - Ultrawide screens (21:9, 32:9): the race HUD sits at the screen's corners -
   takedowns and boost on the left, the target, rating and speed on the right,
@@ -8,6 +8,8 @@
   Display > HUD at Screen Edges; off puts the whole HUD in a 16:9 block in the
   middle as before). The crash camera's tyre-track strips reach the screen's
   edges, and so does the menus' grimy frame. On a 16:9 screen nothing changes.
+- The finished save (BurnoutRevenge-100-percent-save.zip) comes with this
+  release too.
 
 ## v0.1.12
 
