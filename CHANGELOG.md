@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.1.11
 
 - Bloom and Motion Blur are sliders now, 0 to 100% (Settings > Graphics), in
   steps of 10. Bloom at 100% is the game's glow, at 0% v0.1.9's Bloom off (the
@@ -11,6 +11,8 @@
 - Menu sounds: the Settings menu and the first-run screens click as the game's
   front end does, with its own sounds read from your copy (sound/fe.xwb), at
   the game's Volume and Mute. Nothing of the game is shipped.
+- The finished save (BurnoutRevenge-100-percent-save.zip) comes with this
+  release too.
 
 ## v0.1.10
 

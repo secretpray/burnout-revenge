@@ -85,6 +85,8 @@
   and the glow round edges but keeps its bright blue sky: the glow is kept where
   it comes from rather than switched off. Lower Motion Blur shortens the streaks
   at speed; 0% keeps speed sharp.
+- The game's own menu clicks in the Settings menu and the first-run screens,
+  read from your copy of the game.
 - 60 fps, as the console. Fullscreen, V-Sync, and Cmd+H and Cmd+Tab that work
   in fullscreen. On an external 144 or 165 Hz monitor, a one-time note says how
   to set it to a rate 60 fps divides evenly.
