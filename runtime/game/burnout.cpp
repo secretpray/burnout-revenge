@@ -385,3 +385,26 @@ PPC_FUNC(sub_8256D640)
     }
     ctx.r3.u64 = 0;
 }
+
+// The game's mix snapshots. sub_822AC748 (called by sub_822BE008) blends the
+// snapshots whose bits are set in the mixer's mask at +16 (16 of them) into
+// the channel faders at 0x82D13140 (20 bytes each, level at +4). Channel 20
+// is the music: sub_822ADC90 hands its level times the music volume to
+// XMPSetVolume. Seen in runs 149/150: 0001 racing and in Replay, 0003 a
+// crash (music silent for its 4-5 s, in Replay too), 8000 ducks the music to
+// 0.7, 0800 loading. Each change of the mask is logged with the music fader,
+// so a log tells which snapshot silenced the music.
+extern "C" PPC_FUNC(__imp__sub_822AC748);
+PPC_FUNC(sub_822AC748)
+{
+    constexpr uint32_t kFaders = 0x82D13140;
+    constexpr uint32_t kMusic = 20;
+    auto loadF = [base](uint32_t a) { uint32_t u = PPC_LOAD_U32(a); float v; memcpy(&v, &u, 4); return v; };
+    const uint32_t mask = PPC_LOAD_U32(ctx.r3.u32 + 16) & 0xFFFF;
+    static std::atomic<uint32_t> s_lastMask{ 0xFFFFFFFF };
+    if (s_lastMask.exchange(mask, std::memory_order_relaxed) != mask)
+    {
+        fprintf(stderr, "[mix] snapshots %04X, music fader %.3f\n", mask, loadF(kFaders + kMusic * 20 + 4));
+    }
+    __imp__sub_822AC748(ctx, base);
+}
