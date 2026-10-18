@@ -312,4 +312,11 @@ namespace settings
     // is left alone (false, logged), as is one already recording `version`.
     // Every Save() writes it too.
     bool RecordVersion(std::string_view version);
+
+    // The display rates (whole Hz) the refresh-rate notice was closed for
+    // (video/refresh_notice.h): [app] refresh_notices in settings.toml.
+    // Record adds one, in memory and in the file, as RecordVersion does (only
+    // the [app] table is rewritten); any thread.
+    bool RefreshNoticeShown(int hz);
+    bool RecordRefreshNotice(int hz);
 }

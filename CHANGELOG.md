@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- A note, once, on an external monitor that runs at a fixed rate 60 fps can't
+  divide evenly (144 or 165 Hz), where motion stutters: it says how to set the
+  screen to 60 or 120 Hz, or to Variable, in System Settings > Displays. It waits
+  for a menu (never mid-race), pauses the game while open, and doesn't come back
+  for that rate once closed. Never on a MacBook's ProMotion screen. From
+  SpeedBreaker v0.1.7.
 - Bloom and Motion Blur switches (Settings > Graphics). Bloom off removes the
   game's haze and the glow round edges but keeps its bright sky and colours: the
   glow stays where it comes from instead of being switched off (which turns the

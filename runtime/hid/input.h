@@ -48,6 +48,10 @@ namespace hid
     // While set (a menu is open), the game sees an idle controller, and
     // after it is cleared until every control has been released.
     void SetBlocked(bool blocked);
+    // Main thread: seconds since any control was last pressed or moved (a
+    // controller, the keyboard's controls, NFSMW_INPUT_SCRIPT), as of the
+    // last Update; from the first Update on.
+    double SecondsSinceInput();
     // At exit: stop any rumble (the process may outlive nothing that would).
     void Shutdown();
     // Main thread, from the frame loop (not UIKit's callback), once the game

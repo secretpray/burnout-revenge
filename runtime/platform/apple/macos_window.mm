@@ -8,6 +8,7 @@
 #include <platform/macos_window.h>
 
 #import <AppKit/AppKit.h>
+#include <cmath>
 #include <SDL3/SDL.h>
 #include <cstdio>
 #include <utility>
@@ -194,6 +195,23 @@ namespace platform::macos
         // The layout rect is the part of the window no title bar covers.
         const CGFloat strip = NSHeight(w.frame) - NSMaxY(w.contentLayoutRect);
         return strip > 0 ? float(strip) : 0.0f;
+    }
+
+    bool DisplayRefreshFixed(SDL_Window* window, double* minHz, double* maxHz)
+    {
+        NSWindow* w = CocoaWindow(window);
+        NSScreen* screen = w ? w.screen : nil;
+        if (!screen)
+            return false;
+        const NSTimeInterval shortest = screen.minimumRefreshInterval, longest = screen.maximumRefreshInterval;
+        if (minHz)
+            *minHz = longest > 0 ? 1.0 / longest : 0.0;
+        if (maxHz)
+            *maxHz = shortest > 0 ? 1.0 / shortest : 0.0;
+        NSNumber* number = screen.deviceDescription[@"NSScreenNumber"];
+        if (number && CGDisplayIsBuiltin(CGDirectDisplayID(number.unsignedIntValue)))
+            return false;
+        return shortest > 0 && longest > 0 && std::abs(longest - shortest) <= 0.01 * shortest;
     }
 
     void ForgetWindow(SDL_Window*)

@@ -445,15 +445,49 @@ namespace settings
         bool s_fileFound = false;  // the last Load found a settings.toml
         bool s_fileLoaded = false; // ...and read and parsed it
 
-        std::string AppTable(const std::string& lastVersion)
+        // refresh_notices: the display rates (whole Hz) the refresh-rate
+        // notice was closed for (video/refresh_notice.h), "90,144".
+        constexpr const char* kRefreshNoticesKey = "refresh_notices";
+        std::vector<int>& RefreshNoticesList()
+        {
+            static std::vector<int> list;
+            return list;
+        }
+
+        std::vector<int> ParseRates(std::string_view text)
+        {
+            std::vector<int> out;
+            while (!text.empty())
+            {
+                size_t comma = text.find(',');
+                std::string item(text.substr(0, comma));
+                text = comma == std::string_view::npos ? std::string_view() : text.substr(comma + 1);
+                char* end = nullptr;
+                long hz = std::strtol(item.c_str(), &end, 10);
+                if (end != item.c_str() && hz > 0 && hz < 1000 && std::find(out.begin(), out.end(), int(hz)) == out.end())
+                    out.push_back(int(hz));
+            }
+            return out;
+        }
+
+        std::string AppTable(const std::string& lastVersion, const std::vector<int>& notices)
         {
             // Only what a version looks like (a hand edit could hold a quote
             // or a newline, which would break the file).
-            if (lastVersion.empty() || lastVersion.size() > 64 ||
-                !std::all_of(lastVersion.begin(), lastVersion.end(), [](char c) { return std::isalnum(uint8_t(c)) || c == '.' || c == '-' || c == '+'; }))
+            std::string version;
+            if (!(lastVersion.empty() || lastVersion.size() > 64 ||
+                    !std::all_of(lastVersion.begin(), lastVersion.end(), [](char c) { return std::isalnum(uint8_t(c)) || c == '.' || c == '-' || c == '+'; })))
+                version = std::format("# The BurnoutRevenge version that ran last (the game keeps this up to date).\n{} = \"{}\"\n",
+                    kLastVersionKey, lastVersion);
+            std::string rates;
+            for (int hz : notices)
+                rates += (rates.empty() ? "" : ",") + std::to_string(hz);
+            if (!rates.empty())
+                rates = std::format("# Screen refresh rates (Hz) the refresh-rate notice was closed for: it isn't shown for them again.\n"
+                    "{} = \"{}\"\n", kRefreshNoticesKey, rates);
+            if (version.empty() && rates.empty())
                 return "";
-            return std::format("\n[{}]\n# The BurnoutRevenge version that ran last (the game keeps this up to date).\n{} = \"{}\"\n",
-                kAppTable, kLastVersionKey, lastVersion);
+            return std::format("\n[{}]\n{}{}", kAppTable, version, rates);
         }
 
         // `text` (a settings.toml) without its [app] table: from a line that
@@ -931,11 +965,13 @@ namespace settings
                 out += std::format("{} = {}\n", o.key, TomlValue(o, values[i]));
             }
             std::string lastVersion;
+            std::vector<int> notices;
             {
                 std::lock_guard lock(s_mutex);
                 lastVersion = LastVersionText();
+                notices = RefreshNoticesList();
             }
-            return out + AppTable(lastVersion);
+            return out + AppTable(lastVersion, notices);
         }
 
         // Where a save of `path` goes: through a symlinked settings.toml
@@ -1332,6 +1368,7 @@ namespace settings
         // wait only for the values to be published.
         std::array<std::optional<double>, kCount> fileValues;
         std::string text, readError, lastError, lastVersion;
+        std::vector<int> notices;
         size_t fromFile = 0;
         ReadStatus status = ReadFile(path, text, readError);
         if (status == ReadStatus::Missing)
@@ -1391,6 +1428,15 @@ namespace settings
                 for (auto&& [key, node] : *table)
                 {
                     std::string name = std::format("{}.{}", tableKey.str(), key.str());
+                    if (tableKey.str() == kAppTable && key.str() == kRefreshNoticesKey)
+                    {
+                        if (auto v = node.as_string())
+                            notices = ParseRates(v->get());
+                        else
+                            fprintf(stderr, "[settings] %s: %s = %s isn't a list of rates; ignored\n", path.filename().c_str(), name.c_str(),
+                                NodeText(node).c_str());
+                        continue;
+                    }
                     if (tableKey.str() == kAppTable && key.str() == kLastVersionKey)
                     {
                         if (auto v = node.as_string())
@@ -1434,6 +1480,7 @@ namespace settings
             LoadedPath() = path;
             LastErrorText() = lastError;
             LastVersionText() = lastVersion;
+            RefreshNoticesList() = notices;
             s_fileFound = status != ReadStatus::Missing;
             s_fileLoaded = status == ReadStatus::Ok && lastError.empty();
             detail::g_generation.fetch_add(1, std::memory_order_release);
@@ -1534,13 +1581,69 @@ namespace settings
             text = "# BurnoutRevenge settings. The settings menu writes every option here when one\n"
                    "# changes; until then each one keeps its default.\n";
         std::string recorded(version);
-        if (std::string failed = WriteAtomically(path, WithoutAppTable(text) + AppTable(recorded)); !failed.empty())
+        std::vector<int> notices;
+        {
+            std::lock_guard lock(s_mutex);
+            notices = RefreshNoticesList();
+        }
+        if (std::string failed = WriteAtomically(path, WithoutAppTable(text) + AppTable(recorded, notices)); !failed.empty())
         {
             fprintf(stderr, "[settings] the version isn't recorded: %s\n", failed.c_str());
             return false;
         }
         std::lock_guard lock(s_mutex);
         LastVersionText() = recorded;
+        s_fileFound = s_fileLoaded = true;
+        if (LoadedPath().empty())
+            LoadedPath() = path;
+        return true;
+    }
+
+    bool RefreshNoticeShown(int hz)
+    {
+        std::lock_guard lock(s_mutex);
+        const std::vector<int>& list = RefreshNoticesList();
+        return std::find(list.begin(), list.end(), hz) != list.end();
+    }
+
+    bool RecordRefreshNotice(int hz)
+    {
+        std::lock_guard saveLock(s_saveMutex);
+        std::filesystem::path path;
+        std::string lastVersion;
+        std::vector<int> notices;
+        {
+            std::lock_guard lock(s_mutex);
+            notices = RefreshNoticesList();
+            if (std::find(notices.begin(), notices.end(), hz) != notices.end())
+                return true;
+            notices.push_back(hz);
+            RefreshNoticesList() = notices;  // this run doesn't show it again, saved or not
+            if (s_fileFound && !s_fileLoaded)
+            {
+                fprintf(stderr, "[settings] the refresh notice's %d Hz isn't recorded: settings.toml didn't load\n", hz);
+                return false;
+            }
+            path = LoadedPath().empty() ? DefaultPath() : LoadedPath();
+            lastVersion = LastVersionText();
+        }
+        // Only the [app] table changes, as for RecordVersion.
+        std::string text, error;
+        ReadStatus status = ReadFile(path, text, error);
+        if (status == ReadStatus::Failed)
+        {
+            fprintf(stderr, "[settings] the refresh notice's %d Hz isn't recorded: can't read %s: %s\n", hz, path.c_str(), error.c_str());
+            return false;
+        }
+        if (status == ReadStatus::Missing)
+            text = "# SpeedBreaker settings. The settings menu writes every option here when one\n"
+                   "# changes; until then each one keeps its default.\n";
+        if (std::string failed = WriteAtomically(path, WithoutAppTable(text) + AppTable(lastVersion, notices)); !failed.empty())
+        {
+            fprintf(stderr, "[settings] the refresh notice's %d Hz isn't recorded: %s\n", hz, failed.c_str());
+            return false;
+        }
+        std::lock_guard lock(s_mutex);
         s_fileFound = s_fileLoaded = true;
         if (LoadedPath().empty())
             LoadedPath() = path;

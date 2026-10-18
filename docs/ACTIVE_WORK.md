@@ -59,16 +59,17 @@
   отвечает «закончился» только для плеера заставки; прогоны 163/164: титул к 8 с, гонка к 45 с);
   11 импортов (kernel/imports_offline.cpp, поведение Xenia/rexglue, код свой) — fatal stubs 57 → 46.
   Дальше: bloom/motion blur с синим небом, Burnout Clip (sub_823C2CF0), track skip в Crash mode.
-- [ ] Bloom и Motion Blur (этап 7): Settings > Graphics > Bloom (выкл. — свечение игры «на месте»
+- [x] Bloom и Motion Blur (этап 7, bb9d5a7): Settings > Graphics > Bloom (выкл. — свечение игры «на месте»
   в композите `ps_2072de…`, без ореолов, небо и яркость как в оригинале; функции bloom игры не
   отключаются: так у Xerenge небо серое) и Motion Blur (`sub_821436D0`, патч boma/Xerenge). Обе
   на лету. Проверить: небо ±2 к Bloom on на одинаковых кадрах, takedown/Replay/Crash с выкл. blur.
-- [ ] SpeedBreaker v0.1.7 (локальная копия обновлена, `main` = 31849f5): перенести одноразовую
-  подсказку о частоте экрана для внешних мониторов с фиксированной частотой, не кратной 60 Гц
-  (144/165 Гц) на Mac — `refresh_notice.h`, `DisplayRefreshFixed`, `SecondsSinceInput`, время
-  последнего кадра ролика (у нас game/movies.cpp), `[app] refresh_notices`; вид — наш игровой
-  диалог. Привязку к 2-му–4-му обновлению экрана не переносить: на Apple она выключена, у нас
-  уже есть present_schedule из 0.1.6.
+- [x] SpeedBreaker v0.1.7 (локальная копия обновлена, `main` = 31849f5): перенесена одноразовая
+  подсказка о частоте экрана для внешних мониторов с фиксированной частотой, не кратной 60 Гц
+  (144/165 Гц), только на Mac (`refresh_notice.h`, `DisplayRefreshFixed`, `SecondsSinceInput`,
+  `[app] refresh_notices`); ролики — только вступительные (`game::LastIntroMovieNs`: фоновые
+  ролики меню идут всегда); вид — наш игровой диалог. Тест refresh_notice_test; прогон 184
+  (`BURNOUT_TEST_REFRESH_HZ=144`): показана в меню на 30 с, OK записал 144 в settings.toml.
+  Привязку к 2-му–4-му обновлению экрана не переносили (на Apple выключена).
 - [ ] 46 fatal imports (сеть/Live), career/Crash/replay матрица; регионы/GOD/online отдельно позже.
 
 Начать с [подробного плана](ROADMAP_RU.md), затем нужных разделов

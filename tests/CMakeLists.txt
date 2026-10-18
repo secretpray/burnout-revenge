@@ -22,6 +22,12 @@ sb_test(temporal_history_test)
 sb_test(burnout_motion_test)
 sb_test(xma_mmio_test)
 # Save backups at launch and restores (user/save_backup.h), in a scratch folder.
+# The one-time notice on a screen whose rate 60 fps can't divide evenly (144,
+# 165 Hz), from SpeedBreaker v0.1.7: when it shows, its words, and the
+# dismissal in settings.toml, in a scratch folder (video/refresh_notice.h,
+# user/settings.cpp).
+sb_test(refresh_notice_test SOURCES ${RT}/video/refresh_fit.cpp ${RT}/user/settings.cpp
+    ARGS ${CMAKE_CURRENT_BINARY_DIR}/refresh_notice_scratch)
 sb_test(save_backup_test SOURCES ${RT}/user/save_backup.cpp ARGS ${CMAKE_BINARY_DIR})
 # The player's own music: its folder's files in a shuffled round (user/my_music.h).
 sb_test(my_music_test SOURCES ${RT}/user/my_music.cpp ARGS ${CMAKE_BINARY_DIR})

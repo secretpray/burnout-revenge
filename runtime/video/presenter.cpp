@@ -12,6 +12,8 @@
 #include <game/ultrawide.h>
 #include "gpu_choice.h"
 #include "present_schedule.h"
+#include "refresh_notice.h"
+#include <game/movies.h>
 #include "swapchain_use.h"
 #include "picture_fit.h"
 #include "frame_rate.h"
@@ -169,6 +171,21 @@ namespace video
         std::mutex s_frontUseMutex;
         std::chrono::steady_clock::time_point s_lastPresent{};
         std::chrono::steady_clock::time_point s_lastGameFrame{};
+        // The refresh-rate notice (video/refresh_notice.h): the window's
+        // display mode's rate and since when (NoteDisplayMode), and game
+        // frames: the first, and the first after the last gap of
+        // RefreshNotice::kGapMs (a load). Main thread.
+        double s_modeHz = 0.0;
+        std::chrono::steady_clock::time_point s_modeSince{}, s_firstGameFrame{}, s_flowingSince{};
+        void NoteDisplayMode(const SDL_DisplayMode* mode)
+        {
+            const double hz = mode ? double(mode->refresh_rate) : 0.0;
+            if (hz != s_modeHz)
+            {
+                s_modeHz = hz;
+                s_modeSince = std::chrono::steady_clock::now();
+            }
+        }
 
         bool s_uiReady = false;
         bool s_metalFxActive = false; // presenter/UI thread only
@@ -2893,6 +2910,7 @@ void main()
         void UpdateDisplayItem()
         {
             const SDL_DisplayMode* mode = SDL_GetCurrentDisplayMode(SDL_GetDisplayForWindow(s_window));
+            NoteDisplayMode(mode);
 #if defined(__APPLE__) && !TARGET_OS_IOS
             s_displayHz = mode ? mode->refresh_rate : 0.0f;
             {
@@ -3403,6 +3421,98 @@ void main()
         }
     }
 
+    namespace
+    {
+        // The one-time refresh-rate notice (video/refresh_notice.h, from
+        // SpeedBreaker v0.1.7), judged twice a second: on a Mac whose screen
+        // macOS says refreshes at one fixed rate that 60 doesn't divide (an
+        // external 144 or 165 Hz monitor; never ProMotion). A line for each
+        // rate once it is shown or won't be, and for the first few reasons it
+        // waits. Main thread.
+        void MaybeRefreshNotice()
+        {
+            using Notice = RefreshNotice;
+            static const int forced = [] {
+                const char* v = std::getenv("BURNOUT_REFRESH_NOTICE");
+                return v && (v[0] == '0' || v[0] == '1') ? v[0] - '0' : -1;
+            }();
+            static auto lastCheck = std::chrono::steady_clock::time_point{};
+            const auto now = std::chrono::steady_clock::now();
+            if (now - lastCheck < std::chrono::milliseconds(500) || !s_window)
+                return;
+            lastCheck = now;
+            // BURNOUT_TEST_REFRESH_HZ=<hz>: a screen at that fixed rate, as an
+            // external monitor (captures of the notice on a ProMotion Mac).
+            static const double testHz = [] { const char* v = std::getenv("BURNOUT_TEST_REFRESH_HZ"); return v ? std::atof(v) : 0.0; }();
+            const double modeHz = testHz > 0 ? testHz : s_modeHz;
+            const int key = Notice::Key(modeHz);
+            static int decided = -1, waitedFor = -1, waitLines = 0;  // the rate decided (shown or never), the rate waited on
+            static const char* lastWait = nullptr;
+            if (key == decided)
+                return;
+            Notice::Inputs in;
+            in.modeHz = modeHz;
+            in.modeStableSec = std::chrono::duration<double>(now - s_modeSince).count();
+#if defined(__APPLE__) && !TARGET_OS_IOS
+            in.platform = Notice::Platform::Mac;
+#else
+            in.platform = Notice::Platform::Excluded;
+#endif
+            if (Notice::Decide(in).verdict == Notice::Verdict::NotApplicable)
+                return;  // (before the costlier inputs)
+            static double macMin = 0, macMax = 0;
+#if defined(__APPLE__) && !TARGET_OS_IOS
+            in.macFixed = platform::macos::DisplayRefreshFixed(s_window, &macMin, &macMax) || testHz > 0;
+#endif
+            in.shownBefore = settings::RefreshNoticeShown(key);
+            in.forced = forced;
+            const bool frames = s_firstGameFrame != std::chrono::steady_clock::time_point{};
+            in.sessionSec = frames ? std::chrono::duration<double>(now - s_firstGameFrame).count() : 0.0;
+            in.flowingSec = frames && now - s_lastGameFrame <= std::chrono::duration<double, std::milli>(Notice::kGapMs)
+                ? std::chrono::duration<double>(now - s_flowingSince).count() : 0.0;
+            in.movieQuietSec = 1e9;
+            if (const int64_t movie = game::LastIntroMovieNs())
+                in.movieQuietSec = double(NowNs() - movie) / 1e9;
+            in.idleSec = hid::SecondsSinceInput();
+            in.uiBusy = ui::HasModal() || ui::SettingsOpen();
+            const Notice::Decision d = Notice::Decide(in);
+            switch (d.verdict)
+            {
+            case Notice::Verdict::NotApplicable:
+                return;
+            case Notice::Verdict::Never:
+                decided = key;
+                fprintf(stderr, "[video] refresh notice for %d Hz: not shown: %s (the screen: %.1f-%.1f Hz)\n", key, d.reason, macMin, macMax);
+                return;
+            case Notice::Verdict::Wait:
+                if (waitedFor != key)
+                {
+                    waitedFor = key;
+                    waitLines = 0;
+                    lastWait = nullptr;
+                }
+                if (d.reason != lastWait && waitLines < 4)
+                {
+                    waitLines++;
+                    lastWait = d.reason;
+                    fprintf(stderr, "[video] refresh notice for %d Hz: not yet: %s (%.0f s in)\n", key, d.reason, in.sessionSec);
+                }
+                return;
+            case Notice::Verdict::Show:
+                break;
+            }
+            const bool shown = ui::ShowNotice(Notice::kTitle, Notice::Text(in), [key](const char*) {
+                if (settings::RecordRefreshNotice(key))
+                    fprintf(stderr, "[video] refresh notice for %d Hz: recorded in settings.toml (not shown again for it)\n", key);
+            });
+            if (!shown)
+                return;
+            decided = key;
+            fprintf(stderr, "[video] refresh notice for %d Hz: shown (%.0f s in, the controls idle %.1f s, macOS says the screen's refresh is fixed)\n",
+                key, in.sessionSec, in.idleSec);
+        }
+    }
+
     bool RunFrame()
     {
         DeliverTestAppEvents();
@@ -3438,6 +3548,8 @@ void main()
                         s_background.load(std::memory_order_acquire) ? " (app inactive: checked after the resume)" : "", GeometryNote().c_str());
 #endif
             }
+            if (e.type == SDL_EVENT_WINDOW_DISPLAY_CHANGED || e.type == SDL_EVENT_DISPLAY_CURRENT_MODE_CHANGED)
+                NoteDisplayMode(SDL_GetCurrentDisplayMode(SDL_GetDisplayForWindow(s_window)));
             if (e.type == SDL_EVENT_WINDOW_RESIZED)
                 RememberWindowSize();
             // Each change of the window's state, by name, with whether SDL
@@ -3518,6 +3630,7 @@ void main()
         hid::SetBlocked(ui::CapturingInput());
         hid::Update();
         ApplySettings();
+        MaybeRefreshNotice();
         if (!s_swapchain && !CreateSwapchain())
         {
             SDL_Delay(16);
@@ -3557,7 +3670,14 @@ void main()
             s_lastHeight = h;
             s_lastAspectW = aspectW;
             s_lastAspectH = aspectH;
-            s_lastGameFrame = std::chrono::steady_clock::now();
+            {
+                const auto now = std::chrono::steady_clock::now();
+                if (s_firstGameFrame == std::chrono::steady_clock::time_point{})
+                    s_firstGameFrame = s_flowingSince = now;
+                else if (now - s_lastGameFrame > std::chrono::duration<double, std::milli>(RefreshNotice::kGapMs))
+                    s_flowingSince = now;
+                s_lastGameFrame = now;
+            }
             ui::NoteGameFrame();
         }
         else

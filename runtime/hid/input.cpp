@@ -78,6 +78,8 @@ namespace
     uint16_t s_latchedButtons = 0;
     bool s_wasBlocked = false;
     bool s_scriptSuppressed = false;  // under s_mutex: no scripted input while a menu is open
+    std::chrono::steady_clock::time_point s_lastInput;  // main thread: a control last in use (SecondsSinceInput)
+    bool s_inputSeen = false;
 
     // The controller's Back is held back from the game until it's clear it
     // isn't the start of the Back + Start settings chord: released (then
@@ -712,6 +714,13 @@ namespace hid
         ApplyRumbleActivity(s_rumbleFocus.SetSuspended(false));
     }
 
+    double SecondsSinceInput()
+    {
+        if (!s_inputSeen)
+            return 0.0;
+        return std::chrono::duration<double>(std::chrono::steady_clock::now() - s_lastInput).count();
+    }
+
     void SetBlocked(bool blocked)
     {
         s_blocked.store(blocked, std::memory_order_relaxed);
@@ -805,6 +814,19 @@ namespace hid
                 padSteps.c_str(), rawX, rawY, int(p.lx), int(p.ly), int(p.rx), int(p.ry), rawLt, rawRt,
                 unsigned(p.leftTrigger), unsigned(p.rightTrigger), deadzone, triggerDeadzone,
                 s_blocked.load(std::memory_order_relaxed) ? " (a menu is open: the game sees an idle pad)" : "");
+
+        // The last time anything was pressed or moved, the script's taps
+        // included (SecondsSinceInput).
+        {
+            Pad scripted = p;
+            ApplyScript(scripted);
+            if (scripted.buttons || scripted.leftTrigger || scripted.rightTrigger || scripted.lx || scripted.ly || scripted.rx ||
+                scripted.ry || !s_inputSeen)
+            {
+                s_lastInput = std::chrono::steady_clock::now();
+                s_inputSeen = true;
+            }
+        }
 
         // While a menu has the input the game sees an idle pad; after it
         // closes, each button still held stays hidden until released, so the

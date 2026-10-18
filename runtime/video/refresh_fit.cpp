@@ -6,17 +6,60 @@
 
 namespace video
 {
+    int RefreshFit::MultipleOf(double hz)
+    {
+        for (int m = 1; m <= kMaxMultiple; m++)
+            if (hz >= kMinHz * m && hz <= kMaxHz * m)
+                return m;
+        return 0;
+    }
+
+    void RefreshFit::SetMultiple(int multiple)
+    {
+        if (multiple < 1 || multiple > kMaxMultiple)
+            multiple = 1;
+        if (multiple == m_multiple && m_rate == double(multiple))
+            return;
+        m_multiple = multiple;
+        m_rate = double(multiple);
+        m_lineFits = false;
+        m_samples.clear();
+        m_estimate = RefreshEstimate{};
+        m_estimate.multiple = multiple;
+    }
+
+    void RefreshFit::SetGridHz(double hz)
+    {
+        const double rate = hz / 60.0;
+        if (!(rate >= kMinHz / 60.0 && rate <= 8.0))
+            return SetMultiple(1);
+        if (m_multiple == 0 && m_rate == rate)
+            return;
+        m_multiple = 0;
+        m_rate = rate;
+        m_lineFits = false;
+        m_samples.clear();
+        m_estimate = RefreshEstimate{};
+        m_estimate.multiple = 0;
+    }
+
     void RefreshFit::Add(int64_t t)
     {
         Sample s{ t, 0, m_segment };
         if (!m_samples.empty())
         {
             const Sample& last = m_samples.back();
-            double period = m_estimate.valid ? m_estimate.periodNs : kNominalNs;
-            int64_t n = std::llround(double(t - last.t) / period);
+            // At a multiple, once the window fits a line (accepted or still
+            // short of 10 s), measured from the last completion's place on
+            // it: one seen more than half a refresh late (2.1 ms at 240 Hz)
+            // is put on the wrong refresh, and set aside, alone; from its own
+            // time every completion after it would be too.
+            const bool fromLine = m_rate > 1.0 && m_lineFits;
+            double period = m_estimate.valid || fromLine ? m_estimate.periodNs : kNominalNs / m_rate;
+            int64_t n = fromLine ? std::llround((double(t) - double(m_estimate.gridNs)) / period) : std::llround(double(t - last.t) / period);
             if (n < 1)
                 return;  // within half a refresh of the last: a late wake-up, not a refresh
-            if (n > kMaxGap)
+            if (double(n) > double(kMaxGap) * m_rate)
                 s.segment = ++m_segment;
             else
                 s.k = last.k + n;
@@ -44,6 +87,8 @@ namespace video
             }
         }
         m_estimate.valid = Acceptable(line, true);
+        m_lineFits = Acceptable(line, false);
+        m_estimate.multiple = m_multiple;
         m_estimate.samples = uint32_t(m_samples.size());
         m_estimate.rejected = line.rejected;
         m_estimate.rmsNs = line.rmsNs;
@@ -60,7 +105,7 @@ namespace video
         if (!line.ok || line.rmsNs > kMaxRmsNs || line.rejected > kMaxRejected * double(line.used + line.rejected))
             return false;
         double hz = 1e9 / line.periodNs;
-        return hz >= kMinHz && hz <= kMaxHz && (!needSpan || line.spanNs >= kMinSpanNs);
+        return hz >= kMinHz * m_rate && hz <= kMaxHz * m_rate && (!needSpan || line.spanNs >= kMinSpanNs);
     }
 
     RefreshFit::Line RefreshFit::Fit(size_t first) const

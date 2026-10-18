@@ -45,6 +45,12 @@ namespace platform::macos
     // laying the UI out below it.
     float TitleStripHeight(SDL_Window* window);
 
+    // The window's screen refreshes at one fixed rate (macOS's minimum and
+    // maximum refresh intervals agree) and isn't the Mac's built-in one: not
+    // a ProMotion panel, nor a monitor with adaptive sync on. `minHz` and
+    // `maxHz`, if given, get the range (for the log). False without a screen.
+    bool DisplayRefreshFixed(SDL_Window* window, double* minHz = nullptr, double* maxHz = nullptr);
+
     // Before SDL_DestroyWindow: stops watching the window.
     void ForgetWindow(SDL_Window* window);
 

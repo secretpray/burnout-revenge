@@ -14,7 +14,10 @@
 #include <stdafx.h>
 #include <user/settings.h>
 
+#include "movies.h"
+
 #include <atomic>
+#include <chrono>
 #include <cstring>
 #include <string_view>
 
@@ -22,6 +25,8 @@ namespace
 {
     std::atomic<uint32_t> s_skipPlayer{ 0 };  // the player of a film being skipped; 0: none
     std::atomic<uint32_t> s_polls{ 0 };       // its polls since it started
+    std::atomic<uint32_t> s_introPlayer{ 0 };  // the player of a launch film playing (skipped or not); 0: none
+    std::atomic<int64_t> s_introPolled{ 0 };   // when it was last polled (LastIntroMovieNs)
 
     bool IsIntro(std::string_view path)
     {
@@ -43,6 +48,7 @@ PPC_FUNC(sub_821FEBC0)
     const bool skip = IsIntro(name) && settings::GetBool(settings::Id::SkipIntroMovies);
     s_polls.store(0, std::memory_order_relaxed);
     s_skipPlayer.store(skip ? screen + 4 : 0, std::memory_order_relaxed);
+    s_introPlayer.store(IsIntro(name) ? screen + 4 : 0, std::memory_order_relaxed);
     fprintf(stderr, "[movie] %.*s%s\n", int(name.size()), name.data(), skip ? " (skipped: Skip Intro Movies)" : "");
 }
 
@@ -51,7 +57,15 @@ PPC_FUNC(sub_82357CC0)
 {
     const uint32_t player = ctx.r3.u32;
     __imp__sub_82357CC0(ctx, base);
+    if (player != 0 && player == s_introPlayer.load(std::memory_order_relaxed) && ctx.r3.u32 == 0)
+        s_introPolled.store(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count(),
+            std::memory_order_relaxed);
     if (player != 0 && player == s_skipPlayer.load(std::memory_order_relaxed)
         && s_polls.fetch_add(1, std::memory_order_relaxed) >= 2)
         ctx.r3.u64 = 1;
+}
+
+int64_t game::LastIntroMovieNs()
+{
+    return s_introPolled.load(std::memory_order_relaxed);
 }

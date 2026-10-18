@@ -115,6 +115,11 @@ namespace ui
     // and WhatsNewEntry()) as a modal panel over the game until the player
     // closes it (A, B, Start, Esc or OK). Nothing without an entry.
     void ShowWhatsNew(std::string_view version);
+    // Main thread: a one-time notice (`title`, a paragraph of `text`, OK) as a
+    // panel over the game, which pauses under it, until the player closes it
+    // (A, B, Start, Esc or OK); then `closed` runs with how. False (nothing
+    // shown) without a UI, or while another panel or the settings menu is up.
+    bool ShowNotice(std::string title, std::string text, std::function<void(const char*)> closed);
 
     // Main thread, before the game starts (main.cpp): a page saying why the
     // game can't start (memory_status.h's StartupFailure), drawn until it is
