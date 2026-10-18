@@ -2,7 +2,7 @@
 //
 // The game's own button prompts ("Select (A)", "Exit Replay (A)", "Camera
 // (LB)") drawn for the device in use, as our menus' hints are
-// (hid::LastGlyphs). Prototype, off unless BURNOUT_PAD_GLYPHS is set.
+// (hid::LastGlyphs), as Settings > Input > Button Prompts chooses.
 //
 // Where they live: one 128x256 k_8_8_8_8 tiled texture (8-in-32 endian), a
 // sheet of the Xbox 360 pad's buttons the front end and the in-game HUD
@@ -28,8 +28,10 @@
 
 namespace gpu::padglyphs
 {
-    // BURNOUT_PAD_GLYPHS=1|auto: follow the device in use; =playstation,
-    // =keyboard, =xbox: always that set (captures, tests). Unset or 0: off.
+    // False only with BURNOUT_PAD_GLYPHS=off (or 0): the game's textures
+    // are then never looked at. Otherwise the setting (Auto: the device in
+    // use; Xbox, PlayStation, Keyboard: always that set), which
+    // BURNOUT_PAD_GLYPHS=auto|xbox|playstation|keyboard overrides.
     bool Enabled();
 
     // Command processor thread, for each use of a 2D texture, before its

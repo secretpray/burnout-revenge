@@ -1,10 +1,11 @@
-# The game's button prompts for the device in use (prototype)
+# The game's button prompts for the device in use
 
 Developer note, 2026-10-18. Our own menus already draw their hints for the device
 used last (`hid::LastGlyphs`: Xbox, PlayStation or keyboard). The game's own prompts
 ("Select (A)", "Back (B)", "Exit Replay (A)", "Camera (LB)", "PRESS (A) TO BOOST!")
-always showed the Xbox 360 pad. This is where those pictures live and a prototype
-that draws them for the device in use. It is off unless `BURNOUT_PAD_GLYPHS` is set.
+always showed the Xbox 360 pad. This is where those pictures live and how they are
+drawn for the device in use: Settings > Input > Button Prompts (`input.button_prompts`),
+Auto by default.
 
 ## Where the glyphs live
 
@@ -68,10 +69,14 @@ plain endpoint-fit encoder for the boost disc.
   click is unbound by default). A settings change redraws the keyboard set; it is
   written only if the picture changed.
 
-`BURNOUT_PAD_GLYPHS=1` (or `auto`) follows `hid::PublishedGlyphs()`, the same choice as
-our menus, now also published as an atomic for the command processor thread.
-`=playstation`, `=keyboard`, `=xbox` force one set (captures). Unset or `0`: nothing is
-hooked beyond one `Enabled()` check per texture lookup.
+Button Prompts: **Auto** follows `hid::PublishedGlyphs()`, the same choice as our menus,
+published as an atomic for the command processor thread; **Xbox**, **PlayStation**,
+**Keyboard** always show that set. The command processor reads the setting lock-free
+(`settings::GetInt`) each time it checks a known texture and once a frame in `Refresh()`,
+so a change in the menu shows in the next frame. `BURNOUT_PAD_GLYPHS=auto|xbox|playstation|keyboard`
+overrides the setting for a run, as the other settings' variables do;
+`BURNOUT_PAD_GLYPHS=off` (or `0`) is a diagnostic: nothing is hooked beyond one
+`Enabled()` check per texture lookup.
 
 Idea credit: Takedawn (Burnout 3 port, MIT) draws its own prompt art over the game's
 known prompt textures as they are uploaded (`src/game/glyphs.c`). No code or artwork of
@@ -84,9 +89,8 @@ it is used here.
   device change (harmless picture data in memory nothing uses yet); one written again
   is dropped by the hash check before any write.
 - Other discs (PAL, other revisions) hash differently and are left alone.
-- To ship: a Settings > Input option instead of the environment variable, and a
-  look at the PS stick ("RS" printed on a grey stick reads fine, but PlayStation calls
-  the click R3).
+- The PS stick: "RS" printed on a grey stick reads fine, but PlayStation calls the
+  click R3.
 
 ## Validation
 
@@ -102,6 +106,8 @@ for the keyboard switch). Captures and logs stay there, never in the repository.
 | 05 | `playstation` | "PRESS ✕ TO BOOST!" (the DXT3 disc redrawn and re-encoded). |
 | 03 | `keyboard` (word labels, since replaced by symbols) | "Continue SPACE", "Driver Details CTRL / Select SPACE", Replay "Q Camera / Exit Replay SPACE / Hide BKSP". |
 | 11-kb | `keyboard` | Symbol caps: "Continue ␣", "Back ⌫ / Burnout Clips ⇧ / Driver Details ⌃ / Select ␣", Car Select "RS Camera / Change Color ⌃". |
+| 12-xbox, 12-playstation, 12-keyboard | unset; `input.button_prompts` = xbox / playstation / keyboard in the profile's settings.toml | Each set from the setting alone: "Continue (A)", "Back (B) / Burnout Clips (X) / Driver Details (Y) / Select (A)"; the same with ✕ ○ □ △ (Car Select "RS Camera / Change Color △ / Back ○ / Select ✕"); key caps ␣ ⌫ ⇧ ⌃. |
+| 13-live | unset; stored Xbox | Settings > Input > Button Prompts changed to PlayStation with Right while open (logged 23.4 s): "Continue (A)" behind the menu became "Continue ✕" in the next frame (23.5 s), and stayed after the menu closed. |
 | 07-auto | `1` | PlayStation at start (a DualSense paired), F8 at 18 s: keyboard caps; the virtual pad's RS at 26 s: Xbox; F8 at 32 s: keyboard again (Car Select: "RS" printed on the blank stick cap). Each switch logged in the frame of its input. |
 
 Every run exited cleanly when bounded, with no crash and no unimplemented import.

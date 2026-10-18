@@ -4038,8 +4038,8 @@ void main()
                         cube ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0, t.levels);
             }
             Texture& t = *slotRef;
-            // BURNOUT_PAD_GLYPHS: the game's button prompts drawn for the
-            // device in use (pad_glyphs.h); a change rewrites its memory,
+            // Settings > Input > Button Prompts: the game's button prompts
+            // drawn for the device in use (pad_glyphs.h); a change rewrites its memory,
             // which the check below then sees.
             if (padglyphs::Enabled() && !scaled && !cube && !volume)
                 padglyphs::Use(s_sharedHost + base, base, size, width, height, format, f.tiled != 0, uint32_t(f.endianness),

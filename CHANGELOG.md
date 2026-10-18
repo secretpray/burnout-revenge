@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- The game's own button prompts ("Select", "Exit Replay", "Camera", "PRESS TO
+  BOOST!") show the buttons of the device you use: PlayStation shapes with a
+  DualSense, your keys as Mac key caps with the keyboard, Xbox buttons otherwise.
+  Settings > Input > Button Prompts can keep one set instead (Auto, Xbox,
+  PlayStation, Keyboard).
 - Skip Intro Movies (Settings > Advanced, on by default): the EA and Criterion
   logos and the attract film at launch end at once; the title screen shows in
   about 8 seconds instead of 25.

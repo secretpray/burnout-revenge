@@ -65,6 +65,7 @@ namespace settings
         StickDeadzone,
         TriggerDeadzone,
         Vibration,
+        ButtonPrompts,  // the game's own prompts' button pictures (gpu/pad_glyphs.h)
         DualSenseHidapi,
         // Controls (the [keys] table): the two keyboard keys that drive
         // each Xbox 360 control, as key codes (user/key_names.h); the
@@ -118,6 +119,9 @@ namespace settings
     // Music: the game's EA Trax, or the files of user/my_music.h's folder
     // in their place (kernel/xmsg.cpp).
     enum class MusicSource : int32_t { EaTrax = 0, MyMusic = 1 };
+    // Button Prompts: the pictures in the game's own prompts follow the
+    // device in use (as our menus' hints do), or always show one set.
+    enum class ButtonPrompts : int32_t { Auto = 0, Xbox = 1, PlayStation = 2, Keyboard = 3 };
     // Frame Rate: 60, 30, or Auto (video/frame_rate.h: 60, or 30 while the
     // device is hot or can't hold 60).
     constexpr int32_t kFrameRateAuto = 0;

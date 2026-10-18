@@ -62,6 +62,12 @@ namespace settings
             { int32_t(MusicSource::EaTrax), "ea_trax", "EA Trax" },
             { int32_t(MusicSource::MyMusic), "my_music", "My Music" },
         };
+        constexpr EnumEntry kButtonPromptsEntries[] = {
+            { int32_t(ButtonPrompts::Auto), "auto", "Auto" },
+            { int32_t(ButtonPrompts::Xbox), "xbox", "Xbox" },
+            { int32_t(ButtonPrompts::PlayStation), "playstation", "PlayStation" },
+            { int32_t(ButtonPrompts::Keyboard), "keyboard", "Keyboard" },
+        };
         constexpr EnumEntry kAaMethodEntries[] = {
             { int32_t(AaMethod::Fxaa), "fxaa", "FXAA" },
             { int32_t(AaMethod::Smaa), "smaa", "SMAA" },
@@ -273,6 +279,10 @@ namespace settings
               .table = "input", .key = "vibration", .label = "Vibration",
               .description = "Controller rumble.",
               .env = "BURNOUT_VIBRATION", .defaultValue = 1 },
+            { .id = Id::ButtonPrompts, .category = Category::Input, .type = Type::Enum, .apply = Apply::Live,
+              .table = "input", .key = "button_prompts", .label = "Button Prompts",
+              .description = "The buttons the game's own prompts show. Auto follows the device you use: PlayStation shapes for a DualSense, your keys for the keyboard, Xbox buttons otherwise.",
+              .env = "BURNOUT_PAD_GLYPHS", .defaultValue = double(ButtonPrompts::Auto), .entries = kButtonPromptsEntries },
             { .id = Id::DualSenseHidapi, .category = Category::Input, .type = Type::Bool, .apply = Apply::Restart,
               .table = "input", .key = "dualsense_hidapi", .label = "DualSense Raw HID Driver",
               .description = "Off uses Apple's controller driver on Mac, avoiding raw Bluetooth report-mode changes. Try Off if a Bluetooth Magic Keyboard disconnects while a DualSense is connected. On uses SDL's raw HID driver. Restart the game after changing this; controller features depend on the selected driver.",

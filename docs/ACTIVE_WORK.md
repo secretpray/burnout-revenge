@@ -46,8 +46,12 @@
   игра не видит. Без смены состояния нет и плашки EA Trax с чужим названием (прогоны 151/153).
   Каждый PlayTitlePlaylist (старт, пропуск) — следующая своя песня. Тесты my_music_test,
   kernel_compat_test (TestMyMusic). Кириллица в наших меню — системный Arial Narrow как запасной.
-- [ ] Кнопки в самой игре (иконки Xbox 360 в её подсказках) по выбранному контроллеру/клавиатуре —
-  просьба пользователя после v0.1.8: найти текстуры глифов игры и подменять их.
+- [x] Кнопки в самой игре по устройству ([PAD_GLYPHS](PAD_GLYPHS.md)): атлас кнопок 128×256 и диск
+  «A» (DXT3) из «PRESS A TO BOOST!» перерисовываются поверх гостевой копии; PlayStation-фигуры,
+  клавиши как символы Mac (␣ ⌫ ⇧ ⌃), Xbox — оригинал. Settings > Input > Button Prompts
+  (Auto по умолчанию / Xbox / PlayStation / Keyboard), смена на лету; `BURNOUT_PAD_GLYPHS`
+  перекрывает. Прогоны в glyphs-research 02–13. Проверить вручную на DualSense: стик в
+  PS-наборе остаётся игровым («RS», а не R3).
 - [ ] Add-on: пакеты — ключи разблокировки (один Content.txt «ThisIsContent» в каждом), машины
   уже в данных игры. Игра перечисляет все 6 (`game enumerates 6 pack(s)`). Осталось вручную
   проверить в Car Select шесть машин: Spike TV, Monster, Plantronics, 360 livery, Yellowcard, Dolby.

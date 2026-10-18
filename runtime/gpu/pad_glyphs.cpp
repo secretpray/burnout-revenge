@@ -39,35 +39,19 @@ namespace gpu::padglyphs
             { 8, 152, 58, 190 }, { 73, 151, 111, 189 }, { 12, 196, 49, 233 },
         };
 
-        enum class Family { Xbox, PlayStation, Keyboard, Off };
+        enum class Family { Xbox, PlayStation, Keyboard };
 
-        Family Requested()
-        {
-            static const Family forced = [] {
-                const char* v = std::getenv("BURNOUT_PAD_GLYPHS");
-                std::string s = v ? v : "";
-                if (s.empty() || s == "0") return Family::Off;
-                if (s == "playstation" || s == "ps") return Family::PlayStation;
-                if (s == "keyboard") return Family::Keyboard;
-                if (s == "xbox") return Family::Xbox;
-                return Family::Xbox;  // 1, auto: follow (below)
-            }();
-            return forced;
-        }
-
-        bool Follow()
-        {
-            static const bool follow = [] {
-                const char* v = std::getenv("BURNOUT_PAD_GLYPHS");
-                return v && (std::string(v) == "1" || std::string(v) == "auto");
-            }();
-            return follow;
-        }
-
+        // Settings > Input > Button Prompts (lock-free; BURNOUT_PAD_GLYPHS
+        // overrides it as the settings' environment variables do).
         Family Wanted()
         {
-            if (!Follow())
-                return Requested();
+            switch (settings::ButtonPrompts(settings::GetInt(settings::Id::ButtonPrompts)))
+            {
+            case settings::ButtonPrompts::Xbox: return Family::Xbox;
+            case settings::ButtonPrompts::PlayStation: return Family::PlayStation;
+            case settings::ButtonPrompts::Keyboard: return Family::Keyboard;
+            case settings::ButtonPrompts::Auto: break;
+            }
             switch (hid::PublishedGlyphs())
             {
             case hid::Glyphs::PlayStation: return Family::PlayStation;
@@ -655,7 +639,11 @@ namespace gpu::padglyphs
 
     bool Enabled()
     {
-        static const bool enabled = Requested() != Family::Off;
+        // BURNOUT_PAD_GLYPHS=off: nothing hooked (a diagnostic, not a setting).
+        static const bool enabled = [] {
+            const char* v = std::getenv("BURNOUT_PAD_GLYPHS");
+            return !v || (std::string(v) != "off" && std::string(v) != "0");
+        }();
         return enabled;
     }
 
