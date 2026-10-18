@@ -60,8 +60,10 @@ plain endpoint-fit encoder for the boost disc.
 - PlayStation: cross, circle, square, triangle in their colours on dark discs (as
   `ui/burnout_setup.cpp`'s `ButtonGlyph`), L1 R1 L2 R2, an Options pill. The stick and
   the d-pad stay the game's own (the same on both pads).
-- Keyboard: key caps naming the keys bound in Settings > Controls (SPACE, BKSP, SHIFT,
-  CTRL, Q, E, S, W, ENTER by default; arrows drawn), a d-pad cap with four arrows, and
+- Keyboard: key caps for the keys bound in Settings > Controls. A cell is 30 texels and
+  the game scales it to its own fixed size (65 px at 4K), so words ran together: keys
+  with a longer name get the symbol a Mac keyboard prints (␣ ⌫ ⇧ ⌃ ↵ ⇥ ⌥, arrows), the
+  rest their name cut to three letters (Q, E, S, W, ESC by default); a d-pad cap with four arrows, and
   a blank cap for the stick (the game prints LS/RS on it: a stick is four keys and its
   click is unbound by default). A settings change redraws the keyboard set; it is
   written only if the picture changed.
@@ -98,7 +100,8 @@ for the keyboard switch). Captures and logs stay there, never in the repository.
 | 09-off | `0` | The game's own prompts: "Continue (A)", "Camera (LB) / Exit Replay (A) / Hide (B)". No `[glyphs]` line. |
 | 02, 04, 08, 10 | `playstation` | Menus "Continue ✕", "Driver Details △ / Select ✕"; Replay "L1 Camera / Exit Replay ✕ / Hide ○". The sheet found at its front-end and race addresses. |
 | 05 | `playstation` | "PRESS ✕ TO BOOST!" (the DXT3 disc redrawn and re-encoded). |
-| 03 | `keyboard` | "Continue SPACE", "Driver Details CTRL / Select SPACE", Replay "Q Camera / Exit Replay SPACE / Hide BKSP". |
+| 03 | `keyboard` (word labels, since replaced by symbols) | "Continue SPACE", "Driver Details CTRL / Select SPACE", Replay "Q Camera / Exit Replay SPACE / Hide BKSP". |
+| 11-kb | `keyboard` | Symbol caps: "Continue ␣", "Back ⌫ / Burnout Clips ⇧ / Driver Details ⌃ / Select ␣", Car Select "RS Camera / Change Color ⌃". |
 | 07-auto | `1` | PlayStation at start (a DualSense paired), F8 at 18 s: keyboard caps; the virtual pad's RS at 26 s: Xbox; F8 at 32 s: keyboard again (Car Select: "RS" printed on the blank stick cap). Each switch logged in the frame of its input. |
 
 Every run exited cleanly when bounded, with no crash and no unimplemented import.

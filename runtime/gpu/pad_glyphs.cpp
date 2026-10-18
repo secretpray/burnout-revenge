@@ -295,23 +295,32 @@ namespace gpu::padglyphs
             // The sticks and the d-pad are the same on both pads: the game's own.
         }
 
-        // A key's short name for a cap: the key bound in Settings > Controls.
+        // A key cap's label: the key bound in Settings > Controls. A cell is
+        // 30 texels and the game draws it at its own fixed size (two to three
+        // times that at 4K), so a word does not fit: "SPACE" in 24 texels was
+        // letters 4 texels tall, run together once scaled. Keys with a name
+        // longer than three letters get the symbol a Mac keyboard prints
+        // (Symbol below, as codes 1..11); others their name, three letters
+        // at most.
+        enum Sym : char { kUp = 1, kDown, kLeft, kRight, kSpace, kBackspace, kShift, kControl, kReturn, kTab, kOption };
+
         std::string KeyLabel(settings::Id id)
         {
             const char* token = settings::keynames::Token(uint16_t(settings::GetInt(id)));
             std::string t = token ? token : "";
             static const std::unordered_map<std::string, std::string> kShort = {
-                { "space", "SPACE" }, { "backspace", "BKSP" }, { "left_shift", "SHIFT" }, { "right_shift", "SHIFT" },
-                { "left_ctrl", "CTRL" }, { "right_ctrl", "CTRL" }, { "left_alt", "ALT" }, { "right_alt", "ALT" },
-                { "return", "ENTER" }, { "escape", "ESC" }, { "tab", "TAB" }, { "none", "" },
-                { "up", "\x01" }, { "down", "\x02" }, { "left", "\x03" }, { "right", "\x04" },
+                { "up", { kUp } }, { "down", { kDown } }, { "left", { kLeft } }, { "right", { kRight } },
+                { "space", { kSpace } }, { "backspace", { kBackspace } }, { "left_shift", { kShift } }, { "right_shift", { kShift } },
+                { "left_ctrl", { kControl } }, { "right_ctrl", { kControl } }, { "return", { kReturn } }, { "tab", { kTab } },
+                { "left_alt", { kOption } }, { "right_alt", { kOption } }, { "escape", "ESC" }, { "none", "" },
             };
             if (auto it = kShort.find(t); it != kShort.end())
                 return it->second;
             std::string out;
             for (char ch : t)
-                out += ch == '_' ? ' ' : char(std::toupper((unsigned char)ch));
-            return out.size() > 6 ? out.substr(0, 5) : out;
+                if (ch != '_')
+                    out += char(std::toupper((unsigned char)ch));
+            return out.substr(0, 3);
         }
 
         // An arrow head pointing `dir` (1 up, 2 down, 3 left, 4 right), size k.
@@ -328,15 +337,58 @@ namespace gpu::padglyphs
             return Edge(SdTriangle(x, y, p));
         }
 
-        void KeyCap(Image& image, const Cell& c, const std::string& label, float capHeight)
+        // A key symbol (Sym) in a box of half-size k centred on (cx, cy):
+        // strokes of polylines, as the Mac prints them (␣ ⌫ ⇧ ⌃ ↵ ⇥ ⌥).
+        void Symbol(Image& image, const Cell& c, char code, float cx, float cy, float k, Rgba color)
+        {
+            if (code >= kUp && code <= kRight)
+            {
+                image.Paint(c, color, [=](float x, float y) { return Arrow(x, y, cx, cy, k * .8f, code); });
+                return;
+            }
+            using Line = std::vector<std::pair<float, float>>;  // in units of k from the centre
+            std::vector<Line> lines;
+            switch (code)
+            {
+            case kSpace: lines = { { { -1, -.15f }, { -1, .4f }, { 1, .4f }, { 1, -.15f } } }; break;
+            case kBackspace:
+                lines = { { { -1, 0 }, { -.45f, -.65f }, { 1, -.65f }, { 1, .65f }, { -.45f, .65f }, { -1, 0 } },
+                    { { 0, -.28f }, { .56f, .28f } }, { { 0, .28f }, { .56f, -.28f } } };
+                break;
+            case kShift:
+                lines = { { { 0, -1 }, { .95f, 0 }, { .42f, 0 }, { .42f, .9f }, { -.42f, .9f }, { -.42f, 0 }, { -.95f, 0 }, { 0, -1 } } };
+                break;
+            case kControl: lines = { { { -.8f, .4f }, { 0, -.45f }, { .8f, .4f } } }; break;
+            case kReturn:
+                lines = { { { .8f, -.8f }, { .8f, .3f }, { -.75f, .3f } }, { { -.35f, -.12f }, { -.8f, .3f }, { -.35f, .72f } } };
+                break;
+            case kTab: lines = { { { -.9f, 0 }, { .6f, 0 } }, { { .15f, -.45f }, { .6f, 0 }, { .15f, .45f } }, { { .9f, -.6f }, { .9f, .6f } } }; break;
+            case kOption: lines = { { { -.95f, -.5f }, { -.4f, -.5f }, { .35f, .5f }, { .95f, .5f } }, { { .2f, -.5f }, { .95f, -.5f } } }; break;
+            default: return;
+            }
+            const float half = std::max(.8f, k * .13f);
+            image.Paint(c, color, [&](float x, float y) {
+                float d = 1e9f;
+                for (const Line& line : lines)
+                    for (size_t i = 1; i < line.size(); i++)
+                        d = std::min(d, SdSegment(x, y, cx + line[i - 1].first * k, cy + line[i - 1].second * k,
+                            cx + line[i].first * k, cy + line[i].second * k));
+                return Edge(d - half);
+            });
+        }
+
+        // A cap with `label` (KeyLabel) its letters `capHeight` texels tall,
+        // or its symbol filling `symbol` texels either side of the centre.
+        void KeyCap(Image& image, const Cell& c, const std::string& label, float capHeight, float symbol, float scale = 1)
         {
             image.Clear(c);
-            Cap(image, c, 5, Col(52, 50, 46), 110);
+            Cap(image, c, 5 * scale, Col(52, 50, 46), 110, scale);
             float cx = (c.x0 + c.x1 + 1) * .5f, cy = (c.y0 + c.y1 + 1) * .5f;
-            if (label.size() == 1 && label[0] >= 1 && label[0] <= 4)
-                image.Paint(c, Col(236, 236, 236), [=](float x, float y) { return Arrow(x, y, cx, cy, capHeight * .5f, label[0]); });
+            if (label.size() == 1 && label[0] >= kUp && label[0] <= kOption)
+                Symbol(image, c, label[0], cx, cy, symbol, Col(236, 236, 236));
             else if (!label.empty())
-                Text(image, label.c_str(), cx, cy, capHeight, float(c.x1 - c.x0 - 6), Col(236, 236, 236));
+                Text(image, label.c_str(), cx, cy, label.size() <= 1 ? capHeight * 1.4f : capHeight, float(c.x1 - c.x0 + 1) - 8 * scale,
+                    Col(236, 236, 236));
         }
 
         // The keyboard: key caps with the bound keys' names (the sheet has
@@ -353,11 +405,11 @@ namespace gpu::padglyphs
             {
                 const Cell& c = kCells[slot];
                 std::string label = KeyLabel(id);
-                KeyCap(image, c, label, label.size() <= 1 ? (slot <= kY ? 15.0f : 20.0f) : slot <= kY ? 10.0f : 13.0f);
+                KeyCap(image, c, label, slot <= kY ? 11.0f : 14.0f, slot <= kY ? 8.5f : 11.0f);
             }
             // A stick: a blank cap (the game prints LS or RS on it; the
             // keys of a stick are four, and its click is unbound).
-            KeyCap(image, kCells[kStick], "", 0);
+            KeyCap(image, kCells[kStick], "", 0, 0);
             {
                 // The d-pad: a cap with the four arrows.
                 const Cell& c = kCells[kDpad];
@@ -524,10 +576,7 @@ namespace gpu::padglyphs
                 FaceShape(image, c, kA);
             else
             {
-                std::string label = KeyLabel(settings::Id::KeyA);
-                Cell key{ 2, 22, 125, 105 };
-                Cap(image, key, 18, Col(52, 50, 46), 110, 3.5f);
-                Text(image, label.c_str(), 64, 64, label.size() <= 1 ? 44.0f : 32.0f, 104, Col(236, 236, 236));
+                KeyCap(image, Cell{ 6, 6, 121, 121 }, KeyLabel(settings::Id::KeyA), 40, 36, 3.5f);
             }
         }
 
