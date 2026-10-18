@@ -339,7 +339,7 @@ namespace ui
         // the highlight is the Selectable's item rect). As the game's
         // Settings screen: an orange label over a dark rule; the chosen row
         // white between two yellow lines.
-        float RowLabel(ImVec2 pos, const char* label)
+        float RowLabel(ImVec2 pos, const char* label, bool enabled = true)
         {
             ImVec2 min = ImGui::GetItemRectMin(), max = ImGui::GetItemRectMax();
             float mid = (min.y + max.y) * 0.5f;
@@ -349,7 +349,8 @@ namespace ui
                 burnout::SelectorLines(draw, min, max);
             else
                 burnout::RowRule(draw, min.x, max.x, max.y - 2 * Scale());
-            draw->AddText(ImVec2(pos.x, CentredTextTop(mid)), focused ? kRowWhite : kRowOrange, Upper(label).c_str());
+            const ImU32 color = !enabled ? ImGui::GetColorU32(ImGuiCol_TextDisabled) : focused ? kRowWhite : kRowOrange;
+            draw->AddText(ImVec2(pos.x, CentredTextTop(mid)), color, Upper(label).c_str());
             return mid;
         }
 
@@ -634,11 +635,14 @@ namespace ui
         }
 
         // An action, not an option: a label and what it shows now (no
-        // arrows). True when A (or a click) pressed it.
-        bool ActionRow(const char* id, const char* label, const char* value, float valueWidth, bool& described)
+        // arrows). True when A (or a click) pressed it. Not `enabled`: dim,
+        // skipped by the controller's cursor, A and clicks do nothing.
+        bool ActionRow(const char* id, const char* label, const char* value, float valueWidth, bool& described,
+            bool enabled = true)
         {
             const float rowHeight = RowHeight();
             ImGui::PushID(id);
+            ImGui::BeginDisabled(!enabled);
             ImGui::TableNextRow(ImGuiTableRowFlags_None, rowHeight);
             ImGui::TableNextColumn();
             ImGui::SetCursorPosX(ImGui::GetCursorPosX() + LabelInset());
@@ -646,9 +650,10 @@ namespace ui
             bool activated = ImGui::Selectable("##row", false,
                 ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap, ImVec2(0, rowHeight));
             bool focused = ImGui::IsItemFocused();
-            if (focused || (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenOverlappedByItem) && s_described == Id::Count))
+            if (focused || (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenOverlappedByItem | ImGuiHoveredFlags_AllowWhenDisabled)
+                               && s_described == Id::Count))
                 described = true;
-            const float mid = RowLabel(labelPos, label);
+            const float mid = RowLabel(labelPos, label, enabled);
             ImGui::TableNextColumn();
             float arrow = ImGui::GetFrameHeight();
             ImGui::SetCursorPosY(ImGui::GetCursorPosY() + (rowHeight - arrow) * 0.5f);
@@ -657,8 +662,10 @@ namespace ui
             const std::string text = Upper(value);
             ImVec2 size = ImGui::CalcTextSize(text.c_str());
             ImGui::GetWindowDrawList()->AddText(ImVec2(min.x + arrow + (valueWidth - size.x) * 0.5f, CentredTextTop(mid)),
-                kRowWhite, text.c_str());
+                enabled ? kRowWhite : ImGui::GetColorU32(ImGuiCol_TextDisabled), text.c_str());
+            ImGui::EndDisabled();
             ImGui::PopID();
+            activated = activated && enabled;
             if (activated)
                 menu_sounds::Play(menu_sounds::Sound::Select);
             return activated;
@@ -780,7 +787,9 @@ namespace ui
 
         void MusicFolderRow(float valueWidth)
         {
-            if (ActionRow("music-folder", "Music Folder", MusicFolderValue().c_str(), valueWidth, s_describedMusicFolder))
+            // Only for My Music: with EA Trax there's no folder to pick.
+            const bool myMusic = settings::GetInt(Id::Music) == int32_t(settings::MusicSource::MyMusic);
+            if (ActionRow("music-folder", "Music Folder", MusicFolderValue().c_str(), valueWidth, s_describedMusicFolder, myMusic))
             {
                 std::error_code error;
                 std::filesystem::create_directories(user::my_music::Folder(), error);
@@ -796,8 +805,11 @@ namespace ui
                 std::string folder = user::my_music::Folder().string();
                 if (const char* home = std::getenv("HOME"); home && *home && folder.starts_with(home))
                     folder = "~" + folder.substr(std::strlen(home));
-                ImGui::TextWrapped("Put MP3, AAC, ALAC, FLAC, WAV or AIFF files (subfolders too) in %s, then set Music to My Music. "
-                                   "A opens the folder.", folder.c_str());
+                if (settings::GetInt(Id::Music) != int32_t(settings::MusicSource::MyMusic))
+                    ImGui::TextWrapped("Set Music to My Music to use your own files from %s.", folder.c_str());
+                else
+                    ImGui::TextWrapped("Put MP3, AAC, ALAC, FLAC, WAV or AIFF files (subfolders too) in %s. "
+                                       "A opens the folder.", folder.c_str());
                 return;
             }
             if (s_describedSaveBackups)
