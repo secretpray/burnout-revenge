@@ -179,6 +179,8 @@ sb_test(whole_vblanks_test)
 # header only; GitHub issue #10).
 sb_test(light_trails_test)
 sb_test(guest_time_test SOURCES ${RT}/cpu/guest_time.cpp)
+# A guest thread's suspend count (cpu/suspend_count.h, header only).
+sb_test(suspend_count_test)
 # When the mouse cursor shows over the game (ui/cursor_idle.h, header only),
 # and how ui.cpp drives it.
 sb_test(cursor_idle_test ARGS ${RT}/ui/ui.cpp)

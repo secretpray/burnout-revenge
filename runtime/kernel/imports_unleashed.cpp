@@ -245,12 +245,26 @@ uint32_t ObReferenceObjectByHandle(uint32_t handle, uint32_t objectType, be<uint
     return 0;
 }
 
+namespace
+{
+    // BURNOUT_LOG_SUSPEND=1: each self-suspend and resume (diagnosing the
+    // movie player's start, ACTIVE_WORK 3b).
+    bool LogSuspend()
+    {
+        static const bool log = std::getenv("BURNOUT_LOG_SUSPEND") != nullptr;
+        return log;
+    }
+}
+
 uint32_t NtSuspendThread(GuestThreadHandle* hThread, uint32_t* suspendCount)
 {
+    if (LogSuspend())
+        fprintf(stderr, "[suspend] %08X self\n", hThread->GetThreadId());
     assert(hThread != GetKernelObject(CURRENT_THREAD_HANDLE) && hThread->GetThreadId() == GuestThread::GetCurrentThreadId());
 
-    hThread->suspended = true;
-    hThread->suspended.wait(true);
+    const uint32_t previous = hThread->suspendCount.SuspendSelf();
+    if (suspendCount != nullptr)
+        *suspendCount = ByteSwap(previous);
 
     return S_OK;
 }
@@ -467,8 +481,12 @@ uint32_t NtResumeThread(GuestThreadHandle* hThread, uint32_t* suspendCount)
 {
     assert(hThread != GetKernelObject(CURRENT_THREAD_HANDLE));
 
-    hThread->suspended = false;
-    hThread->suspended.notify_all();
+    const uint32_t previous = hThread->suspendCount.Resume();
+    if (LogSuspend())
+        fprintf(stderr, "[suspend] %08X resumed by %08X%s\n", hThread->GetThreadId(), GuestThread::GetCurrentThreadId(),
+            previous != 0 ? "" : " (running: kept for its next suspend)");
+    if (suspendCount != nullptr)
+        *suspendCount = ByteSwap(previous);
 
     return S_OK;
 }
@@ -512,9 +530,7 @@ uint32_t KeResumeThread(GuestThreadHandle* object)
 {
     assert(object != GetKernelObject(CURRENT_THREAD_HANDLE));
 
-    object->suspended = false;
-    object->suspended.notify_all();
-    return 0;
+    return object->suspendCount.Resume();
 }
 
 // uint32_t XAudioRegisterRenderDriverClient(be<uint32_t>* callback, be<uint32_t>* driver)

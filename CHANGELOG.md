@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- A rare black screen at launch (about 1 in 100, with Skip Intro Movies) is
+  fixed: the film player's helper threads could miss a wake-up and leave the
+  game waiting for them.
+
 ## v0.1.11
 
 - Bloom and Motion Blur are sliders now, 0 to 100% (Settings > Graphics), in

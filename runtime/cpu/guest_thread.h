@@ -4,6 +4,7 @@
 
 #include <kernel/xdm.h>
 #include <kernel/dispatcher.h>
+#include <cpu/suspend_count.h>
 
 // BurnoutRevenge: pthreads on every platform (macOS and Linux), for the stack
 // size and so thread handles share one detached, reference-counted path.
@@ -43,7 +44,7 @@ struct GuestThreadHandle : Waitable
 {
     GuestThreadParams params;
     uint32_t id;
-    std::atomic<bool> suspended;
+    SuspendCount suspendCount;  // BurnoutRevenge: keeps a resume that came early (cpu/suspend_count.h)
     bool finished = false;  // BurnoutRevenge: guarded by dispatcher::Lock()
 #ifdef USE_PTHREAD
     pthread_t thread;

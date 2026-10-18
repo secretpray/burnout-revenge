@@ -133,7 +133,7 @@ static void GuestThreadFunc(GuestThreadHandle* hThread)
         snprintf(name, sizeof(name), "g%u-%08X", hThread->id, hThread->params.function);
         SetHostThreadName(name);
     }
-    hThread->suspended.wait(true);
+    hThread->suspendCount.WaitWhileSuspended();
     GuestThread::Start(hThread->params);
     // BurnoutRevenge: signal waiters, then drop the thread's own reference.
     {
@@ -148,7 +148,7 @@ static void GuestThreadFunc(GuestThreadHandle* hThread)
 }
 
 GuestThreadHandle::GuestThreadHandle(const GuestThreadParams& params)
-    : params(params), id(s_nextThreadId++), suspended((params.flags & 0x1) != 0)
+    : params(params), id(s_nextThreadId++), suspendCount((params.flags & 0x1) != 0)
 #ifdef USE_PTHREAD
 {
     pthread_attr_t attr;
