@@ -145,14 +145,17 @@ namespace ui
                 s_dialogFailed = true;
             }
 #else
-            // BURNOUT_TEST_PICK_IMAGE stands in for the disc image dialog
-            // (automated runs): its path is the player's pick.
-            if (const char* test = std::getenv("BURNOUT_TEST_PICK_IMAGE"); test && *test && purpose == DialogFor::Source)
+            // BURNOUT_TEST_PICK_IMAGE and BURNOUT_TEST_PICK_ADDONS stand in for
+            // the disc image and add-on folder dialogs (automated runs): the
+            // path is the player's pick.
+            const char* test = std::getenv(purpose == DialogFor::Source ? "BURNOUT_TEST_PICK_IMAGE"
+                : purpose == DialogFor::Addons ? "BURNOUT_TEST_PICK_ADDONS" : "");
+            if (test && *test)
             {
                 std::lock_guard lock(s_dialogMutex);
                 s_dialogOpen = false;
                 s_dialogPick = test;
-                fprintf(stderr, "[installer] BURNOUT_TEST_PICK_IMAGE stands in for the file dialog: %s\n", test);
+                fprintf(stderr, "[installer] a test pick stands in for the file dialog: %s\n", test);
                 return;
             }
             static const SDL_DialogFileFilter filters[] = { { "Xbox 360 disc image", "iso" }, { "All files", "*" } };
@@ -849,7 +852,9 @@ namespace ui
         if (wide) br::Poster(ImGui::GetWindowPos(), {poster, size.y});
         ImGui::SetCursorPos({poster + pad, pad});
         ImGui::PushFont(nullptr, 18);
-        ImGui::BeginChild("setup-content", {size.x - poster - pad * 2, size.y - pad * 2}, ImGuiChildFlags_NavFlattened);
+        // Each page is laid out to fit: never a scroll bar.
+        ImGui::BeginChild("setup-content", {size.x - poster - pad * 2, size.y - pad * 2}, ImGuiChildFlags_NavFlattened,
+            ImGuiWindowFlags_NoScrollbar);
         if (pageStarted == 0) pageStarted = ImGui::GetTime();
         bool picker;
         { std::lock_guard lock(s_dialogMutex); picker = s_dialogOpen; }
@@ -870,7 +875,13 @@ namespace ui
                 ImGui::SetKeyboardFocusHere(-1);
                 focusPage = false;
             }
-            if (hit) fprintf(stderr, "[installer] pressed %s\n", label);
+            if (hit)
+            {
+                // Which input pressed it: a press nobody made shows up here.
+                static const char* const kSources[] = { "none", "mouse", "keyboard", "gamepad" };
+                int source = int(ImGui::GetCurrentContext()->ActiveIdSource);
+                fprintf(stderr, "[installer] pressed %s (%s)\n", label, source >= 0 && source < 4 ? kSources[source] : "other");
+            }
             return hit;
         };
         auto pathLine = [&](const std::filesystem::path& path) {
@@ -948,40 +959,45 @@ namespace ui
         case Page::Confirm:
         {
             header(2, "MAKE IT YOURS.", "Your copy checks out. Choose where it goes and bring your car packs.");
-            gap(26);
+            gap(18);
             const Destination& d = destinations[chosen];
             reveal([&] {
                 br::Eyebrow("02  /  INSTALL TO");
                 // Keep the existing placement checks and destination chooser.
                 // An explicit native picker is clearer than a carousel of paths.
                 small([&] {
-                    pathLine(destination);
                     if (d.info.available != UINT64_MAX)
                         ImGui::TextDisabled("%s required  /  %s available", install::FormatSize(d.info.required).c_str(),
                             install::FormatSize(d.info.available).c_str());
+                    pathLine(destination);
                 });
                 if (!d.check.Ok()) ImGui::TextWrapped("%s", d.check.message.c_str());
                 if (!pickHint.empty() && pick == Pick::Unavailable) ImGui::TextWrapped("%s", pickHint.c_str());
-                gap(4);
-                if (button("CHANGE INSTALL FOLDER", false, 40)) RequestFolder();
+                if (button("CHANGE INSTALL FOLDER", false, 38)) RequestFolder();
             });
-            gap(18);
+            gap(12);
             reveal([&] {
                 br::Eyebrow("02  /  ADD-ON CAR PACKS  /  OPTIONAL");
-                if (button(addonSource.empty() ? "CHOOSE ADD-ON FOLDER" : "CHANGE ADD-ON FOLDER", false, 40))
-                    Browse(true, DialogFor::Addons);
-                gap(4);
                 small([&] {
-                    ImGui::TextWrapped("%s", addonMessage.empty() ? "Choose your car packs now, or add them later in Settings." : addonMessage.c_str());
-                    if (!addonSource.empty()) pathLine(addonSource);
+                    // The result and where from, on one line.
+                    if (addonSource.empty())
+                        ImGui::TextDisabled("Choose your car packs now, or add them later in Settings.");
+                    else
+                    {
+                        ImGui::TextUnformatted(addonMessage.c_str());
+                        ImGui::SameLine();
+                        pathLine(addonSource);
+                    }
                 });
+                if (button(addonSource.empty() ? "CHOOSE ADD-ON FOLDER" : "CHANGE ADD-ON FOLDER", false, 38))
+                    Browse(true, DialogFor::Addons);
             });
-            actions(54 + 36 + 8);
+            actions(52 + 34 + 8);
             reveal([&] {
                 ImGui::BeginDisabled(!d.check.Ok());
-                if (button("INSTALL & VERIFY", true, 54)) StartInstall();
+                if (button("INSTALL & VERIFY", true, 52)) StartInstall();
                 ImGui::EndDisabled();
-                if (button("BACK", false, 36)) Go(Page::Choose);
+                if (button("BACK", false, 34)) Go(Page::Choose);
             });
             break;
         }
