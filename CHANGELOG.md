@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Skip Intro Movies (Settings > Advanced, on by default): the EA and Criterion
+  logos and the attract film at launch end at once; the title screen shows in
+  about 8 seconds instead of 25.
+- Eleven system functions that stopped the game if ever reached now work as on
+  the console: the CRT's sprintf, _vsnprintf and DbgPrint, the L2 lock, a
+  spinlock try, the title's execution id, XAM's own memory, the "disc
+  unreadable" screen (a message, then quit) and the extended message box.
+
 ## v0.1.8
 
 - Button hints in our menus and dialogs follow the controller you use: PlayStation

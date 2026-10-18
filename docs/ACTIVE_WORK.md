@@ -51,7 +51,11 @@
 - [ ] Add-on: пакеты — ключи разблокировки (один Content.txt «ThisIsContent» в каждом), машины
   уже в данных игры. Игра перечисляет все 6 (`game enumerates 6 pack(s)`). Осталось вручную
   проверить в Car Select шесть машин: Spike TV, Monster, Plantronics, 360 livery, Yellowcard, Dolby.
-- [ ] 57 fatal imports, career/Crash/replay матрица; регионы/GOD/online отдельно позже.
+- [x] Этап 7, начало: пропуск заставок (game/movies.cpp: sub_821FEBC0 запоминает ролик, sub_82357CC0
+  отвечает «закончился» только для плеера заставки; прогоны 163/164: титул к 8 с, гонка к 45 с);
+  11 импортов (kernel/imports_offline.cpp, поведение Xenia/rexglue, код свой) — fatal stubs 57 → 46.
+  Дальше: bloom/motion blur с синим небом, Burnout Clip (sub_823C2CF0), track skip в Crash mode.
+- [ ] 46 fatal imports (сеть/Live), career/Crash/replay матрица; регионы/GOD/online отдельно позже.
 
 Начать с [подробного плана](ROADMAP_RU.md), затем нужных разделов
 [исследования внешних портов](EXTERNAL_PORTS_PLAN.md),

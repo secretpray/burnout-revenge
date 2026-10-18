@@ -6,11 +6,15 @@
 
 namespace guestformat
 {
-    // Xbox CRT integer/string subset. va_list entries occupy big-endian 64-bit
-    // slots, including 32-bit arguments. No host va_list or wchar_t is reused.
-    // Unsupported conversions return false, never consume the wrong argument.
+    // Xbox CRT integer/string/floating subset. va_list entries occupy
+    // big-endian 64-bit slots, including 32-bit arguments (a double: its bits).
+    // No host va_list or wchar_t is reused. Unsupported conversions return
+    // false, never consume the wrong argument. `narrow`: the format of the
+    // narrow functions (sprintf), where %s is a byte string and %ls/%S a wide
+    // one; otherwise the wide functions' (swprintf), the other way round.
+    // readString(address, narrowString) gives either as UTF-16 units.
     template<class Next, class ReadString>
-    bool Wide(const std::u16string& format, Next next, ReadString readString, std::u16string& output)
+    bool Format(const std::u16string& format, Next next, ReadString readString, std::u16string& output, bool narrow)
     {
         output.clear();
         for (size_t i = 0; i < format.size(); ++i)
@@ -52,17 +56,18 @@ namespace guestformat
                 if (precision > 4096) return false;
                 if (precision >= 0) spec += "." + std::to_string(precision);
             }
-            bool wideInteger = false, narrowString = false;
+            bool wideInteger = false, shortFlag = false, longFlag = false;
             if (format.compare(i, 3, u"I64") == 0) { wideInteger = true; i += 3; }
             else if (format.compare(i, 2, u"ll") == 0) { wideInteger = true; i += 2; }
             else if (i < format.size() && (format[i] == u'h' || format[i] == u'l'))
-            { narrowString = format[i] == u'h'; ++i; }
+            { shortFlag = format[i] == u'h'; longFlag = format[i] == u'l'; ++i; }
             if (i == format.size()) return false;
             char conversion = char(format[i]);
             std::u16string piece;
             if (conversion == 's' || conversion == 'S')
             {
-                piece = readString(uint32_t(next()), narrowString || conversion == 'S');
+                const bool narrowString = shortFlag || (narrow ? !(longFlag || conversion == 'S') : conversion == 'S');
+                piece = readString(uint32_t(next()), narrowString);
                 if (precision >= 0 && piece.size() > size_t(precision)) piece.resize(precision);
                 if (piece.size() < size_t(width))
                     piece.insert(left ? piece.size() : 0, width - piece.size(), u' ');
@@ -70,7 +75,7 @@ namespace guestformat
             else if (conversion == 'c') piece += char16_t(next());
             else if (std::string("diuoxX").find(conversion) != std::string::npos)
             {
-                if (narrowString) return false; // short integers not in this subset
+                if (shortFlag) return false; // short integers not in this subset
                 uint64_t value = next();
                 spec += "ll"; spec += conversion;
                 char buffer[8192];
@@ -82,10 +87,48 @@ namespace guestformat
                 if (count < 0 || count >= int(sizeof(buffer))) return false;
                 for (int j = 0; j < count; ++j) piece += char16_t(buffer[j]);
             }
+            else if (std::string("fFeEgGaA").find(conversion) != std::string::npos)
+            {
+                const uint64_t bits = next();
+                double value;
+                static_assert(sizeof(value) == sizeof(bits));
+                __builtin_memcpy(&value, &bits, sizeof(value));
+                spec += conversion;
+                char buffer[8192];
+                int count = snprintf(buffer, sizeof(buffer), spec.c_str(), value);
+                if (count < 0 || count >= int(sizeof(buffer))) return false;
+                for (int j = 0; j < count; ++j) piece += char16_t(buffer[j]);
+            }
+            else if (conversion == 'p')
+            {
+                char buffer[16];
+                snprintf(buffer, sizeof(buffer), "%08X", uint32_t(next()));
+                for (const char* c = buffer; *c; ++c) piece += char16_t(*c);
+            }
             else return false;
             output += piece;
             if (output.size() > 65536) return false;
         }
+        return true;
+    }
+
+    template<class Next, class ReadString>
+    bool Wide(const std::u16string& format, Next next, ReadString readString, std::u16string& output)
+    {
+        return Format(format, next, readString, output, false);
+    }
+
+    // The narrow functions' format (bytes) and result (bytes: a wide string's
+    // units above 0xFF become '?', as the CRT's conversion to the C locale).
+    template<class Next, class ReadString>
+    bool Narrow(const std::string& format, Next next, ReadString readString, std::string& output)
+    {
+        std::u16string wideFormat, wideOutput;
+        for (unsigned char c : format) wideFormat += char16_t(c);
+        output.clear();
+        if (!Format(wideFormat, next, readString, wideOutput, true))
+            return false;
+        for (char16_t c : wideOutput) output += c <= 0xFF ? char(c) : '?';
         return true;
     }
 }
