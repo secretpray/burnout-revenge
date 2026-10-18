@@ -59,6 +59,7 @@ namespace
     // a suspension can't slip between the check and the start.
     std::mutex s_streamMutex;
     SDL_AudioStream* s_stream = nullptr;
+    std::atomic<bool> s_audioReady{ false };  // published before the guest starts
     constexpr int FRAME_BYTES = SAMPLES_PER_FRAME * CHANNELS * sizeof(float);
     std::atomic<int> s_targetFrames{ 4 };  // SDL queue level to hold (frames of 256 samples)
     int s_deviceFrames = 0;                // the device's buffer at the stream's rate (FollowDevice)
@@ -105,11 +106,8 @@ namespace
         // menu keeps it open at gain 0, so unmuting works live.
         if (settings::EnvOverride(settings::Id::Mute) && settings::GetBool(settings::Id::Mute))
             return;
-        if (!SDL_InitSubSystem(SDL_INIT_AUDIO))
-        {
-            fprintf(stderr, "[audio] SDL audio init failed: %s (silent)\n", SDL_GetError());
-            return;
-        }
+        if (!s_audioReady.load(std::memory_order_acquire))
+            return;  // main-thread initialization failed; callbacks still run
         SDL_AudioSpec spec{ SDL_AUDIO_F32, int(CHANNELS), int(SAMPLE_RATE) };
         SDL_AudioStream* stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, nullptr, nullptr);
         if (!stream)
@@ -258,6 +256,25 @@ namespace
 
 namespace apu
 {
+    void InitializeOutputBackend()
+    {
+        if (!SDL_IsMainThread())
+        {
+            fprintf(stderr, "[audio] refusing SDL audio initialization outside the main thread\n");
+            return;
+        }
+        if (s_audioReady.load(std::memory_order_acquire) ||
+            (settings::EnvOverride(settings::Id::Mute) && settings::GetBool(settings::Id::Mute)))
+            return;
+        if (!SDL_InitSubSystem(SDL_INIT_AUDIO))
+        {
+            fprintf(stderr, "[audio] SDL audio init failed: %s (silent)\n", SDL_GetError());
+            return;
+        }
+        s_audioReady.store(true, std::memory_order_release);
+        fprintf(stderr, "[audio] SDL audio backend initialized on main thread (%s)\n", SDL_GetCurrentAudioDriver());
+    }
+
     void SuspendOutput()
     {
         std::lock_guard lock(s_streamMutex);

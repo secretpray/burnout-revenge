@@ -20,6 +20,7 @@
 #include <video/presenter.h>
 #include <gpu/renderer.h>
 #include <hid/input.h>
+#include <apu/audio.h>
 #include <cpu/guest_thread.h>
 #include <cpu/host_cpu.h>
 #include <install/install_cli.h>
@@ -548,6 +549,9 @@ int main(int argc, char** argv)
     module::Initialize(file, uint32_t(image.base), image.size, uint32_t(image.entry_point));
     WireImports(file);
     game::InitializeBurnoutAddons();
+
+    // SDL_InitSubSystem belongs to the main thread, before guest callbacks.
+    apu::InitializeOutputBackend();
 
     GuestMainParams params{ uint32_t(image.entry_point), DEFAULT_GUEST_STACK };
     if (auto* stack = static_cast<const be<uint32_t>*>(getOptHeaderPtr(file.data(), XEX_HEADER_DEFAULT_STACK_SIZE)))

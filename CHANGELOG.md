@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.1.1
+
+Audio startup hotfix after clean-install validation.
+
+- Safer audio startup on macOS; engine, collision and music output preserved.
+- Verified new-profile creation, profile reload, add-ons and active races.
+- Re-tested DualSense and Magic Keyboard over USB and Bluetooth on M1 Pro.
+
+Bluetooth passed the short candidate test after the startup correction. Broader
+hardware and longer sessions still need testing; USB remains a fallback.
+
 ## v0.1.0
 
 First experimental Apple silicon release of Burnout Revenge USA.

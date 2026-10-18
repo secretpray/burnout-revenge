@@ -138,3 +138,140 @@ The release is public and not a draft. It was initially marked pre-release;
 on 2026-10-18 that GitHub flag was removed and v0.1.0 set as Latest so the
 repository homepage can display it. The port remains experimental, with the
 same documented limitations; the tag, application and checksums are unchanged.
+
+### Run 87 — public download and real clean first launch
+
+The published v0.1.0 DMG was downloaded again and its SHA-256 matched. It was
+installed as a fresh Applications copy; the previous app was already absent.
+Original user data/cache were moved to private backups, leaving the actual
+standard macOS paths empty. No BR_DATA_DIR, BR_CACHE_DIR, game override, copied
+save or old shader cache is used. No executable/library was modified or rebuilt.
+
+The initial screen was captured internally. The user offered to operate the
+real ISO/add-on pickers manually. This run has no virtual pad, keyboard response
+hook or scripted key presses: BURNOUT_UI_KEYS contains only Shot captures.
+The game has now created a verified install marker, started from standard
+storage and connected six add-ons. Run exited on window close after 123.3 seconds, exit 0, no unimplemented imports.
+The user confirmed successful installation and separately reported profile/race/audio
+working, followed by controller dropouts. Captures show first-run UI, intro and
+title screen with Settings. No save file or guest keyboard request was recorded
+in this run, so new-profile persistence and active racing are not independently
+verified by its artifacts; repeat startup is pending. Original profile remains
+safely backed up until the checks finish.
+
+Signature/dependencies/macOS floor check PASS outside the sandbox. A sandboxed
+availability control could not read SDK metadata; the full check was repeated
+successfully with normal SDK access. Gatekeeper assessment rejects the ad-hoc,
+non-notarized app as expected: first-time users may need Open Anyway. Downloading
+through gh does not apply browser quarantine, so browser security dialogs are
+not verified by this run. Runtime checks on this Mac cannot guarantee every
+mode or other machines.
+
+Controller regression during run 87: four SDL gamepad-removed events at
+57.9, 71.1, 89.9 and 113.8 seconds, with subsequent re-discovery. Native Apple
+backend was selected; no remote UI control, virtual pad or scripted input was
+used. Treat controller reliability as a failed/unresolved check, not a passed
+release gate. Transport and idle-backend diagnostics are being checked.
+
+Run 87 follow-up: the user confirmed the current DualSense transport is Bluetooth
+(the earlier USB report belonged to a previous session). Local bluetoothd records
+unexpected L2CAP disconnects at the same times as the SDL removals. This confirms
+transport-level events, not their cause. Private addresses/names/logs are not
+published. Independent `--verify` using the installed release binary confirmed
+all 802 installed files match in 4 seconds. Native-backend idle monitoring and
+a vibration-disabled second run are planned to separate possible factors.
+
+### Run 88 — repeat startup, vibration disabled
+
+Same downloaded executable, same fresh standard data folders, no re-install and
+no copied saves. Native Apple controller backend; BURNOUT_VIBRATION=0 is the only
+settings override. No scripted buttons/keyboard reply, only internal captures.
+The real profile keyboard has been requested in this run. One gamepad removal
+has already recurred with vibration disabled: disabling vibration alone is not
+a verified fix. Separately, a 90-second native SDL monitor linked to the shipped
+SDL library had one connection and zero removals, battery 95%, with no rumble.
+This short idle comparison does not establish the root cause.
+
+Run 88 checkpoint: guest keyboard accepted, new Player Files save created
+(21,316 bytes plus container/thumbnail). Internal capture at 70 seconds confirms
+Traffic Attack active gameplay, 77 MPH, rendered road/car/HUD. This is a new
+profile created manually during this clean test, not a copied development save.
+One early gamepad removal is recorded; later observation is ongoing. No fatal
+imports so far. Audio was confirmed by the user. Post-exit profile persistence
+will be checked before restoring the original user folders.
+
+Run 88 completed by window close at 253.4 seconds, exit 0, no fatal imports.
+There was one early native-gamepad removal at 6.6 seconds, then no further
+removals through the remaining 246 seconds. Capture confirms the new-profile
+Traffic Attack race. The Player Files payload is 21,316 bytes, with container
+and thumbnail written. This is encouraging with vibration off, not a causal
+fix claim; the repeated startup with the default vibration setting follows.
+
+Run 88 user follow-up: Magic Keyboard again stopped working system-wide and
+required power cycling. DualSense disconnected during the title sequence; after
+manual reconnection it worked. This occurred without remote UI automation and
+with vibration disabled. Therefore neither stopping automation nor vibration-off
+is a confirmed fix. The app's native backend did not prevent the failures.
+
+The planned run 89 was NOT started: approval-service usage exhaustion rejected
+its execution before launch. On resumption, original settings/save/cache folders
+were restored and all original settings/save SHA-256 hashes matched. The new
+clean-test data are archived privately. The downloaded release app remains in
+Applications. No lost save/settings data, no background game left by the test.
+Further controller probes will use the archived test profile, not user data.
+
+### Run 89 — raw SDL basic-mode comparison
+
+On resumption the same released binary starts with archived clean-test data/cache,
+raw PS5 HID selected, Apple's MFi and IOKit joystick providers disabled, enhanced
+Bluetooth reports disabled and vibration off. Driver logs confirm SDL raw HID and
+rumble unavailable. These are process-local diagnostics, not shipped defaults or
+a confirmed fix. No system keyboard/mouse events are injected. The user is asked
+to load the newly created profile, drive and test physical typing outside the game.
+Original user data/settings/cache have already been restored and remain untouched.
+
+Run 89 ended on window close after 183.0 seconds, exit 0, no fatal imports.
+The raw driver recorded an early removal at 11.5 seconds and reconnection at
+41.8 seconds. The newly created profile was read successfully at 49.3 seconds.
+The user reported another controller-or-keyboard failure during the requested
+focus-switch check. Raw basic mode is therefore NOT a confirmed workaround.
+USB-only comparison follows after verifying actual wired transport.
+
+### Run 90 — public release, real USB control
+
+USB was verified independently in IOUSB and SDL (wired, 054c:0ce6), not inferred
+from a charging cable. Unchanged released binary, native Apple backend, normal
+sound and vibration, archived clean-test profile. 240.1 seconds, bounded SIGTERM
+exit 0; no fatal imports and zero gamepad-removal events. Captured Traffic Attack
+at 160 MPH with traffic collisions. The user confirmed controller and physical
+Magic Keyboard remained stable through Cmd+Tab/typing checks. This is a short
+successful wired validation, not a Bluetooth fix or all-hardware guarantee.
+
+A separate source defect was found: SDL_InitSubSystem(SDL_INIT_AUDIO) ran from
+a guest thread, although SDL documents initialization as main-thread-only.
+It is moved before guest-thread creation; stream opening remains on the guest
+thread (documented thread-safe). Silent test mode still skips host audio, and
+failed backend initialization still leaves guest audio callbacks progressing.
+Both standalone and dual-game sources are updated; tests/candidate Bluetooth
+validation follow. Published v0.1.0 and Applications remain unchanged for now.
+Reference: https://wiki.libsdl.org/SDL3/SDL_InitSubSystem
+
+### Run 91 — candidate with main-thread SDL audio initialization
+
+This is a separately built candidate, NOT the published v0.1.0 app. Same archived
+clean-test profile, Bluetooth DualSense, native driver, normal sound/vibration.
+The log confirms `[audio] SDL audio backend initialized on main thread (coreaudio)`
+before entry to guest code; the audio device subsequently opens normally. The
+existing profile is found/read. Physical controller/keyboard focus checks pending.
+
+After the shared source correction: standalone 60/60 (30.01 s), dual-game
+Burnout 62/62 (30.28 s), Most Wanted 61/61 (30.27 s). Both runtimes built. No
+availability/Metal tests skipped in these complete checks. No release artifact
+has yet been replaced and no Bluetooth-fix claim is made.
+
+Run 91 completed at 240.1 seconds with bounded SIGTERM, exit 0, no fatal imports
+and zero gamepad-removal events. Final capture shows active Traffic Attack at
+116 MPH. The user confirmed controller/keyboard stability and typed a free-text
+confirmation after switching out of the game. This is one successful Bluetooth
+candidate run after the correction, not a universal hardware/root-cause guarantee.
+v0.1.1 packaging and download verification follow; v0.1.0 is retained unchanged.

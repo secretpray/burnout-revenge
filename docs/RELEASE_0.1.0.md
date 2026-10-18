@@ -44,3 +44,6 @@ Magic Keyboard stopped responding system-wide again during remote UI automation.
 Automation was stopped. Causality remains unknown; USB DualSense was reported.
 Native controller backend and focus cleanup are not established hardware fixes.
 Further keyboard checks should be manual and without remote UI control.
+
+Post-publication clean-install audit found a main-thread SDL audio-startup defect
+and intermittent Bluetooth input failures. See [validation and hotfix work](RELEASE_VALIDATION_2026-10-18.md).

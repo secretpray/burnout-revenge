@@ -9,6 +9,11 @@
 
 namespace apu
 {
+    // Main thread, after settings and before starting the guest: SDL subsystem
+    // initialization is not thread-safe. Device streams may open on the guest
+    // thread later. A forced silent test skips the backend entirely.
+    void InitializeOutputBackend();
+
     // Main thread (video's SuspendGame and ResumeGame), idempotent. Suspend
     // pauses the output device: it plays silence without taking what is
     // queued, which then plays first on the resume. Resume starts it again,
