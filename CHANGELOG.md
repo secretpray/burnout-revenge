@@ -3,9 +3,10 @@
 ## v0.1.8
 
 - Button hints in our menus and dialogs follow the controller you use: PlayStation
-  shapes (✕ ○ □ △, L1/R1) with a DualSense, Xbox buttons with an Xbox-style pad,
-  key caps (Enter, Esc, Q/E, arrows) with the keyboard. The game's own hints are
-  unchanged.
+  shapes (cross, circle, square, triangle; L1/R1) with a DualSense, Xbox buttons
+  with an Xbox-style pad, key caps (Enter, Esc, Q/E, arrows) with the keyboard.
+  The game's own hints are unchanged.
+- The "What's new" note looks like the game's own prompts.
 
 ## v0.1.7
 

@@ -128,6 +128,7 @@ namespace ui::burnout
     {
         const float s = Scale();
         ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.035f, 0.032f, 0.028f, 0.97f));
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.035f, 0.032f, 0.028f, 0.97f));  // a plain window's (What's new)
         ImGui::PushStyleColor(ImGuiCol_ModalWindowDimBg, ImVec4(0, 0, 0, 0.6f));
         ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_PopupRounding, 0.0f);
@@ -140,15 +141,18 @@ namespace ui::burnout
     void PopDialogStyle()
     {
         ImGui::PopStyleVar(6);
-        ImGui::PopStyleColor(2);
+        ImGui::PopStyleColor(3);
     }
 
-    void EndDialog()
+    void EndDialog(bool popup)
     {
         ImGui::PopStyleVar();
         ImGui::PopStyleColor(3);
         ImGui::PopFont();
-        ImGui::EndPopup();
+        if (popup)
+            ImGui::EndPopup();
+        else
+            ImGui::End();
     }
 
     void DialogFrame()

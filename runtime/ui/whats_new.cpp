@@ -9,11 +9,14 @@
 // ran last lives in settings.toml, so it shows once.
 #include <stdafx.h>
 #include "ui.h"
+#include "burnout_setup.h"
 
 #include <user/version_check.h>
 
 #include <imgui.h>
+#include <imgui_internal.h>
 
+#include <cctype>
 #include <cfloat>
 
 namespace ui
@@ -41,6 +44,8 @@ namespace ui
 
         void Draw(Note& note)
         {
+            // The game's prompt (burnout::PushDialogStyle): its heading face,
+            // the entry in its description face, OK on a yellow band.
             float s = Scale();
             ImGuiViewport* viewport = ImGui::GetMainViewport();
             float width = std::min(viewport->WorkSize.x - 2 * kSpaceL * s, 760.0f * s);
@@ -52,17 +57,29 @@ namespace ui
                 ImGuiWindowFlags_AlwaysAutoResize;
             if (note.firstFrame || !ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow))
                 ImGui::SetNextWindowFocus();
-            if (!ImGui::Begin("What's new", nullptr, flags))
+            burnout::PushDialogStyle();
+            const bool shown = ImGui::Begin("What's new", nullptr, flags);
+            burnout::PopDialogStyle();
+            if (!shown)
             {
                 ImGui::End();
                 return;
             }
-            TitleText(note.title.c_str());
-            ImGui::Spacing();
+            burnout::DialogFrame();
+            {
+                std::string heading = note.title;
+                for (char& c : heading)
+                    c = char(std::toupper(static_cast<unsigned char>(c)));
+                ImGui::PushFont(burnout::DisplayFont(), 40.0f);
+                ImGui::TextUnformatted(heading.c_str());
+                ImGui::PopFont();
+                ImGui::TextColored(ImVec4(0.95f, 0.6f, 0.13f, 1), "[WHAT'S NEW]");
+            }
+            ImGui::Dummy(ImVec2(0, 6 * s));
 
             // The entry, scrolled by the D-pad, the stick or the arrow keys
             // when it doesn't fit (the button below keeps the focus).
-            float footer = ImGui::GetFrameHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y;
+            float footer = 44 * s + ImGui::GetFrameHeightWithSpacing() * 2;
             float room = maxHeight - ImGui::GetCursorPosY() - footer - ImGui::GetStyle().WindowPadding.y;
             float lineHeight = ImGui::GetTextLineHeightWithSpacing();
             ImGui::SetNextWindowSizeConstraints(ImVec2(0, lineHeight), ImVec2(FLT_MAX, std::max(room, lineHeight * 3)));
@@ -76,14 +93,22 @@ namespace ui
                         ImGui::Spacing();
                         break;
                     case version::NoteLine::Kind::Heading:
-                        PushAccentText();
+                        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.95f, 0.6f, 0.13f, 1));
                         ImGui::TextWrapped("%s", line.text.c_str());
-                        PopAccentText();
+                        ImGui::PopStyleColor();
                         break;
                     case version::NoteLine::Kind::Bullet:
-                        ImGui::Bullet();
+                    {
+                        // The game's orange marker, the text beside it.
+                        const ImVec2 at = ImGui::GetCursorScreenPos();
+                        const float h = ImGui::GetFontSize();
+                        ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(at.x + 2 * s, at.y + h * 0.38f),
+                            ImVec2(at.x + 2 * s + h * 0.28f, at.y + h * 0.66f), IM_COL32(242, 154, 34, 255));
+                        ImGui::Indent(h * 0.9f);
                         ImGui::TextWrapped("%s", line.text.c_str());
+                        ImGui::Unindent(h * 0.9f);
                         break;
+                    }
                     case version::NoteLine::Kind::Text:
                         ImGui::TextWrapped("%s", line.text.c_str());
                         break;
@@ -97,24 +122,26 @@ namespace ui
             }
             ImGui::EndChild();
 
-            ImGui::Spacing();
+            ImGui::Dummy(ImVec2(0, 8 * s));
             if (note.firstFrame)
                 ImGui::SetKeyboardFocusHere();
-            bool close = ImGui::Button("OK");
-            ImGui::SameLine();
+            bool close = burnout::DialogOption("OK", ImGui::GetContentRegionAvail().x);
+            if (close)
             {
-                const char* legend = "A or B: close";
-                float w = ImGui::CalcTextSize(legend).x;
-                ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), ImGui::GetWindowContentRegionMax().x - w));
-                ImGui::TextDisabled("%s", legend);
+                // Which input pressed it: a stray press closes the note unseen.
+                static const char* const kSources[] = { "none", "mouse", "keyboard", "gamepad" };
+                const int source = int(ImGui::GetCurrentContext()->ActiveIdSource);
+                fprintf(stderr, "[ui] What's new: OK pressed (%s)\n", source >= 0 && source < 4 ? kSources[source] : "other");
             }
+            ImGui::Dummy(ImVec2(0, 4 * s));
+            burnout::Hints({ { "OK", "A" }, { "Close", "B" } });
             note.firstFrame = false;
             const char* how = close ? "OK" : nullptr;
             if (!how && (ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight, false) || ImGui::IsKeyPressed(ImGuiKey_Escape, false)))
                 how = "B or Esc";
             else if (!how && ImGui::IsKeyPressed(ImGuiKey_GamepadStart, false))
                 how = "Start";
-            ImGui::End();
+            burnout::EndDialog(false);
             if (how)
                 Close(how);
         }

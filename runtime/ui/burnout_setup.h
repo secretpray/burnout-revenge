@@ -37,7 +37,7 @@ namespace ui::burnout
     void PushDialogStyle();
     void PopDialogStyle();
     void DialogFrame();
-    void EndDialog();
+    void EndDialog(bool popup = true);  // false: a plain window (ImGui::End)
     constexpr float kDialogWidth = 560;  // the text's and the choices' width, before Scale()
     void DialogText(const char* text, float width);
     bool DialogOption(const char* label, float width);
