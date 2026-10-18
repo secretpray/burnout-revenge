@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.5
+
+- New Settings > Graphics > Anti-Aliasing Type: SMAA 1x beside the existing FXAA.
+  SMAA smooths geometry edges while keeping text and textures sharper, for about
+  0.4 ms more GPU time at 1080p on M1 Pro. FXAA stays the default for now.
+
 ## v0.1.4
 
 - Cmd+H now works in fullscreen: macOS doesn't hide an app in a fullscreen
