@@ -12,8 +12,8 @@ runtime целиком. Открытые задачи — в ACTIVE_WORK.md; и�
 | Рабочая копия для нового чата | `/Users/secretpray/Documents/Projects/XBOX360/burnout-revenge` |
 | Существующая сборочная копия | `/Users/secretpray/Documents/Projects/XBOX360/speedbreaker/build/standalone/burnout-revenge` |
 | Последний runtime checkpoint | `2cf1d87`: focus/suspension gate, Cmd shortcuts, diagnostics; `99fcf50`: отдельный SDL probe. Последующие docs-коммиты не меняют этот код. |
-| Установлено в Applications | Последний проверенный пакет (v0.1.2 опубликован; v0.1.3 — кандидат). Предыдущие .app — в приватном backup. |
-| Публикация | **v0.1.2 — Latest** (478cf28). v0.1.1 — draft. Существующие теги не передвигать. |
+| Установлено в Applications | **v0.1.3 / 63ddb3b**, опубликованный пакет. Предыдущие .app — в приватном backup. |
+| Публикация | **v0.1.3 — Latest** (63ddb3b); v0.1.2 (478cf28) и v0.1.0 опубликованы; v0.1.1 — draft. Теги не передвигать. |
 | Ввод / Bluetooth | Отказы связаны с macOS Game Mode; v0.1.2 отказывается от него, 104/105 чистые. Fullscreen Cmd+Tab не проверен. |
 | Автоматические тесты | standalone 61/61; общий Burnout 63/63; NFSMW 62/62. Все прошли с нужным VM/Metal-доступом, последовательно. |
 | Экранная клавиатура | Пока оставить нашу. Оригинальный игровой APT-путь не восстановлен; диалог Xerenge тоже ImGui. |
