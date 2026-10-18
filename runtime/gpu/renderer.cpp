@@ -16,6 +16,7 @@
 #include "texture_volume_layout.h"
 #include "temporal_history.h"
 #include "burnout_motion.h"
+#include "pad_glyphs.h"
 #include "zpd_report.h"
 #include "depth24_glsl.h"
 #include "depth_only.h"
@@ -4037,6 +4038,12 @@ void main()
                         cube ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0, t.levels);
             }
             Texture& t = *slotRef;
+            // BURNOUT_PAD_GLYPHS: the game's button prompts drawn for the
+            // device in use (pad_glyphs.h); a change rewrites its memory,
+            // which the check below then sees.
+            if (padglyphs::Enabled() && !scaled && !cube && !volume)
+                padglyphs::Use(s_sharedHost + base, base, size, width, height, format, f.tiled != 0, uint32_t(f.endianness),
+                    f.tiled ? pitchAligned : pitchBlocks, mipBase, mipSize);
             {
                 // No page written anywhere since the last check: still valid
                 // (a draw binds ~7,500 textures a frame; writes are rare).
@@ -9324,6 +9331,8 @@ void main()
             writewatch::SetWriterFrame(frame);
         }
         s_frame = frame;
+        if (padglyphs::Enabled())
+            padglyphs::Refresh(s_sharedHost);
         if (s_zpdOn)
             ZpdOnSwap(frame);
         if (s_logShadowMap)

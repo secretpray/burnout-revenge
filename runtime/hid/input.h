@@ -64,4 +64,8 @@ namespace hid
     // controller, else the keyboard. Main thread.
     enum class Glyphs { Xbox, PlayStation, Keyboard };
     Glyphs LastGlyphs();
+    // The same choice, readable from any thread (the renderer's game
+    // prompts, gpu/pad_glyphs.h): updated as the main thread sees input and
+    // controllers come and go.
+    Glyphs PublishedGlyphs();
 }

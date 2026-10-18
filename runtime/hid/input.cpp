@@ -567,6 +567,7 @@ namespace hid
     namespace
     {
         bool s_glyphsKnown = false;
+        std::atomic<Glyphs> s_publishedGlyphs{ Glyphs::Keyboard };
         Glyphs s_glyphs = Glyphs::Keyboard;
 
         Glyphs GlyphsOf(SDL_JoystickID id)
@@ -584,10 +585,14 @@ namespace hid
 
         void NoteGlyphs(Glyphs glyphs)
         {
+            // (Before any input the hints showed what is connected: a change
+            // from that is a change too.)
+            Glyphs before = s_glyphsKnown ? s_glyphs : s_publishedGlyphs.load(std::memory_order_relaxed);
             s_glyphsKnown = true;
-            if (glyphs == s_glyphs)
-                return;
             s_glyphs = glyphs;
+            s_publishedGlyphs.store(glyphs, std::memory_order_relaxed);
+            if (glyphs == before)
+                return;
             fprintf(stderr, "[input] hints now show %s buttons\n",
                 glyphs == Glyphs::PlayStation ? "PlayStation" : glyphs == Glyphs::Xbox ? "Xbox" : "keyboard");
         }
@@ -605,9 +610,15 @@ namespace hid
                 if (best != Glyphs::PlayStation)
                     best = GlyphsOf(ids[i]);
             SDL_free(ids);
+            s_publishedGlyphs.store(best, std::memory_order_relaxed);
             return best;
         }
         return s_glyphs;
+    }
+
+    Glyphs PublishedGlyphs()
+    {
+        return s_publishedGlyphs.load(std::memory_order_relaxed);
     }
 
     void HandleEvent(const SDL_Event& e)
@@ -620,6 +631,8 @@ namespace hid
             NoteGlyphs(GlyphsOf(e.gbutton.which));
         else if (e.type == SDL_EVENT_GAMEPAD_AXIS_MOTION && (e.gaxis.value > 16384 || e.gaxis.value < -16384))
             NoteGlyphs(GlyphsOf(e.gaxis.which));
+        else if (!s_glyphsKnown && (e.type == SDL_EVENT_GAMEPAD_ADDED || e.type == SDL_EVENT_GAMEPAD_REMOVED))
+            LastGlyphs();  // (publishes what is connected)
 
         if (e.type == SDL_EVENT_WINDOW_FOCUS_LOST || e.type == SDL_EVENT_WINDOW_HIDDEN ||
             e.type == SDL_EVENT_WINDOW_MINIMIZED)
