@@ -45,7 +45,7 @@
     <td width="50%"><img src="docs/screenshots/race-wide-window.jpg" alt="A race in the same wide window: the scene widens to the edges, the HUD keeps its shape"><br><sub>Wide windows show more of the road (Hor+).</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshots/settings-graphics.jpg" alt="The port's settings menu over the title screen, on the Graphics page: Anti-Aliasing, SMAA, MetalFX Spatial upscaling, Sharpening, Anisotropic Filtering, Mipmaps"><br><sub>The port's settings, Graphics page.</sub></td>
+    <td width="50%"><img src="docs/screenshots/race-bloom-off-dualsense.jpg" alt="Traffic Attack with Bloom off: a blue sky, palms and buildings crisp against it, and PRESS cross TO BOOST with a DualSense"><br><sub>Bloom off, the sky kept; the game's prompts for a DualSense.</sub></td>
     <td width="50%"><img src="docs/screenshots/setup-make-it-yours.jpg" alt="The first-run setup on its second page: the cover art on the left, the install folder and the add-on car packs on the right"><br><sub>First-run setup.</sub></td>
   </tr>
 </table>
@@ -81,8 +81,12 @@
 - Any window shape: a wider window shows more at the sides (Hor+), a taller one
   (16:10, 4:3) more above and below (Vert+), with the HUD kept in shape.
   Widescreen keeps the original 16:9 with bars.
+- Bloom and Motion Blur switches. Bloom off removes the game's haze and the
+  glow round edges but keeps its bright blue sky: the glow is kept where it
+  comes from rather than switched off. Motion Blur off keeps speed sharp.
 - 60 fps, as the console. Fullscreen, V-Sync, and Cmd+H and Cmd+Tab that work
-  in fullscreen.
+  in fullscreen. On an external 144 or 165 Hz monitor, a one-time note says how
+  to set it to a rate 60 fps divides evenly.
 
 **Sound and music**
 
@@ -99,8 +103,10 @@
   (Share + Options on a DualSense) opens the settings anywhere.
 - Full keyboard play. Every Xbox 360 control can take two keys, remapped in
   the Controls page; bindings are physical keys, so they work on any layout.
-- Button hints in the port's menus follow the device you use: PlayStation
-  shapes, Xbox buttons or key caps.
+- Button prompts follow the device you use, in the port's menus and in the
+  game's own (menus, Replay, "PRESS TO BOOST!"): PlayStation shapes with a
+  DualSense, your keys as Mac key caps with the keyboard, Xbox buttons
+  otherwise. Settings > Input > Button Prompts can keep one set.
 
 **A menu in the game's own style**
 
@@ -118,6 +124,7 @@
   let the game find `XBOX360/454107DC/00000002` on a mounted drive.
 - Save backups: each launch backs up your saves when they changed (the newest
   10 are kept). Settings > Advanced > Save Backups restores one.
+- Skip Intro Movies (on by default): the title screen in about 8 seconds.
 - Save Bug Report gathers the logs and settings into one file; Check for
   Updates asks GitHub for a newer release.
 
@@ -156,20 +163,23 @@ Open with **F1**, **Cmd+,** or **Back + Start**. LB/RB (Q/E) switch pages.
 
 <table>
   <tr>
-    <td width="33%"><img src="docs/screenshots/settings-display.jpg" alt="Settings, Display page: Fullscreen, V-Sync, Frame Rate, Aspect Ratio, Brightness, Xbox 360 Display Gamma"><br><sub>Display.</sub></td>
-    <td width="33%"><img src="docs/screenshots/settings-graphics.jpg" alt="Settings, Graphics page"><br><sub>Graphics.</sub></td>
-    <td width="33%"><img src="docs/screenshots/settings-audio-my-music.jpg" alt="Settings, Audio page: Music set to My Music, Music Folder with 2 files"><br><sub>Audio, with My Music.</sub></td>
+    <td width="50%"><img src="docs/screenshots/settings-display.jpg" alt="Settings, Display page: Fullscreen, V-Sync, Frame Rate, Aspect Ratio, Brightness, Xbox 360 Display Gamma"><br><sub>Display.</sub></td>
+    <td width="50%"><img src="docs/screenshots/settings-graphics.jpg" alt="Settings, Graphics page scrolled to Bloom, with its description"><br><sub>Graphics, Bloom.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/settings-audio-my-music.jpg" alt="Settings, Audio page: Music set to My Music, Music Folder with 2 files"><br><sub>Audio, with My Music.</sub></td>
+    <td width="50%"><img src="docs/screenshots/settings-input.jpg" alt="Settings, Input page: Button Prompts set to Auto"><br><sub>Input, Button Prompts.</sub></td>
   </tr>
 </table>
 
 | Page | What's there |
 |---|---|
 | Display | Fullscreen, V-Sync, Frame Rate, Aspect Ratio (fill any window, or 16:9), Brightness, Xbox 360 Display Gamma |
-| Graphics | Anti-Aliasing and its type (SMAA, FXAA), Upscaling (Bicubic, Bilinear, FSR 1, MetalFX Spatial), Sharpening, Anisotropic Filtering, Mipmaps, Internal Resolution |
+| Graphics | Anti-Aliasing and its type (SMAA, FXAA), Upscaling (Bicubic, Bilinear, FSR 1, MetalFX Spatial), Sharpening, Anisotropic Filtering, Mipmaps, Internal Resolution, Bloom, Motion Blur |
 | Audio | Master Volume, Mute, Mute in Background, Music (EA Trax or My Music), Music Folder |
-| Input | Stick and trigger deadzones, Vibration, DualSense raw HID driver |
+| Input | Stick and trigger deadzones, Vibration, Button Prompts (Auto, Xbox, PlayStation, Keyboard), DualSense raw HID driver |
 | Controls | Two keys for each Xbox 360 control |
-| Advanced | Asynchronous Shaders, Performance Overlay, Auto-import Add-ons, Save Bug Report, Check for Updates, Add-ons, Save Backups, About |
+| Advanced | Asynchronous Shaders, Performance Overlay, Auto-import Add-ons, Skip Intro Movies, Save Bug Report, Check for Updates, Add-ons, Save Backups, About |
 
 A good start on an M1 Pro: 1.5x internal resolution (1080p), SMAA, Bicubic,
 sharpening 0.3 and 16x anisotropic filtering. Use 1x if the GPU can't keep
@@ -200,10 +210,8 @@ Every key can be changed in Settings > Controls.
   may behave differently. USB is the fallback for a Bluetooth pad.
 - A complete career playthrough isn't verified yet. Online play and Xbox Live
   don't work.
-- 57 rarely used system functions are still stubs; none was called in tested
-  races.
-- The game's own button prompts (inside its menus and HUD) still show Xbox 360
-  buttons.
+- 46 rarely used system functions (network and Xbox Live) are still stubs;
+  none was called in tested races.
 - Live frame generation is not enabled.
 
 More detail: [progress and limitations](docs/PROGRESS.md),
@@ -212,7 +220,7 @@ More detail: [progress and limitations](docs/PROGRESS.md),
 ## Origins and license
 
 Built on [SpeedBreaker](https://github.com/SpeedBreakerProject/speedbreaker)
-(its v0.1.6 runtime) and the Burnout research in
+(its v0.1.6 runtime, with v0.1.7's refresh-rate note) and the Burnout research in
 [Xbox360-Native-Ports](https://github.com/CrownParkComputing/Xbox360-Native-Ports/releases/tag/burnoutrevenge-v1).
 It also relies on XenonRecomp, Xenia research, SDL, MoltenVK, FFmpeg, AMD
 FidelityFX, SMAA, Dear ImGui and the Barlow Condensed fonts; see
