@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.1.2
+
+Input focus hotfix. Includes the v0.1.1 audio-startup correction.
+
+- Controller vibration requests are dropped while the game is unfocused,
+  hidden, minimized or suspended; pending output is stopped on focus loss.
+- Hiding or minimizing the window releases held keys; restore re-checks focus.
+- Keys held with Command (Cmd+Tab, Cmd+H and other shortcuts) no longer drive the car.
+
+A short Bluetooth test kept Magic Keyboard working in the game and after returning
+to it. This is not a guarantee for every Bluetooth accessory or Mac; USB remains a
+fallback. Live frame generation is still off.
+
 ## v0.1.1
 
 Audio startup hotfix after clean-install validation.
