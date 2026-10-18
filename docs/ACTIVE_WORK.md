@@ -168,6 +168,18 @@
    XamShow{Friends,GamerCardForXUID,MessageCompose,PlayerReview}UI, XamUserAreUsersFriends — ни
    один не встречен офлайн. Не проверены: Player File, Multiplayer на двух падах.
 8. Руль (SpeedBreaker PR #29, открыт): G29 через SDL joystick, на macOS без force feedback — позже.
+9. **HUD на ultrawide по краям** (идея Takedawn, widescreen-HUD fix): сейчас весь HUD сжат в блок
+   16:9 по центру. Найти в Revenge функцию раскладки HUD (аналог CB3HUD::GetAlignPos /
+   прямоугольник раскладки) и привязать каждый элемент к видимому краю, сохраняя его форму;
+   меню, ролики и пауза — 16:9 по центру. Подробности: [EXTERNAL_PORTS_PLAN](EXTERNAL_PORTS_PLAN.md#online-hud-ultrawide-and-audio-reviewed-2026-10-18-after-v0112).
+10. **Апскейл меню и HUD 2x/4x** (Takedawn, Super-xBR, MIT): 2D-текстуры по признакам отрисовки,
+   масштаб в фоновом потоке с дисковым кэшем. Сначала замер: насколько 2D Revenge
+   ступенчатый при render scale 2x.
+11. **Онлайн** (Xerenge 0.4.7, `--online`): Live-вход + свой сервер лобби EA (Aries, TCP
+   31860/31861, LAN UDP 31859, клипы через Locker HTTP 31862). У Xerenge нет лицензии — только
+   идеи и адреса (адреса перепроверять на USA); слой SDK — BSD-3 (ReXGlue/Xenia). Большой этап
+   (недели), нужен второй экземпляр для проверки. Решение пользователя — до старта.
+   (5.1 уже есть: микс игры идёт в SDL 6 каналами; установщик с проверкой файлов уже есть.)
 
 Начать с [подробного плана](ROADMAP_RU.md), затем нужных разделов
 [исследования внешних портов](EXTERNAL_PORTS_PLAN.md),

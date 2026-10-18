@@ -191,3 +191,55 @@ cda797a still lacks that correction. Next gate: the actual packaged/downloaded
 candidate, with controller/audio separately confirmed. Current name-entry UI is
 retained unless the genuine Burnout APT screen can be verified; see the keyboard
 research note. Full stages and handoff are in the active roadmap/prompt documents.
+
+## Online, HUD, ultrawide and audio (reviewed 2026-10-18, after v0.1.12)
+
+Same snapshots: Xerenge `22dad21` (v0.4.7), its SDK fork rexglue-xerenge `e029bb7`,
+Takedawn `5a00fc1` (v0.2.0). Read through the GitHub API; nothing built or copied.
+
+### Xerenge online (`--online`, GitHub issue #19 closed)
+
+How it works, from its comments (rexglue/src/online_lobby.cpp, online_stub.cpp,
+src/ealobby/, tools/ealobby/; ~4,000 lines plus the SDK half):
+
+1. **SDK half** (rexglue-xerenge: xam_net.cpp, xam_user.cpp, xlivebase_app.cpp,
+   include/rex/kernel/xam/online.h): the console answers as signed in to Live with
+   a working connection; XOnlineGetServiceInfo(0x45410004) returns the lobby
+   server's address; XNADDR carries the LAN address; sockets bind to it;
+   XSESSION_INFO is filled for a host. That is what DirtySock needs to report
+   'onln'.
+2. **Title half**: ~80 hooks on the login state machine (CB4XenonLoginMenuState
+   +0x140, states 0-11), CGtLobbyDirtySock status/login, LobbyApi steps, Revenge
+   Rivals download (skipped), news/terms downloads (skipped: they fault without a
+   server reply), connection-dropped callback, voice (VoipGetRef null guard),
+   session creation ('sess' at 0x8240C908), kick/host checks (0x82366CF8,
+   0x82366F78), peer redirection for 3+ players (ports 8192/6000 must reach the
+   player, only 31859-31861 go to the lobby).
+3. **Lobby server** (`ealobby`, C++17, three files): EA's Aries protocol on TCP
+   31860/31861, LAN discovery on UDP 31859 (broadcast + multicast), every copy runs
+   one unless `--lobby_server=<host>` names a shared one; it relays game traffic
+   ("seamless multiplayer"). Burnout Clips sharing: EA Locker over HTTP on 31862
+   (Top 20 / recent players), thumbnails still black.
+
+Licence: Xerenge has no licence, so the hooks and the server are reference only
+(ideas, addresses, protocol facts, re-implemented by us with attribution, as
+game/movies.cpp did). ReXGlue SDK is BSD-3 (Xenia-derived); the fork's SDK files
+can be adapted with the BSD notice kept, after checking each file's header.
+
+Fit for us: our network layer is now an honest offline console (v0.1.12). Online
+means: a Live-signed-in mode behind a setting, the SDK half (XOnline service info,
+XNet addresses, XSession*, QoS answering for real peers, voice off), the login
+hooks on the USA build (addresses must be re-verified: Xerenge supports USA and EU),
+and our own Aries-compatible server (or interoperability with theirs, which would
+let Mac and Linux/Windows players meet). Weeks of work; testable only with two
+copies (two Macs, or two loopback addresses on one Mac as Xerenge does).
+
+### Takedawn (Burnout 3: Takedown, original Xbox; MIT)
+
+| Feature | Ours today | Decision |
+| --- | --- | --- |
+| Setup window that checks the disc file by file, no half-installed game, folder of choice | Done: install/ (manifest SHA-256 of 802 files, `.partial` then rename, placement/portable) | Nothing to add |
+| Shader prebuild on first start | Measured not worth it (SHADER_PREP_BASELINE: hitches are loads) | Keep deferred |
+| Menu/HUD upscaling 2x/4x (Super-xBR, MIT, by Hyllian; texture scaled on a worker, disk cache, swapped in later) | No; 360 2D art is 720p-class, still bilinear at render scale > 1 | Candidate: pick 2D textures by how they are drawn (no depth, single mip, <= 512, not a target), Super-xBR from its MIT source |
+| 5.1 surround with per-speaker mixer | The game's own 5.1 mix goes to SDL as 6 channels (apu/audio.cpp); a 5.1 device gets it as is | Only the mixer/presets would be new; low priority |
+| Ultrawide 21:9 / 32:9 (frames classified per flip: world frames wide, menus/films/loading 16:9 centred; 2D over the world kept at 16:9 size; hor+ camera) | Hor+ and Vert+ done (game/ultrawide.h); the whole HUD is squeezed into a centred 16:9 block | Improve the HUD: Takedawn's widescreen-HUD fix moves the HUD layout rectangle so each component keeps its shape but sits as far from the *visible* edge as in 16:9 (CB3HUD::GetAlignPos). Find Revenge's equivalent (CB4HUD align) and anchor per component; keep menus/films/pause at 16:9 |
