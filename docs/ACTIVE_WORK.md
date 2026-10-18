@@ -107,7 +107,8 @@
      результаты — пустых scissor 0, но takedown скриптом не выходит (0 во всех трёх: случайный
      руль бьёт о стены, A при ударе — Aftertouch). Ручной прогон 330 (18.10, пользователь
      сделал takedown'ы с геймпада, ~11 мин, Eternal City): по логу пустых scissor 0, hang-отчётов
-     нет, выход штатный. По кадрам не снято; об артефактах пользователь не сообщил.
+     нет, выход штатный. **Но** в этом 100% сейве Driver Details → Settings → Takedown Camera = OFF
+     (прогон 361-dd-3), так что сама камера, вероятно, не показывалась — повторить с ON.
 3. [x] **Пропуск трека (RB)**: `runtime/game/music_skip.cpp` — хук `sub_8210F940` берёт нажатие и
    «от кадра к кадру», когда игра за кадр опрашивает пад дважды (Crash, запоздавший кадр).
    Прогоны 203–205: RB = кнопка 20; в гонке 4 нажатия → 4 трека, без двойных; одно нажатие
@@ -150,7 +151,16 @@
    до ~2. EDR = SDR-грейд + продление бликов (RGBA16F + EXTENDED_SRGB_LINEAR в MoltenVK,
    избыток >1 передать из композита). Экран пользователя (Samsung M70D) отдаёт EDR-запас 1,0 —
    на нём эффекта не будет. Отложено до HDR-экрана для оценки.
-7. Матрица карьеры/режимов, оставшиеся 46 заглушек (сеть) — по мере находок.
+7. [~] **Матрица режимов** (18.10, release-0.1.12-validation, копия 100% сейва data-matrix):
+   главное меню — World Tour (Race/Road Rage/Crash ранее), Burnout Clips (сообщение об EA-серверах),
+   Multiplayer (офлайн: Race, Road Rage, Traffic Attack, Crash Battle, Crash Party, Crash Tour;
+   Crash Party пройдена, 346), Driver Details (Stats, Records, EA Trax, Settings, Special Features —
+   ролик играет; 360/361). **Xbox Live закрывал игру** (`NetDll_select`, прогон 350) — исправлено
+   (bf869fb): сеть отвечает как консоль без подключения, игра возвращается в главное меню (354, 358).
+   Заглушек 46 → 14: HalReturnToFirmware, RtlCaptureContext/RaiseException/Unwind,
+   __C_specific_handler (исключения), XamParseGamerTileKey/ReadTileToTexture, XamSession*,
+   XamShow{Friends,GamerCardForXUID,MessageCompose,PlayerReview}UI, XamUserAreUsersFriends — ни
+   один не встречен офлайн. Не проверены: Player File, Multiplayer на двух падах.
 8. Руль (SpeedBreaker PR #29, открыт): G29 через SDL joystick, на macOS без force feedback — позже.
 
 Начать с [подробного плана](ROADMAP_RU.md), затем нужных разделов
