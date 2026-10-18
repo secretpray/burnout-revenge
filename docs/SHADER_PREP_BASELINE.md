@@ -21,10 +21,13 @@ shader/pipeline/texture breakdown), `[perf]` windows and the final `[gpu]` count
 | 126 | cold | 7 (2, both ≤33 ms) | 133 ms | 57 shaders + 61 pipelines ≈ 15 ms | 115 |
 | 128 | cold | 6 (1, ≤33 ms) | 133 ms | 57 shaders + 60 pipelines ≈ 15 ms | 116 |
 | 127 | warm | invalid | — | — | — |
+| 129 | warm (126's cache) | 8 (2, ≤33 ms) | 117 ms | 57 + 61 ≈ 12 ms (119 shaders from cache) | 115 |
+| 130 | warm (128's cache) | 6 (1, ≤33 ms) | 133 ms | 57 + 60 ≈ 11 ms (117 shaders from cache) | 118 |
 
 Run 127 is discarded: the window was covered at 6.6 s (another window took focus),
 the game throttles while occluded, and the Mac then slept; its numbers measure that,
-not the cache. A clean warm run needs the window visible for ~2 minutes.
+not the cache. Runs 129/130 ran under a process-bound `caffeinate -d -i -s -u` with
+no focus loss.
 
 The longest hitch (133 ms, both cold runs, 47.9 s) is the car select / race load:
 98 ms of it the game itself idle (loading), 103 textures in 9.7 ms, pipelines 3.4 ms.
@@ -34,8 +37,12 @@ thousands.
 
 ## Assessment
 
-On this scene and this Mac, first-use compilation is not a visible problem; an
-install-time "Prepare graphics" step would save at most ~15 ms spread over loading
-screens. Before building it: one clean warm run for the record, and spot checks on
-other tracks/modes (Crash, Road Rage, a night track) in case they compile far more.
-If those agree, stage 3 is deprioritised and stage 4 (image quality) comes next.
+The existing caches already do the preparation: warm runs load ~118 translated
+shaders and a 2 MB Vulkan pipeline cache, and save 3–4 ms over the whole route.
+The hitches that remain (the same count, cold or warm) are loading: the game's own
+waits and texture uploads. An install-time "Prepare graphics" step would have
+nothing visible left to save on this route and Mac.
+
+Decision: stage 3 is deprioritised; stage 4 (image quality) is next. Revisit only if
+another mode or track (Crash, Road Rage, night tracks) shows compile time inside
+hitches, measured the same way (`hitch` lines' shaders/pipelines fields).
