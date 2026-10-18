@@ -122,5 +122,10 @@ namespace platform::macos
         s_window = nil;
         s_inTransition = false;
     }
+
+    bool ReduceMotion()
+    {
+        return NSWorkspace.sharedWorkspace.accessibilityDisplayShouldReduceMotion;
+    }
 }
 #endif

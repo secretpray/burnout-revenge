@@ -581,6 +581,7 @@ namespace ui
         ImFontConfig config;
         config.FontDataOwnedByAtlas = false;
         io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(kFont), int(sizeof(kFont)), kFontSize, &config);
+        burnout::LoadFonts();
         ApplyStyle();
 
         if (!ImGui_ImplSDL3_InitForVulkan(window))

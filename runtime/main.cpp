@@ -497,7 +497,10 @@ int main(int argc, char** argv)
     }
     else if (windowed)
     {
-        // First run: install from the player's disc image.
+        // First run: install from the player's disc image. SDL audio now
+        // (main thread, as the game's would be): the screens play the
+        // player's EA Trax once the disc checks out.
+        apu::InitializeOutputBackend();
         std::optional<std::filesystem::path> installed = ui::RunInstaller([] { return video::RunFrame(); });
         if (!installed)
         {

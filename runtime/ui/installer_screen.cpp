@@ -9,6 +9,7 @@
 #include "installer_screen.h"
 #include "ui.h"
 #include "burnout_setup.h"
+#include "setup_music.h"
 #include <game/burnout_addons.h>
 
 #include <install/installer.h>
@@ -81,7 +82,10 @@ namespace ui
                 return;
             s_dialogOpen = false;
             if (files && files[0])
+            {
                 s_dialogPick = files[0];
+                fprintf(stderr, "[installer] file dialog chose %s\n", files[0]);
+            }
             else if (!files)
             {
                 s_dialogFailed = true;
@@ -111,6 +115,8 @@ namespace ui
                 s_dialogFor = purpose;
                 s_dialogOpen = true;
             }
+            fprintf(stderr, "[installer] file dialog opened for %s\n", purpose == DialogFor::Source ? "the disc image"
+                : purpose == DialogFor::Addons ? "the add-on folder" : "the install folder");
 #if defined(__APPLE__) && TARGET_OS_IOS
             // SDL has no file dialog on iOS: the Files app's document picker,
             // which answers on the main thread (inside SDL_PollEvent) with the
@@ -139,6 +145,16 @@ namespace ui
                 s_dialogFailed = true;
             }
 #else
+            // BURNOUT_TEST_PICK_IMAGE stands in for the disc image dialog
+            // (automated runs): its path is the player's pick.
+            if (const char* test = std::getenv("BURNOUT_TEST_PICK_IMAGE"); test && *test && purpose == DialogFor::Source)
+            {
+                std::lock_guard lock(s_dialogMutex);
+                s_dialogOpen = false;
+                s_dialogPick = test;
+                fprintf(stderr, "[installer] BURNOUT_TEST_PICK_IMAGE stands in for the file dialog: %s\n", test);
+                return;
+            }
             static const SDL_DialogFileFilter filters[] = { { "Xbox 360 disc image", "iso" }, { "All files", "*" } };
             if (purpose == DialogFor::Destination)
             {
@@ -696,6 +712,8 @@ namespace ui
                     notice = "The folder picker is still open: close it. A folder chosen in it now isn't used.";
 #endif
             }
+            static const char* const kPages[] = { "Choose", "Checking", "Confirm", "Installing", "Done", "Failed" };
+            fprintf(stderr, "[installer] page %s -> %s\n", kPages[int(page)], kPages[int(next)]);
             page = next;
             pageStarted = ImGui::GetTime();
             focusPage = true;
@@ -706,6 +724,8 @@ namespace ui
         // `grant`: the Files app's grant to read `path` (iOS), held from now on.
         void StartCheck(const std::filesystem::path& path, uint64_t grant = 0)
         {
+            fprintf(stderr, "[installer] checking %s\n", path.c_str());
+            setup_music::Stop();  // the songs come from the copy being replaced
             DropDialog();
             LeaveCheck();
             sourcePath = path;
@@ -805,10 +825,11 @@ namespace ui
     {
         namespace br = burnout;
         float s = Scale();
-        br::Backdrop();
+        setup_music::Update();
+        br::Backdrop(page == Page::Installing);
         ImGuiViewport* viewport = ImGui::GetMainViewport();
         ImVec2 size(std::min(viewport->WorkSize.x - 32 * s, 1160 * s),
-            std::min(viewport->WorkSize.y - 32 * s, 660 * s));
+            std::min(viewport->WorkSize.y - 48 * s, 680 * s));
         bool wide = size.x >= 940 * s;
         float pad = 30 * s, poster = wide ? size.x * .38f : 0;
         ImGui::SetNextWindowPos(viewport->GetWorkCenter(), ImGuiCond_Always, ImVec2(.5f, .5f));
@@ -830,16 +851,17 @@ namespace ui
         ImGui::PushFont(nullptr, 18);
         ImGui::BeginChild("setup-content", {size.x - poster - pad * 2, size.y - pad * 2}, ImGuiChildFlags_NavFlattened);
         if (pageStarted == 0) pageStarted = ImGui::GetTime();
-        double t = std::clamp((ImGui::GetTime() - pageStarted) / .18, 0.0, 1.0);
-        const char* reduced = std::getenv("BR_REDUCED_MOTION");
-        if (!(reduced && *reduced && *reduced != '0'))
-            ImGui::SetCursorPosY(float(8 * s * std::pow(1 - t, 4)));
-        br::Eyebrow(wide ? "FIRST RUN  /  BURNOUT REVENGE" : "BURNOUT REVENGE  /  FIRST RUN");
-        ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY(), 52 * s));
         bool picker;
         { std::lock_guard lock(s_dialogMutex); picker = s_dialogOpen; }
         ImGui::BeginDisabled(picker);
 
+        // The page's blocks, each sliding in a moment after the one before.
+        int block = 0;
+        auto reveal = [&](auto&& draw) {
+            br::BeginReveal(pageStarted, block++);
+            draw();
+            br::EndReveal();
+        };
         auto button = [&](const char* label, bool primary = false, float height = 48) {
             bool hit = br::Button(label, {ImGui::GetContentRegionAvail().x, height * s}, primary);
             if (focusPage && primary)
@@ -848,6 +870,7 @@ namespace ui
                 ImGui::SetKeyboardFocusHere(-1);
                 focusPage = false;
             }
+            if (hit) fprintf(stderr, "[installer] pressed %s\n", label);
             return hit;
         };
         auto pathLine = [&](const std::filesystem::path& path) {
@@ -856,112 +879,132 @@ namespace ui
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", full.c_str());
         };
         auto gap = [&](float amount) { ImGui::SetCursorPosY(ImGui::GetCursorPosY() + amount * s); };
-        auto addons = [&] {
-            gap(28);
-            br::Eyebrow("02  /  ADD-ON CAR PACKS  /  OPTIONAL");
-            ImGui::TextWrapped("Bring your downloadable car packs.");
-            gap(8);
-            if (button(addonSource.empty() ? "CHOOSE ADD-ON FOLDER" : "CHANGE ADD-ON FOLDER", false, 56))
-                Browse(true, DialogFor::Addons);
-            gap(6);
-            float statusTop = ImGui::GetCursorPosY();
-            ImGui::PushFont(nullptr, 13);
-            if (!addonMessage.empty()) ImGui::TextWrapped("%s", addonMessage.c_str());
-            else ImGui::TextDisabled("You can add these later in Settings.");
-            if (!addonSource.empty()) pathLine(addonSource);
+        auto small = [&](auto&& draw) {
+            ImGui::PushFont(nullptr, 14);
+            draw();
             ImGui::PopFont();
-            ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY(), statusTop + 42 * s));
+        };
+        // The bottom edge: the primary actions sit at a fixed height above the footer.
+        auto actions = [&](float height) {
+            ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY() + 20 * s, ImGui::GetWindowHeight() - (height + 64) * s));
+        };
+        auto header = [&](int step, const char* heading, const char* line) {
+            reveal([&] { br::Steps(step); });
+            gap(22);
+            reveal([&] {
+                br::Heading(heading);
+                ImGui::TextWrapped("%s", line);
+            });
         };
         auto footer = [&] {
-            ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY() + 24 * s, ImGui::GetWindowHeight() - 40 * s));
-            ImGui::PushFont(nullptr, 13);
-            ImGui::TextDisabled("Your own game copy is required.");
-            ImGui::TextDisabled("Mouse  /  Keyboard  /  Controller");
-            ImGui::PopFont();
+            ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY() + 16 * s, ImGui::GetWindowHeight() - 34 * s));
+            small([&] {
+                std::string playing = setup_music::NowPlaying();
+                if (!playing.empty())
+                {
+                    // The song, and its switch: M, or a click.
+                    ImGui::TextColored(ImVec4(.96f, .71f, .15f, setup_music::Enabled() ? 1.f : .5f), "%s", playing.c_str());
+                    ImGui::SameLine();
+                    if (br::Link(setup_music::Enabled() ? "MUSIC ON  (M)" : "MUSIC OFF  (M)") ||
+                        (!ImGui::IsAnyItemActive() && ImGui::IsKeyPressed(ImGuiKey_M, false)))
+                        setup_music::SetEnabled(!setup_music::Enabled());
+                    ImGui::SameLine();
+                    ImGui::TextDisabled("   /   Mouse  /  Keyboard  /  Controller");
+                }
+                else
+                    ImGui::TextDisabled("Your own game copy is required.   /   Mouse  /  Keyboard  /  Controller");
+            });
         };
 
         switch (page)
         {
         case Page::Choose:
         {
-            br::Heading("GET READY TO DRIVE.");
-            ImGui::TextWrapped("Bring your Xbox 360 copy. We'll take care of the setup.");
-            gap(28);
-            if (!notice.empty()) ImGui::TextWrapped("%s", notice.c_str());
-            br::Eyebrow("01  /  YOUR GAME");
-            ImGui::TextWrapped("Your original Xbox 360 disc image (.iso).");
-            gap(8);
-            if (button("CHOOSE ISO", true, 56)) Browse(false);
-            gap(6);
-            float statusTop = ImGui::GetCursorPosY();
-            ImGui::PushFont(nullptr, 13);
-            ImGui::TextDisabled("Game files are checked before installation.");
-            ImGui::PopFont();
-            ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY(), statusTop + 42 * s));
-            addons();
+            header(1, "GET READY TO DRIVE.", "Bring your Xbox 360 copy. We'll take care of the setup.");
+            gap(30);
+            reveal([&] {
+                if (!notice.empty()) ImGui::TextWrapped("%s", notice.c_str());
+                br::Eyebrow("01  /  YOUR GAME");
+                ImGui::TextWrapped("Your original Xbox 360 disc image (.iso).");
+                gap(10);
+                if (button("CHOOSE ISO", true, 58)) Browse(false);
+                gap(6);
+                small([&] { ImGui::TextDisabled("Game files are checked before installation. Car packs and the install folder come next."); });
+            });
             break;
         }
         case Page::Checking:
-            br::Heading("CHECKING YOUR COPY.");
-            ImGui::TextWrapped("Reading the game version and checking the file list.");
-            ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY() + 24 * s, ImGui::GetWindowHeight() * .45f));
-            ImGui::ProgressBar(-float(ImGui::GetTime()), {-1, 10 * s}, "");
+            header(1, "CHECKING YOUR COPY.", "Reading the game version and checking the file list.");
+            gap(40);
+            reveal([&] {
+                small([&] { pathLine(sourcePath); });
+                gap(8);
+                br::HazardBar(-1, 12 * s);
+            });
             focusPage = false;
-            ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY() + 24 * s, ImGui::GetWindowHeight() - 186 * s));
+            actions(42);
             if (button("BACK", false, 42)) { LeaveCheck(); Go(Page::Choose); }
             break;
         case Page::Confirm:
         {
-            br::Heading("MAKE IT YOURS.");
-            gap(8);
-            ImGui::TextWrapped("Ready to install your game. Every file will be verified.");
-            gap(32);
-            br::Eyebrow("INSTALL TO");
-            // Keep the existing placement checks and destination chooser.
-            // An explicit native picker is clearer than a carousel of paths.
+            header(2, "MAKE IT YOURS.", "Your copy checks out. Choose where it goes and bring your car packs.");
+            gap(26);
             const Destination& d = destinations[chosen];
-            ImGui::PushFont(nullptr, 13);
-            pathLine(destination);
-            if (d.info.available != UINT64_MAX)
-                ImGui::TextDisabled("%s required  /  %s available", install::FormatSize(d.info.required).c_str(),
-                    install::FormatSize(d.info.available).c_str());
-            ImGui::PopFont();
-            if (!d.check.Ok()) ImGui::TextWrapped("%s", d.check.message.c_str());
-            if (!pickHint.empty() && pick == Pick::Unavailable) ImGui::TextWrapped("%s", pickHint.c_str());
-            if (button("CHANGE INSTALL FOLDER", false, 40)) RequestFolder();
-            gap(20);
-            br::Eyebrow("ADD-ON CAR PACKS  /  OPTIONAL");
-            if (button(addonSource.empty() ? "CHOOSE ADD-ON FOLDER" : "CHANGE ADD-ON FOLDER", false, 44))
-                Browse(true, DialogFor::Addons);
-            gap(4);
-            ImGui::PushFont(nullptr, 13);
-            ImGui::TextWrapped("%s", addonMessage.empty() ? "Choose your car packs now, or add them later in Settings." : addonMessage.c_str());
-            ImGui::PopFont();
-            ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY() + 24 * s, ImGui::GetWindowHeight() - 186 * s));
-            ImGui::BeginDisabled(!d.check.Ok());
-            if (button("INSTALL & VERIFY", true, 54)) StartInstall();
-            ImGui::EndDisabled();
-            if (button("BACK", false, 36)) Go(Page::Choose);
+            reveal([&] {
+                br::Eyebrow("02  /  INSTALL TO");
+                // Keep the existing placement checks and destination chooser.
+                // An explicit native picker is clearer than a carousel of paths.
+                small([&] {
+                    pathLine(destination);
+                    if (d.info.available != UINT64_MAX)
+                        ImGui::TextDisabled("%s required  /  %s available", install::FormatSize(d.info.required).c_str(),
+                            install::FormatSize(d.info.available).c_str());
+                });
+                if (!d.check.Ok()) ImGui::TextWrapped("%s", d.check.message.c_str());
+                if (!pickHint.empty() && pick == Pick::Unavailable) ImGui::TextWrapped("%s", pickHint.c_str());
+                gap(4);
+                if (button("CHANGE INSTALL FOLDER", false, 40)) RequestFolder();
+            });
+            gap(18);
+            reveal([&] {
+                br::Eyebrow("02  /  ADD-ON CAR PACKS  /  OPTIONAL");
+                if (button(addonSource.empty() ? "CHOOSE ADD-ON FOLDER" : "CHANGE ADD-ON FOLDER", false, 40))
+                    Browse(true, DialogFor::Addons);
+                gap(4);
+                small([&] {
+                    ImGui::TextWrapped("%s", addonMessage.empty() ? "Choose your car packs now, or add them later in Settings." : addonMessage.c_str());
+                    if (!addonSource.empty()) pathLine(addonSource);
+                });
+            });
+            actions(54 + 36 + 8);
+            reveal([&] {
+                ImGui::BeginDisabled(!d.check.Ok());
+                if (button("INSTALL & VERIFY", true, 54)) StartInstall();
+                ImGui::EndDisabled();
+                if (button("BACK", false, 36)) Go(Page::Choose);
+            });
             break;
         }
         case Page::Installing:
         {
-            br::Heading("BUILDING YOUR GARAGE.");
+            header(3, "BUILDING YOUR GARAGE.", "Copying your game and verifying every file.");
             install::Progress p;
-            { std::lock_guard lock(progressMutex); p = progress; }
+            std::string file;
+            { std::lock_guard lock(progressMutex); p = progress; file = currentFile; }
             float fraction = p.bytesTotal ? float(double(p.bytesDone) / double(p.bytesTotal)) : 0;
-            ImGui::TextWrapped("Copying your game and verifying every file.");
-            ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY() + 24 * s, ImGui::GetWindowHeight() * .38f));
-            ImGui::PushFont(nullptr, 42);
-            ImGui::TextColored({.96f, .71f, .15f, 1}, "%d%%", int(fraction * 100));
-            ImGui::PopFont();
-            gap(8);
-            ImGui::ProgressBar(fraction, {-1, 14 * s}, "");
-            ImGui::PushFont(nullptr, 13);
-            ImGui::TextDisabled("%s / %s   |   %zu / %zu files", install::FormatSize(p.bytesDone).c_str(),
-                install::FormatSize(p.bytesTotal).c_str(), p.filesDone, p.filesTotal);
-            ImGui::PopFont();
-            ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY() + 24 * s, ImGui::GetWindowHeight() - 186 * s));
+            ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY() + 24 * s, ImGui::GetWindowHeight() * .36f));
+            reveal([&] {
+                br::Figure(std::format("{}%", int(fraction * 100)).c_str());
+                gap(6);
+                br::HazardBar(fraction, 16 * s);
+                gap(4);
+                small([&] {
+                    ImGui::TextDisabled("%s / %s   |   %zu / %zu files", install::FormatSize(p.bytesDone).c_str(),
+                        install::FormatSize(p.bytesTotal).c_str(), p.filesDone, p.filesTotal);
+                    if (!file.empty()) ImGui::TextDisabled("%s", DisplayPath(file, ImGui::GetContentRegionAvail().x).c_str());
+                });
+            });
+            actions(42);
             focusPage = false; // no stray A cancels the copy
             ImGui::BeginDisabled(cancel.load());
             if (button(cancel ? "CANCELLING..." : "CANCEL INSTALL", false, 42)) cancel = true;
@@ -970,30 +1013,30 @@ namespace ui
         }
         case Page::Done:
         {
-            br::Heading("READY FOR REVENGE.");
-            gap(8);
-            ImGui::TextWrapped("Your game is installed. Time to hit the streets.");
-            gap(36);
-            br::Eyebrow("SETUP COMPLETE");
-            ImGui::TextUnformatted("Game files verified.");
-            if (!addonSource.empty()) ImGui::TextWrapped("%s", addonMessage.c_str());
-            ImGui::PushFont(nullptr, 13);
-            pathLine(destination);
-            ImGui::PopFont();
-            ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY() + 32 * s, ImGui::GetWindowHeight() - 186 * s));
-            if (button("START YOUR ENGINES", true, 58)) screen.finished = true;
-            gap(10);
-            ImGui::PushFont(nullptr, 13);
-            ImGui::TextWrapped("Settings in game: Back + Start  /  F1  /  Cmd+,.");
-            ImGui::PopFont();
+            header(4, "READY FOR REVENGE.", "Your game is installed. Time to hit the streets.");
+            gap(32);
+            reveal([&] {
+                br::Eyebrow("SETUP COMPLETE");
+                ImGui::TextUnformatted("Game files verified.");
+                if (!addonSource.empty()) ImGui::TextWrapped("%s", addonMessage.c_str());
+                small([&] { pathLine(destination); });
+            });
+            actions(58 + 30);
+            reveal([&] {
+                if (button("START YOUR ENGINES", true, 58)) screen.finished = true;
+                gap(8);
+                small([&] { ImGui::TextDisabled("Settings in game: Back + Start  /  F1  /  Cmd+,"); });
+            });
             break;
         }
         case Page::Failed:
-            br::Heading("LET'S FIX THE SETUP.");
-            br::Eyebrow(FailureTitle(result.error));
-            ImGui::TextWrapped("%s", result.message.c_str());
-            if (!result.file.empty()) pathLine(result.file);
-            ImGui::Spacing();
+            header(source ? 3 : 1, "LET'S FIX THE SETUP.", FailureTitle(result.error));
+            gap(20);
+            reveal([&] {
+                ImGui::TextWrapped("%s", result.message.c_str());
+                if (!result.file.empty()) small([&] { pathLine(result.file); });
+            });
+            actions(source ? 54 + 44 + 8 : 54);
             if (button("CHOOSE ANOTHER COPY", true, 54)) Go(Page::Choose);
             if (source && button("TRY ANOTHER INSTALL FOLDER", false, 44)) { LoadDestinations(); Go(Page::Confirm); }
             break;
@@ -1026,6 +1069,7 @@ namespace ui
 
     InstallerScreen::~InstallerScreen()
     {
+        setup_music::Stop();
         state->Stop();
         // Nothing reads the picked file now; nor will anything collect a
         // pick still waiting.
@@ -1050,13 +1094,22 @@ namespace ui
         }
         if (st.page == Page::Checking && st.CollectCheck())
         {
+            fprintf(stderr, "[installer] check of %s: %s\n", st.sourcePath.c_str(),
+                st.result.Ok() ? "ready to install" : st.result.message.c_str());
             if (st.result.Ok())
+            {
                 st.LoadDestinations();
+                // The game's own music from here on, from the player's disc.
+                if (!setup_music::Playing())
+                    setup_music::Start(*st.source);
+            }
             st.Go(st.result.Ok() ? Page::Confirm : Page::Failed);
         }
         if (st.page == Page::Installing && st.TaskReady())
         {
             st.result = st.task.get();
+            fprintf(stderr, "[installer] install to %s: %s\n", st.destination.c_str(),
+                st.result.Ok() ? "done, every file verified" : st.result.message.c_str());
             if (st.result.Ok())
             {
                 installedPath = st.destination;
@@ -1142,6 +1195,7 @@ namespace ui
                 {
                     st.addonSource = *folder;
                     st.addonMessage = game::ImportBurnoutAddons(*folder);
+                    fprintf(stderr, "[installer] add-on folder %s: %s\n", folder->c_str(), st.addonMessage.c_str());
                     size_t copied = 0, skipped = 0;
                     if (std::sscanf(st.addonMessage.c_str(), "%zu pack(s) copied; %zu skipped", &copied, &skipped) == 2)
                         st.addonMessage = copied ? std::format("{} car packs ready", copied) : "No compatible car packs found in this folder.";
@@ -1608,6 +1662,7 @@ namespace ui
 
     std::optional<std::filesystem::path> RunInstaller(const std::function<bool()>& runFrame)
     {
+        fprintf(stderr, "[installer] first-run screens shown\n");
         InstallerScreen screen;
         SetModal([&screen] { screen.Draw(); });
         bool open = true;
@@ -1617,6 +1672,18 @@ namespace ui
                 open = false;
                 break;
             }
+        // START YOUR ENGINES: the music fades as the screen gives way (up
+        // to a second; the game's own audio starts after it is gone).
+        if (open && screen.finished && setup_music::Playing())
+        {
+            setup_music::FadeOut(.8f);
+            const uint64_t until = SDL_GetTicks() + 1000;
+            while (setup_music::Playing() && SDL_GetTicks() < until && (open = runFrame()))
+                ;
+        }
+        setup_music::Stop();
+        fprintf(stderr, "[installer] first-run screens closed: %s\n",
+            !open ? "window closed" : screen.quit ? "quit" : "installed, starting the game");
         SetModal(nullptr);
         if (!open || screen.quit)
             return std::nullopt;

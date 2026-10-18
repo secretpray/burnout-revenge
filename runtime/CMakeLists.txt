@@ -108,6 +108,12 @@ target_link_libraries(imgui PUBLIC SDL3::SDL3 Vulkan::Vulkan)
 file(READ ${IMGUI}/fonts/Roboto-Medium.ttf UI_FONT_HEX HEX)
 string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," UI_FONT_BYTES "${UI_FONT_HEX}")
 file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/generated/ui_font.inc "${UI_FONT_BYTES}\n")
+# The first-run screens' display fonts (thirdparty/fonts, OFL 1.1), the same way.
+foreach(face ExtraBoldItalic BoldItalic)
+    file(READ ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/fonts/BarlowCondensed-${face}.ttf face_hex HEX)
+    string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," face_bytes "${face_hex}")
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/generated/barlow_${face}.inc "${face_bytes}\n")
+endforeach()
 # AMD FidelityFX Super Resolution 1 (thirdparty/fsr1, vendored, unmodified):
 # the text of its two headers, compiled in (generated/fsr1_headers.inc) for
 # Upscaling's FSR 1 shaders, which glslang compiles while the game runs

@@ -47,4 +47,8 @@ namespace platform::macos
 
     // Before SDL_DestroyWindow: stops watching the window.
     void ForgetWindow(SDL_Window* window);
+
+    // System Settings > Accessibility > Display > Reduce motion: the
+    // first-run screens then keep still (ui/burnout_setup.cpp).
+    bool ReduceMotion();
 }

@@ -8,6 +8,11 @@ Input focus hotfix. Includes the v0.1.1 audio-startup correction.
   hidden, minimized or suspended; pending output is stopped on focus loss.
 - Hiding or minimizing the window releases held keys; restore re-checks focus.
 - Keys held with Command (Cmd+Tab, Cmd+H and other shortcuts) no longer drive the car.
+- First-run screens follow one path: 01 your game, 02 install folder and car
+  packs (asked once), 03 install. Burnout-style condensed italic type, hazard
+  stripes and step progress; Reduce motion keeps them still.
+- Once your disc checks out, the setup plays EA Trax from your own copy
+  (M switches it off; Mute and volume settings apply). Nothing is shipped.
 
 A short Bluetooth test kept Magic Keyboard working in the game and after returning
 to it. This is not a guarantee for every Bluetooth accessory or Mac; USB remains a
