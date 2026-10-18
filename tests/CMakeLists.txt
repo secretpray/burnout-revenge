@@ -23,6 +23,9 @@ sb_test(burnout_motion_test)
 sb_test(xma_mmio_test)
 # Save backups at launch and restores (user/save_backup.h), in a scratch folder.
 sb_test(save_backup_test SOURCES ${RT}/user/save_backup.cpp ARGS ${CMAKE_BINARY_DIR})
+# The player's own music: its folder's files in a shuffled round (user/my_music.h).
+sb_test(my_music_test SOURCES ${RT}/user/my_music.cpp ARGS ${CMAKE_BINARY_DIR})
+target_compile_definitions(my_music_test PRIVATE BR_MY_MUSIC_TEST)
 # The player's own music through the system decoder (platform/audio_file.h).
 if(APPLE)
     sb_test(audio_file_test SOURCES ${RT}/platform/apple/audio_file.mm ARGS ${CMAKE_BINARY_DIR})

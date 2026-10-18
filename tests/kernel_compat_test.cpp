@@ -10,7 +10,11 @@
 #include <cpu/guest_thread.h>
 #include <kernel/vfs.h>
 #include <apu/music.h>
+#include <user/my_music.h>
+#include <atomic>
+#include <chrono>
 #include <functional>
+#include <thread>
 #include <unordered_set>
 
 uint32_t XMsgSystemProcessCall(uint32_t, uint32_t, uint32_t, uint32_t);
@@ -49,16 +53,36 @@ static xnotify::Queue notifications;
 void XamNotifyEnqueueEvent(uint32_t id, uint32_t data) { notifications.Push(id, data); }
 static std::function<void(uint64_t, bool)> songEnd;
 static uint64_t songNumber = 0;
-static uint32_t plays = 0, resumes = 0;
+static std::atomic<uint32_t> plays = 0;
+static uint32_t resumes = 0;
+static std::filesystem::path lastPlayed;
 namespace apu::music
 {
-    uint64_t Play(const std::filesystem::path&) { ++plays; return ++songNumber; }
+    uint64_t Play(const std::filesystem::path& file) { lastPlayed = file; ++plays; return ++songNumber; }
     void Stop() {}
     void Pause() {}
     void Resume() { ++resumes; }
     void SetVolume(float) {}
     void SetSongEndHandler(std::function<void(uint64_t, bool)> f) { songEnd = std::move(f); }
 }
+
+// My Music (user/my_music.h): chosen or not, a folder of `mineFiles` files.
+static bool mineChosen = false;
+static size_t mineFiles = 2, minePicks = 0, announces = 0;
+static std::function<void()> choiceChanged;
+namespace user::my_music
+{
+    bool Chosen() { return mineChosen; }
+    Pick Next()
+    {
+        if (mineFiles == 0) return {};
+        ++minePicks;
+        return {"mine" + std::to_string(minePicks) + ".mp3", "Artist - Song", mineFiles};
+    }
+    void Announce(const std::string&) { ++announces; }
+    void OnChoiceChanged(std::function<void()> f) { choiceChanged = std::move(f); }
+}
+static bool Mine() { return lastPlayed.string().starts_with("mine"); }
 
 template<class T> T* At(uint32_t address) { return reinterpret_cast<T*>(memory.data() + address); }
 static X_UNICODE_STRING Source(std::u16string_view s)
@@ -219,10 +243,67 @@ static void TestXmp()
     printf("XMP dispatcher: 180000 repeated Continue calls, no redundant events; peak=%zu\n", notifications.highWater);
 }
 
+// Waits for the song after `before` plays (My Music picks it off the audio thread).
+static void WaitPlays(uint32_t before)
+{
+    for (int i = 0; i < 2000 && plays == before; ++i)
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    assert(plays > before);
+}
+
+// Music: My Music. The player's files play in the playlist's place, one
+// after another without the game seeing an end; a play of the playlist
+// (a skip) takes the next; back to EA Trax the game's next song plays.
+static void TestMyMusic()
+{
+    constexpr uint32_t changed = 0x0A000001;
+    memset(At<uint8_t>(0x800), 0, 72);
+    assert(Message(0x7000D, {0, 0x400, 260, 0x800, 2, 0, 0, 0x600, 0x480}) == 0);
+    assert(Message(0x70008, {0, 0, 0, 0}) == 0);
+    notifications = {};
+    mineChosen = true;
+    assert(Message(0x70002, {0, 0x400, 0}) == 0 && State() == 1 && Mine() && announces == 1);
+    assert(notifications.Size() == 0);  // no state change: it would show the EA Trax banner
+    auto before = plays.load();
+    songEnd(songNumber, false);
+    WaitPlays(before);
+    assert(State() == 1 && Mine() && notifications.Size() == 0);  // no end for the game
+    before = plays;
+    assert(Message(0x70002, {0, 0x400, 0}) == 0 && plays == before + 1 && Mine() && minePicks == 3);
+    notifications = {};
+    // Back to EA Trax: the game is told the playlist ended, and plays its next.
+    mineChosen = false;
+    choiceChanged();
+    assert(State() == 0 && notifications.Pop() == xnotify::Queue::Event(changed, 0));
+    assert(Message(0x70002, {0, 0x400, 0}) == 0 && State() == 1 && !Mine());
+    // My Music again, mid-song: it switches at once.
+    mineChosen = true;
+    choiceChanged();
+    assert(State() == 1 && Mine());
+    // Files that won't play: after as many failures as files, EA Trax.
+    before = plays;
+    songEnd(songNumber, true);
+    WaitPlays(before);
+    notifications = {};
+    songEnd(songNumber, true);
+    assert(State() == 0 && notifications.Pop() == xnotify::Queue::Event(changed, 0));
+    assert(Message(0x70002, {0, 0x400, 0}) == 0 && State() == 1 && !Mine());
+    // An empty folder: EA Trax, and the player is told.
+    choiceChanged();
+    mineFiles = 0;
+    assert(Message(0x70004) == 0 && State() == 0);
+    const auto told = announces;
+    assert(Message(0x70002, {0, 0x400, 0}) == 0 && State() == 1 && !Mine() && announces == told + 1);
+    assert(Message(0x70004) == 0 && Message(0x70013, {0, 0x400}) == 0);
+    mineChosen = false;
+    printf("XMP My Music: own files in the playlist's place, skips, switches and failures\n");
+}
+
 int main()
 {
     g_memory.base = memory.data();
     TestRtl();
     TestXmp();
+    TestMyMusic();
     puts("kernel_compat_test: real RTL exports and XMsg dispatcher passed");
 }

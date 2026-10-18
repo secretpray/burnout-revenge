@@ -76,9 +76,28 @@ namespace ui::burnout
         ImGuiIO& io = ImGui::GetIO();
         ImFontConfig config;
         config.FontDataOwnedByAtlas = false;
+        // Barlow has Latin only. Text from outside (a song's tags, a folder's
+        // name) can be Cyrillic, Greek or CJK: the system's Arial Narrow (of
+        // the same cut) and then Arial Unicode draw what Barlow lacks. Read
+        // from macOS at run time, not shipped.
+        auto fallbacks = [&io](const char* narrow) {
+#ifdef __APPLE__
+            ImFontConfig merge;
+            merge.MergeMode = true;
+            for (const char* file : { narrow, "/System/Library/Fonts/Supplemental/Arial Unicode.ttf" })
+                if (std::filesystem::exists(file))
+                    io.Fonts->AddFontFromFileTTF(file, 0, &merge);
+#else
+            (void)io;
+            (void)narrow;
+#endif
+        };
         s_display = io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(kDisplayFont), int(sizeof(kDisplayFont)), 0, &config);
+        fallbacks("/System/Library/Fonts/Supplemental/Arial Narrow Bold Italic.ttf");
         s_label = io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(kLabelFont), int(sizeof(kLabelFont)), 0, &config);
+        fallbacks("/System/Library/Fonts/Supplemental/Arial Narrow Bold Italic.ttf");
         s_row = io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(kRowFont), int(sizeof(kRowFont)), 0, &config);
+        fallbacks("/System/Library/Fonts/Supplemental/Arial Narrow Bold.ttf");
     }
 
     ImFont* DisplayFont() { return Or(s_display); }

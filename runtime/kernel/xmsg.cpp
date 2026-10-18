@@ -8,7 +8,8 @@
 // another (apu/music.cpp, mixed into the XAudio output), in the playback
 // and repeat modes it sets (apu/xmp_playlist.h), with Pause, Continue, Next,
 // Previous, Stop and GetInfo; each song change is an XN_XMP_STATECHANGED,
-// as is the playlist's end (idle). XGI (0xFB: achievements,
+// as is the playlist's end (idle). With Audio -> Music set to My Music the
+// player's own files (user/my_music.h) play in the playlist's place. XGI (0xFB: achievements,
 // sessions, stats) and XLiveBase (0xFC) messages fail with X_E_FAIL and a log
 // line, as Xenia's unknown messages do; add them as the game needs them.
 #include <stdafx.h>
@@ -20,6 +21,9 @@
 #include "vfs.h"
 #include <apu/music.h>
 #include <apu/xmp_playlist.h>
+#include <user/my_music.h>
+
+#include <thread>
 
 namespace
 {
@@ -56,6 +60,14 @@ namespace
         uint64_t song = 0;         // music::Play's number for the song playing
         uint32_t failures = 0;     // songs in a row that couldn't be played
         uint32_t nextSongHandle = 0;
+        // Music: My Music (user/my_music.h). The song playing is one of the
+        // player's own files in the title's playlist's place: to the game
+        // the playlist plays on (no end, no state change: no EA Trax banner
+        // either) until it plays
+        // another (a skip), stops it, or Music goes back to EA Trax.
+        bool mine = false;
+        bool mineFailed = false;  // none of the files played: EA Trax until Music changes
+        size_t mineCount = 0;     // files in the folder at the last pick
     } s_xmp;
 
     template<typename T>
@@ -87,9 +99,31 @@ namespace
         s_xmp.song = apu::music::Play(playlist.files[index]);
     }
 
+    bool MyMusicChosen() { return user::my_music::Chosen(); }
+
+    // Under s_xmp.mutex. The next of the player's own files, with a toast
+    // naming it; false (EA Trax plays) when the folder has none.
+    bool PlayMine()
+    {
+        const auto pick = user::my_music::Next();
+        s_xmp.mineCount = pick.count;
+        if (pick.file.empty())
+        {
+            fprintf(stderr, "[xmp] My Music: the Music Folder has no music files, EA Trax plays\n");
+            user::my_music::Announce("My Music: the Music Folder has no music files. EA Trax plays.");
+            return false;
+        }
+        fprintf(stderr, "[xmp] My Music (%zu files): %s\n", pick.count, pick.file.filename().string().c_str());
+        s_xmp.song = apu::music::Play(pick.file);
+        s_xmp.mine = true;
+        user::my_music::Announce("Now playing: " + pick.name);
+        return true;
+    }
+
     // Under s_xmp.mutex: nothing plays any more.
     void StopPlaylist()
     {
+        s_xmp.mine = false;
         apu::music::Stop();
         s_xmp.sequence.Clear();
         s_xmp.active = 0;
@@ -103,6 +137,32 @@ namespace
         std::lock_guard lock(s_xmp.mutex);
         if (song != s_xmp.song || !s_xmp.active)
             return;  // another song started meanwhile, or none plays
+        if (s_xmp.mine)
+        {
+            s_xmp.failures = failed ? s_xmp.failures + 1 : 0;
+            if (s_xmp.failures >= std::max<size_t>(s_xmp.mineCount, 1) || !MyMusicChosen())
+            {
+                if (s_xmp.failures)
+                {
+                    fprintf(stderr, "[xmp] My Music: none of the files plays, EA Trax plays\n");
+                    s_xmp.mineFailed = true;
+                }
+                StopPlaylist();  // the game plays its next EA Trax song
+                XamNotifyEnqueueEvent(kMsgStateChanged, s_xmp.state);
+                return;
+            }
+            // Not on the audio thread: the folder is scanned and the file
+            // opened for its tags.
+            std::thread([song] {
+                std::lock_guard lock(s_xmp.mutex);
+                if (song == s_xmp.song && s_xmp.mine && !PlayMine())
+                {
+                    StopPlaylist();
+                    XamNotifyEnqueueEvent(kMsgStateChanged, s_xmp.state);
+                }
+            }).detach();
+            return;
+        }
         size_t count = s_xmp.titlePlaylists.at(s_xmp.active).songs.size();
         s_xmp.failures = failed ? s_xmp.failures + 1 : 0;
         std::optional<uint32_t> next;
@@ -118,6 +178,24 @@ namespace
             StopPlaylist();
         }
         XamNotifyEnqueueEvent(kMsgStateChanged, s_xmp.state);
+    }
+
+    // The menu's thread: Music changed. A song playing switches at once: to
+    // the player's own, or (from them) to the game's next EA Trax song.
+    void OnChoiceChanged()
+    {
+        std::lock_guard lock(s_xmp.mutex);
+        s_xmp.mineFailed = false;
+        s_xmp.failures = 0;
+        if (!s_xmp.active || s_xmp.state != 1)
+            return;
+        if (MyMusicChosen() && !s_xmp.mine)
+            PlayMine();
+        else if (!MyMusicChosen() && s_xmp.mine)
+        {
+            StopPlaylist();
+            XamNotifyEnqueueEvent(kMsgStateChanged, s_xmp.state);
+        }
     }
 
     // At most `units` UTF-16 units with the NUL, big-endian, at `out`.
@@ -144,7 +222,11 @@ namespace
             handle = PlaylistOf(args[1]);
             if (!s_xmp.playlists.count(handle))
                 return X_E_NOTFOUND;
-            static const bool handlerSet = [] { apu::music::SetSongEndHandler(OnSongEnd); return true; }();
+            static const bool handlerSet = [] {
+                apu::music::SetSongEndHandler(OnSongEnd);
+                user::my_music::OnChoiceChanged(OnChoiceChanged);
+                return true;
+            }();
             (void)handlerSet;
             {
                 auto& playlist = s_xmp.titlePlaylists[handle];
@@ -159,13 +241,20 @@ namespace
                 s_xmp.failures = 0;
                 if (auto index = s_xmp.sequence.Start(uint32_t(playlist.songs.size()), first))
                 {
-                    PlaySong(*index);
+                    if (!MyMusicChosen() || s_xmp.mineFailed || !PlayMine())
+                    {
+                        s_xmp.mine = false;
+                        PlaySong(*index);
+                    }
                     s_xmp.state = 1;
                 }
                 else
                     StopPlaylist();
             }
-            XamNotifyEnqueueEvent(kMsgStateChanged, s_xmp.state);
+            // Not for the player's own: the state change is what shows the
+            // game's EA Trax banner, with the EA song's name (runs 151/153).
+            if (!s_xmp.mine)
+                XamNotifyEnqueueEvent(kMsgStateChanged, s_xmp.state);
             return X_E_SUCCESS;
         }
         case 0x00070003: // XMPContinue
@@ -199,9 +288,14 @@ namespace
                 auto index = message == 0x00070006 ? s_xmp.sequence.Next() : s_xmp.sequence.Previous();
                 fprintf(stderr, "[xmp] %s\n", message == 0x00070006 ? "Next" : "Previous");
                 s_xmp.failures = 0;
-                PlaySong(*index);
+                if (!s_xmp.mine || !PlayMine())
+                {
+                    s_xmp.mine = false;
+                    PlaySong(*index);
+                }
                 s_xmp.state = 1;
-                XamNotifyEnqueueEvent(kMsgStateChanged, s_xmp.state);
+                if (!s_xmp.mine)
+                    XamNotifyEnqueueEvent(kMsgStateChanged, s_xmp.state);
                 return X_E_SUCCESS;
             }
             return X_E_NOTFOUND;

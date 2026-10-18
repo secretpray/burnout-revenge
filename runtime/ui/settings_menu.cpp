@@ -24,7 +24,10 @@
 #include <video/presenter.h>
 #include <game/title.h>
 #include <game/burnout_addons.h>
+#include <platform/audio_file.h>
+#include <user/my_music.h>
 #include <SDL3/SDL_dialog.h>
+#include <SDL3/SDL_misc.h>  // SDL_OpenURL: Music Folder in Finder
 #include <mutex>
 #include <optional>
 
@@ -53,6 +56,7 @@ namespace ui
         bool s_describedAddons = false;
         bool s_describedAbout = false;
         bool s_describedSaveBackups = false;
+        bool s_describedMusicFolder = false;
         bool s_openAddons = false;
         std::mutex s_addonPickerMutex;
         bool s_addonPickerOpen = false;
@@ -758,8 +762,44 @@ namespace ui
         }
 #endif
 
+        // Audio's Music Folder row: how many files My Music would play
+        // (scanned again every 2 s while the page shows), and A opens the
+        // folder in Finder, made first.
+        std::string MusicFolderValue()
+        {
+            static Uint64 scanned = 0;
+            static size_t count = 0;
+            const Uint64 now = SDL_GetTicks();
+            if (scanned == 0 || now - scanned > 2000)
+            {
+                count = user::my_music::Scan(user::my_music::Folder(), platform::audio_file::IsMusicFile).size();
+                scanned = now;
+            }
+            return count == 0 ? "Empty" : std::format("{} {}", count, count == 1 ? "file" : "files");
+        }
+
+        void MusicFolderRow(float valueWidth)
+        {
+            if (ActionRow("music-folder", "Music Folder", MusicFolderValue().c_str(), valueWidth, s_describedMusicFolder))
+            {
+                std::error_code error;
+                std::filesystem::create_directories(user::my_music::Folder(), error);
+                SDL_OpenURL(("file://" + user::my_music::Folder().string()).c_str());
+            }
+        }
+
         void HelpLine()
         {
+            if (s_describedMusicFolder)
+            {
+                // The home folder as ~: the path fits the line.
+                std::string folder = user::my_music::Folder().string();
+                if (const char* home = std::getenv("HOME"); home && *home && folder.starts_with(home))
+                    folder = "~" + folder.substr(std::strlen(home));
+                ImGui::TextWrapped("Put MP3, AAC, ALAC, FLAC, WAV or AIFF files (subfolders too) in %s, then set Music to My Music. "
+                                   "A opens the folder.", folder.c_str());
+                return;
+            }
             if (s_describedSaveBackups)
             {
                 ImGui::TextWrapped("%s", SaveBackupsHelp());
@@ -966,6 +1006,7 @@ namespace ui
         s_describedAddons = false;
         s_describedAbout = false;
         s_describedSaveBackups = false;
+        s_describedMusicFolder = false;
         if (s_waiting != Id::Count && settings::Info(s_waiting).category != s_category)
             EndWait();
         // For the B check at the end: B's nav cancel (in ImGui's NewFrame,
@@ -1034,6 +1075,8 @@ namespace ui
                         for (const auto& o : settings::Options())
                             if (o.category == category && !o.hidden)
                                 valueWidth = std::max(valueWidth, ValueWidth(o));
+                    if (category == Category::Audio)
+                        valueWidth = std::max(valueWidth, ImGui::CalcTextSize("9999 FILES").x);
                     if (category == Category::Advanced)
                         for (const char* text : { "Saving...", "Checking...", "Restore pending", UpdateRowValue() })
                             valueWidth = std::max(valueWidth, ImGui::CalcTextSize(Upper(text).c_str()).x);
@@ -1057,6 +1100,8 @@ namespace ui
                                     OptionRow(o, valueWidth, focusFirst);
                                     focusFirst = false;
                                 }
+                        if (category == Category::Audio)
+                            MusicFolderRow(valueWidth);
                         if (category == Category::Advanced)
                         {
                             BugReportRow(valueWidth);

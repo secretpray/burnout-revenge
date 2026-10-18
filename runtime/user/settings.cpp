@@ -58,6 +58,10 @@ namespace settings
 #else
         constexpr bool kFsr1Offered = true;
 #endif
+        constexpr EnumEntry kMusicEntries[] = {
+            { int32_t(MusicSource::EaTrax), "ea_trax", "EA Trax" },
+            { int32_t(MusicSource::MyMusic), "my_music", "My Music" },
+        };
         constexpr EnumEntry kAaMethodEntries[] = {
             { int32_t(AaMethod::Fxaa), "fxaa", "FXAA" },
             { int32_t(AaMethod::Smaa), "smaa", "SMAA" },
@@ -252,6 +256,10 @@ namespace settings
               .table = "audio", .key = "mute_in_background", .label = "Mute in Background",
               .description = "Silence the game while its window isn't focused.",
               .env = "BURNOUT_MUTE_UNFOCUSED", .defaultValue = 0 },
+            { .id = Id::Music, .category = Category::Audio, .type = Type::Enum, .apply = Apply::Live,
+              .table = "audio", .key = "music", .label = "Music",
+              .description = "EA Trax, or My Music: your own MP3, AAC, ALAC, FLAC, WAV or AIFF files from the Music Folder, shuffled, in their place.",
+              .env = "BURNOUT_MUSIC", .defaultValue = double(MusicSource::EaTrax), .entries = kMusicEntries },
             // Input
             { .id = Id::StickDeadzone, .category = Category::Input, .type = Type::Float, .apply = Apply::Live,
               .table = "input", .key = "stick_deadzone", .label = "Stick Deadzone",

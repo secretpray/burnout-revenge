@@ -60,6 +60,7 @@ namespace settings
         MasterVolume,
         Mute,
         MuteInBackground,
+        Music,  // EA Trax or the player's own (user/my_music.h)
         // Input
         StickDeadzone,
         TriggerDeadzone,
@@ -113,6 +114,9 @@ namespace settings
     // (video/upscale.h, whose Mode has the same values).
     enum class ScalingMode : int32_t { Bicubic = 0, Linear = 1, Fsr1 = 2, MetalFxSpatial = 3 };
     enum class AaMethod : int32_t { Fxaa = 0, Smaa = 1 };
+    // Music: the game's EA Trax, or the files of user/my_music.h's folder
+    // in their place (kernel/xmsg.cpp).
+    enum class MusicSource : int32_t { EaTrax = 0, MyMusic = 1 };
     // Frame Rate: 60, 30, or Auto (video/frame_rate.h: 60, or 30 while the
     // device is hot or can't hold 60).
     constexpr int32_t kFrameRateAuto = 0;

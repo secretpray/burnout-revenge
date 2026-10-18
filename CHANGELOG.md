@@ -7,6 +7,12 @@
   with an Xbox-style pad, key caps (Enter, Esc, Q/E, arrows) with the keyboard.
   The game's own hints are unchanged.
 - The "What's new" note looks like the game's own prompts.
+- My Music: Settings > Audio > Music plays your own MP3, AAC, ALAC, FLAC, WAV or
+  AIFF files instead of EA Trax, shuffled, with "Now playing" naming each song.
+  Put them in the Music Folder (Settings > Audio > Music Folder opens it). The
+  game's pause, fades and crash silence apply to them as to EA Trax.
+- Song names and other text outside the game's alphabet (Cyrillic, Greek, CJK)
+  show in our menus and notices.
 
 ## v0.1.7
 
