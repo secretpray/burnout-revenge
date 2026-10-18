@@ -623,6 +623,18 @@ namespace hid
         return s_publishedGlyphs.load(std::memory_order_relaxed);
     }
 
+    Glyphs PromptGlyphs(bool anyThread)
+    {
+        switch (settings::ButtonPrompts(settings::GetInt(settings::Id::ButtonPrompts)))
+        {
+        case settings::ButtonPrompts::Xbox: return Glyphs::Xbox;
+        case settings::ButtonPrompts::PlayStation: return Glyphs::PlayStation;
+        case settings::ButtonPrompts::Keyboard: return Glyphs::Keyboard;
+        case settings::ButtonPrompts::Auto: break;
+        }
+        return anyThread ? PublishedGlyphs() : LastGlyphs();
+    }
+
     void HandleEvent(const SDL_Event& e)
     {
         // The hints follow the last real input: a key (not a Command
@@ -731,6 +743,11 @@ namespace hid
 #if defined(__APPLE__) && TARGET_OS_IOS
         NoControllerNotice();
 #endif
+        // Before any input, what is connected decides, for the game's
+        // prompts as for our menus: published here every frame, not only
+        // when one of our panels draws a hint.
+        if (!s_glyphsKnown)
+            LastGlyphs();
         Pad p;
         float lx = 0, ly = 0, rx = 0, ry = 0, lt = 0, rt = 0;
         bool padBack = false;  // the controller's Back, as the device reports it

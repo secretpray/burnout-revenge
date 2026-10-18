@@ -310,11 +310,12 @@ namespace ui::burnout
 
     float ButtonGlyph(ImDrawList* draw, ImVec2 at, float height, const char* button)
     {
-        // The buttons of whatever the player used last (hid::LastGlyphs):
-        // Xbox 360's lettered discs, PlayStation's shapes (L1/R1 for the
-        // shoulders), or the keyboard's keys as caps.
+        // The buttons the game's prompts show too (hid::PromptGlyphs: the
+        // Button Prompts setting, Auto the device used last): Xbox 360's
+        // lettered discs, PlayStation's shapes (L1/R1 for the shoulders), or
+        // the keyboard's keys as caps.
         const float s = Scale();
-        const hid::Glyphs set = hid::LastGlyphs();
+        const hid::Glyphs set = hid::PromptGlyphs();
         std::string label = button;
         if (set == hid::Glyphs::PlayStation)
             label = label == "LB" ? "L1" : label == "RB" ? "R1" : label;

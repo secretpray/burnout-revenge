@@ -41,18 +41,12 @@ namespace gpu::padglyphs
 
         enum class Family { Xbox, PlayStation, Keyboard };
 
-        // Settings > Input > Button Prompts (lock-free; BURNOUT_PAD_GLYPHS
-        // overrides it as the settings' environment variables do).
+        // Settings > Input > Button Prompts (hid::PromptGlyphs, lock-free;
+        // BURNOUT_PAD_GLYPHS overrides it as the settings' environment
+        // variables do): the same set as our menus' hints.
         Family Wanted()
         {
-            switch (settings::ButtonPrompts(settings::GetInt(settings::Id::ButtonPrompts)))
-            {
-            case settings::ButtonPrompts::Xbox: return Family::Xbox;
-            case settings::ButtonPrompts::PlayStation: return Family::PlayStation;
-            case settings::ButtonPrompts::Keyboard: return Family::Keyboard;
-            case settings::ButtonPrompts::Auto: break;
-            }
-            switch (hid::PublishedGlyphs())
+            switch (hid::PromptGlyphs(true))
             {
             case hid::Glyphs::PlayStation: return Family::PlayStation;
             case hid::Glyphs::Keyboard: return Family::Keyboard;

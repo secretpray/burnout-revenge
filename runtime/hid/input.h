@@ -72,4 +72,8 @@ namespace hid
     // prompts, gpu/pad_glyphs.h): updated as the main thread sees input and
     // controllers come and go.
     Glyphs PublishedGlyphs();
+    // The buttons every prompt shows, ours and the game's alike: Settings >
+    // Input > Button Prompts' set, or with Auto the device used last
+    // (LastGlyphs on the main thread, PublishedGlyphs elsewhere: `anyThread`).
+    Glyphs PromptGlyphs(bool anyThread = false);
 }
