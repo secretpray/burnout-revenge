@@ -129,6 +129,10 @@
   (its save package, e.g. `Content/<profile>/454107DC/00000001/` on a USB stick),
   from Xenia's content folder, or the game's `Player Files`. Your current saves
   are backed up first; the import applies at the next launch.
+- A finished save (Elite rank, every event and all 86 cars) comes with each
+  release from v0.1.10 as `BurnoutRevenge-100-percent-save.zip`: unzip it and
+  import its `Player Files` as above. It's a save shared online for the USA
+  game; only its progress file is included, without the original profile.
 - Skip Intro Movies (on by default): the title screen in about 8 seconds.
 - Save Bug Report gathers the logs and settings into one file; Check for
   Updates asks GitHub for a newer release.
