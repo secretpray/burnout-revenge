@@ -81,9 +81,10 @@
 - Any window shape: a wider window shows more at the sides (Hor+), a taller one
   (16:10, 4:3) more above and below (Vert+), with the HUD kept in shape.
   Widescreen keeps the original 16:9 with bars.
-- Bloom and Motion Blur switches. Bloom off removes the game's haze and the
-  glow round edges but keeps its bright blue sky: the glow is kept where it
-  comes from rather than switched off. Motion Blur off keeps speed sharp.
+- Bloom and Motion Blur from 0 to 100%. Lower Bloom removes the game's haze
+  and the glow round edges but keeps its bright blue sky: the glow is kept where
+  it comes from rather than switched off. Lower Motion Blur shortens the streaks
+  at speed; 0% keeps speed sharp.
 - 60 fps, as the console. Fullscreen, V-Sync, and Cmd+H and Cmd+Tab that work
   in fullscreen. On an external 144 or 165 Hz monitor, a one-time note says how
   to set it to a rate 60 fps divides evenly.

@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Bloom and Motion Blur are sliders now, 0 to 100% (Settings > Graphics), in
+  steps of 10. Bloom at 100% is the game's glow, at 0% v0.1.9's Bloom off (the
+  glow kept on the bright areas, no haze, the sky as bright); between, a mix.
+  Motion Blur at 100% is the game's, at 50% its streaks half as long, at 0%
+  v0.1.9's Motion Blur off. Your v0.1.9 choices carry over: on reads as 100%,
+  off as 0%.
+
 ## v0.1.10
 
 - Burnout Clips save: "Save Clip" in the replay failed every time ("continue

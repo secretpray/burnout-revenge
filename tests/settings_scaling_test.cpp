@@ -4,8 +4,10 @@
 // linked as the game links it): "fsr1" (FSR 1, v0.1.5) read, saved and read
 // back, next to "bicubic" and "linear"; the menu's order (Bicubic, Bilinear,
 // FSR 1); BURNOUT_SCALING=fsr1 for one run, never saved; a token this version
-// doesn't know (a later version's) falls back to the default, Bicubic; and
-// Sharpening's default, 0.3, unchanged.
+// doesn't know (a later version's) falls back to the default, Bicubic;
+// Sharpening's default, 0.3, unchanged; and Bloom and Motion Blur, switches
+// in v0.1.9 and percentages since, reading that version's true and false as
+// 100% and 0%.
 // The argument is a scratch folder (settings.toml is written there).
 //
 // Build by hand (from the repo root):
@@ -120,6 +122,31 @@ int main(int argc, char** argv)
     CHECK(settings::GetStoredValue(Id::Scaling) == double(ScalingMode::Linear), "stored: %g", settings::GetStoredValue(Id::Scaling));
     CHECK(settings::Save(file) && Read(file).find("scaling = \"linear\"") != std::string::npos, "saved: the file's value:\n%s", Read(file).c_str());
     unsetenv("BURNOUT_SCALING");
+
+    // Bloom and Motion Blur: 100% by default; v0.1.9's switches read as 100%
+    // and 0%, saved as numbers; a number as it is; "off" in the environment.
+    unsetenv("BURNOUT_BLOOM");
+    unsetenv("BURNOUT_MOTION_BLUR");
+    std::filesystem::remove(file);
+    CHECK(settings::Load(file) && settings::GetInt(Id::Bloom) == 100 && settings::GetInt(Id::MotionBlur) == 100,
+        "defaults: %d %d", settings::GetInt(Id::Bloom), settings::GetInt(Id::MotionBlur));
+    Write(file, "[video]\nbloom = false\nmotion_blur = true\n");
+    CHECK(settings::Load(file) && settings::GetInt(Id::Bloom) == 0 && settings::GetInt(Id::MotionBlur) == 100,
+        "v0.1.9's false, true: %d %d", settings::GetInt(Id::Bloom), settings::GetInt(Id::MotionBlur));
+    CHECK(settings::Save(file) && Read(file).find("bloom = 0") != std::string::npos &&
+        Read(file).find("motion_blur = 100") != std::string::npos, "saved as numbers:\n%s", Read(file).c_str());
+    Write(file, "[video]\nbloom = true\nmotion_blur = 40\n");
+    CHECK(settings::Load(file) && settings::GetInt(Id::Bloom) == 100 && settings::GetInt(Id::MotionBlur) == 40,
+        "true, 40: %d %d", settings::GetInt(Id::Bloom), settings::GetInt(Id::MotionBlur));
+    setenv("BURNOUT_MOTION_BLUR", "off", 1);
+    setenv("BURNOUT_BLOOM", "30", 1);
+    CHECK(settings::Load(file) && settings::GetInt(Id::MotionBlur) == 0 && settings::GetInt(Id::Bloom) == 30,
+        "environment off, 30: %d %d", settings::GetInt(Id::MotionBlur), settings::GetInt(Id::Bloom));
+    unsetenv("BURNOUT_BLOOM");
+    unsetenv("BURNOUT_MOTION_BLUR");
+    // Another number option was never a switch: true there is still ignored.
+    Write(file, "[video]\nbrightness = true\n");
+    CHECK(settings::Load(file) && settings::GetInt(Id::Brightness) == 0, "brightness = true: %d", settings::GetInt(Id::Brightness));
 
     std::filesystem::remove_all(dir);
     if (s_failures)

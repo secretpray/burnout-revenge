@@ -241,14 +241,15 @@ namespace settings
               .table = "video", .key = "internal_resolution", .label = "Internal Resolution",
               .description = kResolutionHelp,
               .env = "BURNOUT_RESOLUTION", .defaultValue = kResolutionDefault, .entries = kResolutionEntries },
-            { .id = Id::Bloom, .category = Category::Graphics, .type = Type::Bool, .apply = Apply::Live,
+            // Bloom and Motion Blur: switches in v0.1.9 (wasSwitch: its true and false read as 100% and 0%).
+            { .id = Id::Bloom, .category = Category::Graphics, .type = Type::Int, .apply = Apply::Live,
               .table = "video", .key = "bloom", .label = "Bloom",
-              .description = "The game's glow around bright areas. Off keeps the sky and the picture as bright as the game made them, without the haze and halos at edges.",
-              .env = "BURNOUT_BLOOM", .defaultValue = 1 },
-            { .id = Id::MotionBlur, .category = Category::Graphics, .type = Type::Bool, .apply = Apply::Live,
+              .description = "The game's glow around bright areas. 100% is the game's own. Lower keeps more of the glow on the bright areas themselves, without the haze and halos at edges; the sky stays as bright as the game made it.",
+              .env = "BURNOUT_BLOOM", .defaultValue = 100, .min = 0, .max = 100, .step = 10, .unit = "%", .wasSwitch = true },
+            { .id = Id::MotionBlur, .category = Category::Graphics, .type = Type::Int, .apply = Apply::Live,
               .table = "video", .key = "motion_blur", .label = "Motion Blur",
-              .description = "The game's blur of fast movement and its radial blur at boost and in crashes. Off keeps the picture sharp at speed.",
-              .env = "BURNOUT_MOTION_BLUR", .defaultValue = 1 },
+              .description = "The game's blur of fast movement and its radial blur at boost and in crashes. 100% is the game's own; lower makes the streaks shorter. 0% keeps the picture sharp at speed.",
+              .env = "BURNOUT_MOTION_BLUR", .defaultValue = 100, .min = 0, .max = 100, .step = 10, .unit = "%", .wasSwitch = true },
             { .id = Id::WindowWidth, .category = Category::Display, .type = Type::Int, .apply = Apply::Restart, .hidden = true,
               .table = "video", .key = "window_width", .label = "Window Width",
               .description = "The window's width when the game starts.",
@@ -672,7 +673,12 @@ namespace settings
                 return ParseBool(text);
             case Type::Int:
             case Type::Float:
-                return ParseNumber(text);
+                if (auto n = ParseNumber(text))
+                    return n;
+                if (o.wasSwitch)
+                    if (auto b = ParseBool(text))
+                        return *b != 0.0 ? o.max : o.min;
+                return {};
             case Type::Enum:
                 if (const EnumEntry* e = FindToken(o, text))
                     return double(e->value);
@@ -694,7 +700,13 @@ namespace settings
             if (auto s = node.as_string())
                 return RawFromText(o, s->get());
             if (auto b = node.as_boolean())
-                return o.type == Type::Bool ? std::optional<double>(b->get() ? 1.0 : 0.0) : std::nullopt;
+            {
+                if (o.type == Type::Bool)
+                    return b->get() ? 1.0 : 0.0;
+                if (o.wasSwitch)
+                    return b->get() ? o.max : o.min;
+                return {};
+            }
             std::optional<double> n;
             if (auto i = node.as_integer())
                 n = double(i->get());

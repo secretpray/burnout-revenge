@@ -1,6 +1,6 @@
 // SpeedBreaker runtime. GPL-3.0-or-later (see COPYING).
 //
-// Bloom off without a grey sky (Settings > Graphics > Bloom). The game adds
+// Bloom below 100% without a grey sky (Settings > Graphics > Bloom). The game adds
 // its bloom in the frame's composite (Burnout USA ps_2072de4532ec246b): one
 // bilinear fetch, t2d_4, of a 320x180 copy of the scene that a blur and a
 // bright pass made (with last frame's bloom mixed in), over the motion-blurred
@@ -17,10 +17,13 @@
 // bloom is exactly the game's; a dark pixel beside a bright one gets little of
 // the bright one's glow (no halo), and a bright one keeps what the blur spread
 // from it. The ratio is capped at 1.6: at 1 the sky round leaves came out
-// darker (a rim), 1.4 to 2 looked alike (split-frame runs). The draw flag
-// kBloomInPlace (pc.flags) chooses this per draw, so the setting applies live
-// without a recompile.
+// darker (a rim), 1.4 to 2 looked alike (split-frame runs). Bloom at 0% is
+// that (v0.1.9's Bloom off); between, the fetch is scaled by a mix of 1 and
+// the ratio, by the share kept in place: 100 minus the setting, in the draw's
+// pc.flags (kBloomShareShift), so the setting applies live without a
+// recompile.
 #pragma once
+#include <algorithm>
 #include <cstdint>
 #include <cstdlib>
 #include <regex>
@@ -28,10 +31,17 @@
 
 namespace gpu::burnout
 {
-    inline constexpr uint32_t kBloomInPlace = 1u << 16;  // pc.flags (bits 0-3: the vertex formats)
+    // pc.flags (bits 0-3: the vertex formats): bits 18-24 the share of the
+    // bloom kept in place, 0 (the game's) to 100 (all of it).
+    inline constexpr uint32_t kBloomShareShift = 18;
     // BURNOUT_BLOOM_SPLIT=1 (tuning): only the left half of the frame in place,
     // the right half the game's, in one and the same frame.
     inline constexpr uint32_t kBloomSplit = 1u << 17;
+    inline uint32_t BloomFlags(int32_t bloomPercent, bool split)
+    {
+        const uint32_t share = uint32_t(100 - std::clamp(bloomPercent, 0, 100));
+        return share ? (share << kBloomShareShift) | (split ? kBloomSplit : 0u) : 0u;
+    }
 
     // The composites verified to sample the bloom as above: the scene in t2d_0,
     // the bloom in t2d_4.
@@ -64,7 +74,7 @@ float bloomInPlaceRatio(vec2 uv)
 
 )";
 
-    // `original` with the bloom fetch scaled when the draw sets kBloomInPlace;
+    // `original` with the bloom fetch scaled by the draw's share in place;
     // unchanged for any other shader, or if the fetch is not where expected.
     inline std::string WithBloomInPlace(uint64_t ps, const std::string& original)
     {
@@ -77,9 +87,10 @@ float bloomInPlaceRatio(vec2 uv)
             original.find("uniform sampler2D t2d_0;") == std::string::npos)
             return original;
         std::string glsl = original;
-        const std::string scaled = m[1].str() + "\n        if ((pc.flags & " + std::to_string(kBloomInPlace) +
-            "u) != 0u && ((pc.flags & " + std::to_string(kBloomSplit) + "u) == 0u || " + m[2].str() + ".x < 0.5)) "
-            "tdata.xyz *= bloomInPlaceRatio(" + m[2].str() + ");";
+        const std::string share = "float((pc.flags >> " + std::to_string(kBloomShareShift) + "u) & 127u) * 0.01";
+        const std::string scaled = m[1].str() + "\n        if (((pc.flags >> " + std::to_string(kBloomShareShift) +
+            "u) & 127u) != 0u && ((pc.flags & " + std::to_string(kBloomSplit) + "u) == 0u || " + m[2].str() + ".x < 0.5)) "
+            "tdata.xyz *= mix(1.0, bloomInPlaceRatio(" + m[2].str() + "), " + share + ");";
         glsl.replace(size_t(m.position(0)), size_t(m.length(0)), scaled);
         // BURNOUT_BLOOM_CAP, BURNOUT_BLOOM_REACH: tuning only (the ratio's cap,
         // the rings' radii as a multiple).

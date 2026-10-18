@@ -54,8 +54,8 @@ namespace settings
         Anisotropy,
         Mipmaps,
         InternalResolution,
-        Bloom,       // off: the glow kept in place, no halo (gpu/burnout_bloom.h)
-        MotionBlur,  // the game's motion and radial blur (game/render_patches.cpp)
+        Bloom,       // %: 100 the game's glow, 0 kept in place, no halo (gpu/burnout_bloom.h)
+        MotionBlur,  // %: the game's motion blur's length (gpu/burnout_blur.h); 0 off (game/render_patches.cpp)
         WindowWidth,   // hidden: the window's size, remembered between runs
         WindowHeight,  // hidden
         // Audio
@@ -169,6 +169,10 @@ namespace settings
         // tokens only.
         double min = 0, max = 0, step = 0;
         const char* unit = nullptr;              // FormatValue suffix; "%" on a Float shows value x 100
+        // Int: the option was a switch in an earlier version, so true/on in
+        // the file or the environment reads as max and false/off as min
+        // (Bloom and Motion Blur, switches in v0.1.9).
+        bool wasSwitch = false;
         std::span<const EnumEntry> entries = {};  // Enum only
     };
 

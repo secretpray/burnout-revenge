@@ -20,6 +20,9 @@ sb_test(texture_volume_layout_test)
 sb_test(rectangle_list_test)
 sb_test(temporal_history_test)
 sb_test(burnout_motion_test)
+# Bloom and Motion Blur as percentages: the composite's draw flags and GLSL
+# (gpu/burnout_bloom.h, gpu/burnout_blur.h), header only.
+sb_test(composite_controls_test)
 sb_test(xma_mmio_test)
 # Save backups at launch and restores (user/save_backup.h), in a scratch folder.
 # The one-time notice on a screen whose rate 60 fps can't divide evenly (144,

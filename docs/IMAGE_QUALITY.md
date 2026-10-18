@@ -91,3 +91,22 @@ changes nothing visible.
 
 Motion Blur off: `sub_821436D0` (the blur's frame counter) reads as finished, as in
 boma's patch. Run 176: the race at speed without the streaks; nothing else changes.
+
+## Bloom and Motion Blur as 0–100% (runs mb-*, bl-*)
+
+Since v0.1.10 both are sliders (steps of 10, default 100%; v0.1.9's `true`/`false`
+read as 100%/0%). The composite draw carries both in `pc.flags`, so no recompile:
+
+- **Bloom** (`gpu/burnout_bloom.h`): bits 18–24 hold the share kept in place, 100
+  minus the setting; the bloom fetch is scaled by `mix(1, ratio, share)`. 0% is
+  exactly v0.1.9's Bloom off.
+- **Motion Blur** (`gpu/burnout_blur.h`): the composite's 8 scene taps (`t2d_0`) are
+  moved towards the pixel the velocity (`t2d_1`) is read at, by the setting; bits
+  25–31 hold the cut. At 0% the game's counter patch also applies, as v0.1.9's off.
+
+Runs with the first race, RT held, 7 captures from 52 s. Road sharpness (mean
+neighbour difference, lower-left road): 100% median 7.6, 50% 8.9, 0% 12.5. The 50% and
+0% runs took the same path frame for frame, and 50% was blurrier than 0% on every one
+of the 7 (6.8–15.1 against 9.9–15.9). Bloom 100/50/0 at the same moment (palms
+against the sky under the arch): the haze steps down, the sky stays as bright. No
+GLSL compile failures in any run.
