@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.1.8
+
+- Button hints in our menus and dialogs follow the controller you use: PlayStation
+  shapes (✕ ○ □ △, L1/R1) with a DualSense, Xbox buttons with an Xbox-style pad,
+  key caps (Enter, Esc, Q/E, arrows) with the keyboard. The game's own hints are
+  unchanged.
+
 ## v0.1.7
 
 - Save backups: each launch backs up your saves when they changed (the newest 10

@@ -57,4 +57,11 @@ namespace hid
     // must allow output before the game's latest request is sent again.
     void Suspend();
     void Resume();
+
+    // Which buttons our menus' hints show: those of whatever the player used
+    // last (a key, or a button or stick of a controller and its family).
+    // Starts from what is connected: a PlayStation controller, another
+    // controller, else the keyboard. Main thread.
+    enum class Glyphs { Xbox, PlayStation, Keyboard };
+    Glyphs LastGlyphs();
 }

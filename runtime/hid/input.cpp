@@ -564,8 +564,63 @@ namespace hid
 #endif
     }
 
+    namespace
+    {
+        bool s_glyphsKnown = false;
+        Glyphs s_glyphs = Glyphs::Keyboard;
+
+        Glyphs GlyphsOf(SDL_JoystickID id)
+        {
+            switch (SDL_GetGamepadTypeForID(id))
+            {
+            case SDL_GAMEPAD_TYPE_PS3:
+            case SDL_GAMEPAD_TYPE_PS4:
+            case SDL_GAMEPAD_TYPE_PS5:
+                return Glyphs::PlayStation;
+            default:
+                return Glyphs::Xbox;  // Xbox, generic and the virtual pad (Nintendo pads read as their positions)
+            }
+        }
+
+        void NoteGlyphs(Glyphs glyphs)
+        {
+            s_glyphsKnown = true;
+            if (glyphs == s_glyphs)
+                return;
+            s_glyphs = glyphs;
+            fprintf(stderr, "[input] hints now show %s buttons\n",
+                glyphs == Glyphs::PlayStation ? "PlayStation" : glyphs == Glyphs::Xbox ? "Xbox" : "keyboard");
+        }
+    }
+
+    Glyphs LastGlyphs()
+    {
+        if (!s_glyphsKnown)
+        {
+            // Nothing used yet: what is connected.
+            int count = 0;
+            SDL_JoystickID* ids = SDL_GetGamepads(&count);
+            Glyphs best = Glyphs::Keyboard;
+            for (int i = 0; i < count; i++)
+                if (best != Glyphs::PlayStation)
+                    best = GlyphsOf(ids[i]);
+            SDL_free(ids);
+            return best;
+        }
+        return s_glyphs;
+    }
+
     void HandleEvent(const SDL_Event& e)
     {
+        // The hints follow the last real input: a key (not a Command
+        // shortcut, not a repeat), a button, or a stick pushed past halfway.
+        if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat && !(e.key.mod & SDL_KMOD_GUI))
+            NoteGlyphs(Glyphs::Keyboard);
+        else if (e.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN)
+            NoteGlyphs(GlyphsOf(e.gbutton.which));
+        else if (e.type == SDL_EVENT_GAMEPAD_AXIS_MOTION && (e.gaxis.value > 16384 || e.gaxis.value < -16384))
+            NoteGlyphs(GlyphsOf(e.gaxis.which));
+
         if (e.type == SDL_EVENT_WINDOW_FOCUS_LOST || e.type == SDL_EVENT_WINDOW_HIDDEN ||
             e.type == SDL_EVENT_WINDOW_MINIMIZED)
         {

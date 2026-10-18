@@ -7,6 +7,7 @@
 // and stops for Reduce motion. Navigation stays ImGui's own.
 #include "burnout_setup.h"
 #include "ui.h"
+#include <hid/input.h>
 #include <imgui_internal.h>
 #include <SDL3/SDL.h>
 #include <algorithm>
@@ -286,24 +287,64 @@ namespace ui::burnout
 
     float ButtonGlyph(ImDrawList* draw, ImVec2 at, float height, const char* button)
     {
-        float s = Scale();
+        // The buttons of whatever the player used last (hid::LastGlyphs):
+        // Xbox 360's lettered discs, PlayStation's shapes (L1/R1 for the
+        // shoulders), or the keyboard's keys as caps.
+        const float s = Scale();
+        const hid::Glyphs set = hid::LastGlyphs();
+        std::string label = button;
+        if (set == hid::Glyphs::PlayStation)
+            label = label == "LB" ? "L1" : label == "RB" ? "R1" : label;
+        else if (set == hid::Glyphs::Keyboard)
+            label = label == "A" ? "ENTER" : label == "B" ? "ESC" : label == "X" ? "DEL" : label == "Y" ? "BKSP"
+                : label == "LB" ? "Q" : label == "RB" ? "E" : label == "D-PAD" ? "ARROWS" : label;
+        const bool face = set != hid::Glyphs::Keyboard && label.size() == 1 && std::strchr("ABXY", label[0]);
         ImFont* font = Or(s_label);
-        float size = height * .72f;
-        ImVec2 text = font->CalcTextSizeA(size, FLT_MAX, 0, button);
-        // The Xbox 360 pad's colours, as the game's own hints show them.
-        ImU32 fill = IM_COL32(70, 66, 60, 255);
-        if (!std::strcmp(button, "A")) fill = IM_COL32(96, 168, 36, 255);
-        else if (!std::strcmp(button, "B")) fill = IM_COL32(200, 40, 32, 255);
-        else if (!std::strcmp(button, "X")) fill = IM_COL32(32, 104, 196, 255);
-        else if (!std::strcmp(button, "Y")) fill = IM_COL32(232, 180, 24, 255);
-        bool disc = std::strlen(button) == 1;
-        float w = disc ? height : text.x + height * .7f;
+        const float size = height * .72f;
+        const ImVec2 text = font->CalcTextSizeA(size, FLT_MAX, 0, label.c_str());
+        const float w = face ? height : std::max(height, text.x + height * .7f);
         if (!draw)
             return w;  // measured only
-        ImVec2 b(at.x + w, at.y + height);
-        draw->AddRectFilled(at, b, Faded(fill), height * .5f);
-        draw->AddRect(at, b, Faded(IM_COL32(255, 255, 255, 70)), height * .5f, 0, 1.2f * s);
-        draw->AddText(font, size, {at.x + (w - text.x) * .5f, at.y + (height - text.y) * .5f}, Faded(kPaper), button);
+        const ImVec2 b(at.x + w, at.y + height);
+        if (face && set == hid::Glyphs::PlayStation)
+        {
+            // A dark disc with the shape in its colour.
+            const ImVec2 c(at.x + height * .5f, at.y + height * .5f);
+            const float r = height * .5f, k = height * .22f, line = std::max(1.5f, 2.2f * s);
+            draw->AddCircleFilled(c, r, Faded(IM_COL32(30, 30, 34, 255)));
+            draw->AddCircle(c, r, Faded(IM_COL32(255, 255, 255, 70)), 0, 1.2f * s);
+            switch (label[0])
+            {
+            case 'A':  // cross
+            {
+                const ImU32 blue = Faded(IM_COL32(124, 178, 232, 255));
+                draw->AddLine({c.x - k, c.y - k}, {c.x + k, c.y + k}, blue, line);
+                draw->AddLine({c.x - k, c.y + k}, {c.x + k, c.y - k}, blue, line);
+                break;
+            }
+            case 'B':  // circle
+                draw->AddCircle(c, k * 1.05f, Faded(IM_COL32(232, 84, 92, 255)), 0, line);
+                break;
+            case 'X':  // square
+                draw->AddRect({c.x - k * .9f, c.y - k * .9f}, {c.x + k * .9f, c.y + k * .9f}, Faded(IM_COL32(222, 140, 200, 255)), 0, 0, line);
+                break;
+            default:  // 'Y': triangle
+                draw->AddTriangle({c.x, c.y - k * 1.05f}, {c.x + k * 1.05f, c.y + k * .8f}, {c.x - k * 1.05f, c.y + k * .8f},
+                    Faded(IM_COL32(64, 200, 170, 255)), line);
+                break;
+            }
+            return w;
+        }
+        // Xbox 360's colours for the face buttons; a dark pill or key cap otherwise.
+        ImU32 fill = set == hid::Glyphs::Keyboard ? IM_COL32(52, 50, 46, 255) : IM_COL32(70, 66, 60, 255);
+        if (face && label == "A") fill = IM_COL32(96, 168, 36, 255);
+        else if (face && label == "B") fill = IM_COL32(200, 40, 32, 255);
+        else if (face && label == "X") fill = IM_COL32(32, 104, 196, 255);
+        else if (face && label == "Y") fill = IM_COL32(232, 180, 24, 255);
+        const float round = set == hid::Glyphs::Keyboard ? height * .2f : height * .5f;
+        draw->AddRectFilled(at, b, Faded(fill), round);
+        draw->AddRect(at, b, Faded(IM_COL32(255, 255, 255, set == hid::Glyphs::Keyboard ? 110 : 70)), round, 0, 1.2f * s);
+        draw->AddText(font, size, {at.x + (w - text.x) * .5f, at.y + (height - text.y) * .5f}, Faded(kPaper), label.c_str());
         return w;
     }
 
