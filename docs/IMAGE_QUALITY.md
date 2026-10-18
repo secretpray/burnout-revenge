@@ -26,3 +26,32 @@ and Vert+ FXAA runs instead (its fetches stay within the 16:9 band's spans).
 
 Next: CAS versus the existing sharpening/RCAS on the same crops, then the bloom
 taps at 1080p, each with GPU time.
+
+## Sharpening: CAS versus what exists (runs 136–138)
+
+Same route, SMAA on, 1.5x internal, 3840-wide window:
+
+| Run | Scaling | Sharpen | Post-processing GPU (race) |
+| --- | --- | --- | --- |
+| 136 | Bicubic | 0 | 2.19–2.21 ms |
+| 137 | Bicubic | 0.3 | 2.18–2.62 ms |
+| 138 | FSR 1 (EASU + RCAS) | 0.3 | 4.73–5.39 ms |
+
+Crops of the plate and badge (2x nearest): Bicubic 0.3 is slightly crisper than 0
+with no ringing (its sharpening is clamped to each sample's 2x2 source texels);
+FSR 1 is the crispest, also without halos, at ~3 ms more GPU (EASU enlarges to the
+full window).
+
+Decision: no separate CAS. RCAS is AMD's successor to CAS (the same contrast-
+adaptive limiter) and is already in FSR 1; Bicubic's sharpening costs nothing
+measurable and doesn't ring. A CAS option would duplicate both. Recommended:
+SMAA + Bicubic + sharpening 0.3; FSR 1 when the window is much larger than the
+internal resolution and the GPU has ~3 ms to spare.
+
+## Bloom at higher internal resolutions
+
+The renderer keeps the game's bloom and luminance chain (320x180 and below) at
+1x by design, and feeds it from resolves averaged down to 1x
+(gpu/renderer.cpp, Internal resolution). The shimmer reported in another port —
+720p-sized blur taps stepping over a larger target — has no counterpart here.
+No change; revisit only on a visible report, with consecutive-frame captures.
