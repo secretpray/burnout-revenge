@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.1.4
+
+- Cmd+H now works in fullscreen: macOS doesn't hide an app in a fullscreen
+  Space, so the game leaves fullscreen, hides, and returns to fullscreen when
+  you click it in the Dock. Windowed, Cmd+H hides as usual.
+- The game's sound steps back while the settings menu is open (to about a
+  third, faded over 0.3 s) and returns when it closes.
+
+The game's own menu clicks for our menus remain experimental and off: the
+sound bank entries tried so far did not decode to usable sounds.
+
 ## v0.1.3
 
 Settings menu restyled after the game's own Settings screen.

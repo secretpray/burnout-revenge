@@ -158,6 +158,7 @@ namespace
     struct HostState
     {
         bool allocated = false;
+        uint32_t tracedPtr[2] = {};  // BURNOUT_XMA_TRACE: the input buffers last reported
         AVCodecContext* decoder = nullptr;
         int decoderRate = 0, decoderChannels = 0;
         // The current frame's PCM (BE s16, interleaved) and the blocks of it
@@ -677,11 +678,34 @@ namespace
     }
 
     // Xenia's Work(): the pass for an XMAEnableContext kick.
+    // BURNOUT_XMA_TRACE=1: each input buffer a context is given, with when,
+    // the format and its first bytes, to tell which sound bank entry a sound
+    // is (ui/menu_sounds.cpp matches the menus' clicks this way).
+    void TraceBuffer(const char* how, void* context, uint32_t physical, uint32_t packets)
+    {
+        static const bool enabled = std::getenv("BURNOUT_XMA_TRACE") != nullptr;
+        static const auto start = std::chrono::steady_clock::now();
+        if (!enabled || !physical || !packets)
+            return;
+        XmaContextData c = XmaContextData::Load(context);
+        const uint8_t* p = Physical(physical);
+        fprintf(stderr, "[xma-trace] %.3f %s ctx %d %s %d Hz %u pk loop %u data %02x%02x%02x%02x %02x%02x%02x%02x %02x%02x%02x%02x %02x%02x%02x%02x\n",
+            std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count(), how, ContextIndex(context),
+            c.is_stereo ? "stereo" : "mono", SampleRate(c.sample_rate), packets, uint32_t(c.loop_count), p[0], p[1], p[2], p[3],
+            p[4], p[5], p[6], p[7], p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15]);
+    }
+
     void Service(uint32_t index)
     {
         HostState& st = s_state[index];
         void* guest = g_memory.Translate(s_contextArray + index * 64);
         XmaContextData c = XmaContextData::Load(guest);
+        // The game writes its contexts directly (xma_mmio.h): a new input
+        // buffer shows here first.
+        if (c.input_buffer_0_valid && c.input_buffer_0_ptr != st.tracedPtr[0])
+            TraceBuffer("in0", guest, st.tracedPtr[0] = c.input_buffer_0_ptr, c.input_buffer_0_packet_count);
+        if (c.input_buffer_1_valid && c.input_buffer_1_ptr != st.tracedPtr[1])
+            TraceBuffer("in1", guest, st.tracedPtr[1] = c.input_buffer_1_ptr, c.input_buffer_1_packet_count);
         if (st.starvedFake && (c.input_buffer_0_valid || c.input_buffer_1_valid))
         {
             // New input after a starved pass faked a full ring. If the game
@@ -929,6 +953,8 @@ uint32_t XMAInitializeContext(void* context, XmaContextInit* init)
     c.loop_subframe_skip = init->loopData.loopSubframeSkip;
     c.Store(context);
     LogLoop("init", c);
+    TraceBuffer("init0", context, c.input_buffer_0_ptr, c.input_buffer_0_packet_count);
+    TraceBuffer("init1", context, c.input_buffer_1_ptr, c.input_buffer_1_packet_count);
     if (int i = ContextIndex(context); i >= 0)
     {
         // A new stream: no overlap from the last one, no undelivered frame.
@@ -966,6 +992,8 @@ uint32_t XMASetInputBuffer0(void* context, uint32_t buffer, uint32_t packetCount
     return WithContext(context, [&](XmaContextData& c) {
         c.input_buffer_0_ptr = ToPhysical(buffer);
         c.input_buffer_0_packet_count = packetCount;
+        c.Store(context);
+        TraceBuffer("set0", context, c.input_buffer_0_ptr, packetCount);
         return 0u;
     });
 }
@@ -976,6 +1004,8 @@ uint32_t XMASetInputBuffer1(void* context, uint32_t buffer, uint32_t packetCount
     return WithContext(context, [&](XmaContextData& c) {
         c.input_buffer_1_ptr = ToPhysical(buffer);
         c.input_buffer_1_packet_count = packetCount;
+        c.Store(context);
+        TraceBuffer("set1", context, c.input_buffer_1_ptr, packetCount);
         return 0u;
     });
 }

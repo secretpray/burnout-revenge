@@ -60,6 +60,7 @@ namespace
     std::mutex s_streamMutex;
     SDL_AudioStream* s_stream = nullptr;
     std::atomic<bool> s_audioReady{ false };  // published before the guest starts
+    std::atomic<bool> s_menuDuck{ false };    // the settings menu is open (SetMenuDuck)
     constexpr int FRAME_BYTES = SAMPLES_PER_FRAME * CHANNELS * sizeof(float);
     std::atomic<int> s_targetFrames{ 4 };  // SDL queue level to hold (frames of 256 samples)
     int s_deviceFrames = 0;                // the device's buffer at the stream's rate (FollowDevice)
@@ -256,6 +257,11 @@ namespace
 
 namespace apu
 {
+    void SetMenuDuck(bool ducked)
+    {
+        s_menuDuck.store(ducked, std::memory_order_relaxed);
+    }
+
     void InitializeOutputBackend()
     {
         if (!SDL_IsMainThread())
@@ -425,6 +431,20 @@ uint32_t XAudioSubmitRenderDriverFrame(uint32_t driver, void* samples)
     // EA Trax (XMP, music.cpp) over the game's mix, as the console's system
     // music player adds it.
     apu::music::MixInto(out, SAMPLES_PER_FRAME, CHANNELS);
+    // The settings menu's duck (SetMenuDuck), ramped sample by sample.
+    {
+        constexpr float kDuckLevel = 0.3f, kDuckSeconds = 0.3f;
+        constexpr float kStep = (1.0f - kDuckLevel) / (kDuckSeconds * SAMPLE_RATE);
+        static float duck = 1.0f;
+        const float target = s_menuDuck.load(std::memory_order_relaxed) ? kDuckLevel : 1.0f;
+        if (duck != target || target != 1.0f)
+            for (uint32_t i = 0; i < SAMPLES_PER_FRAME; i++)
+            {
+                duck = duck < target ? std::min(target, duck + kStep) : std::max(target, duck - kStep);
+                for (uint32_t c = 0; c < CHANNELS; c++)
+                    out[i * CHANNELS + c] *= duck;
+            }
+    }
     // Cut-out detection: the device ran dry, or the game's frames stopped.
     // Gaps in guest time, so a suspension (the device paused with it) isn't
     // one, even for a frame that was under way as it began.

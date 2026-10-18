@@ -5,6 +5,7 @@
 #include "guest_keyboard.h"
 #include "burnout_setup.h"
 #include "menu_sounds.h"
+#include <apu/audio.h>
 
 #include <kernel/xam.h>
 #include <report/report.h>
@@ -1118,8 +1119,10 @@ namespace ui
         // The game as it is now, before it pauses: a bug report's screenshot.
         report::NoteMenuOpened();
         // As the 360's Guide does: the game pauses (a race doesn't carry on
-        // under the menu).
+        // under the menu), and its music steps back.
         XamNotifySystemUi(true);
+        apu::SetMenuDuck(true);
+        fprintf(stderr, "[ui] settings menu opened\n");
     }
 
     void CloseSettings()
@@ -1132,6 +1135,8 @@ namespace ui
         ForgetQuitPrompt();
         report::NoteMenuClosed();
         XamNotifySystemUi(false);
+        apu::SetMenuDuck(false);
+        fprintf(stderr, "[ui] settings menu closed\n");
         if (settings::Dirty() && !settings::Save())
             Toast(settings::LastError());
     }

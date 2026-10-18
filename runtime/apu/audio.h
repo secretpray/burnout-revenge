@@ -13,6 +13,10 @@ namespace apu
     // initialization is not thread-safe. Device streams may open on the guest
     // thread later. A forced silent test skips the backend entirely.
     void InitializeOutputBackend();
+    // Any thread. While our settings menu is open the game's whole mix
+    // (EA Trax included) steps back to a third, over ~0.3 s, and returns as
+    // smoothly: the game is paused under it, and the menu's own sounds lead.
+    void SetMenuDuck(bool ducked);
 
     // Main thread (video's SuspendGame and ResumeGame), idempotent. Suspend
     // pauses the output device: it plays silence without taking what is

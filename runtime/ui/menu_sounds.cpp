@@ -34,9 +34,9 @@ namespace ui::menu_sounds
         constexpr int kRate = 48000;
         constexpr float kLevel = 0.6f;   // under the game's own mix
         constexpr uint32_t kPacket = 2048;
-        // Which of the bank's entries each sound is. All are one-packet mono
-        // clicks (entries 5, 9, 10, 14, 19, 28, 29, 38, 42 and 43 are).
+        // Which of the bank's entries each sound is, and its channels.
         constexpr std::array<int, 4> kEntry = { 9, 14, 28, 42 };  // Move, Change, Select, Back
+        constexpr std::array<int, 4> kChannels = { 1, 1, 1, 1 };
 
         std::array<std::vector<float>, 4> s_pcm;  // 48 kHz stereo
         bool s_loaded = false, s_tried = false;
@@ -47,45 +47,116 @@ namespace ui::menu_sounds
             return uint32_t(p[0]) << 24 | uint32_t(p[1]) << 16 | uint32_t(p[2]) << 8 | p[3];
         }
 
-        // One XMA1 packet, mono, at `rate`: `samples` of it, as 48 kHz stereo.
-        std::vector<float> Decode(const uint8_t* packet, int rate, uint32_t samples)
+        uint32_t Bit(const uint8_t* data, size_t pos) { return (data[pos >> 3] >> (7 - (pos & 7))) & 1u; }
+
+        void PutBit(uint8_t* data, size_t pos, uint32_t v)
+        {
+            const uint8_t mask = uint8_t(0x80 >> (pos & 7));
+            data[pos >> 3] = uint8_t(v ? data[pos >> 3] | mask : data[pos >> 3] & ~mask);
+        }
+
+        // The XMA frames of one entry's packets (one stream, as XACT stores
+        // it), as apu/xma.cpp walks them: the first frame at the packet
+        // header's frame offset, each led by its 15-bit length in bits, a
+        // frame running on into the next packet's payload, and the frame's
+        // last bit saying whether another follows in this packet.
+        std::vector<std::vector<uint8_t>> Frames(const uint8_t* data, uint32_t size, std::vector<uint32_t>& lengths)
+        {
+            constexpr uint32_t kPayload = (kPacket - 4) * 8;
+            const uint32_t packets = size / kPacket;
+            auto field = [&](uint32_t k) {
+                const uint8_t* p = data + size_t(k) * kPacket;
+                return (uint32_t(p[0] & 3) << 13) | (uint32_t(p[1]) << 5) | (p[2] >> 3);
+            };
+            auto at = [&](size_t pos) { return size_t(pos / kPayload) * kPacket * 8 + 32 + pos % kPayload; };  // payload bit -> data bit
+            auto next = [&](uint32_t k) -> int64_t {
+                while (k < packets && field(k) >= kPayload)
+                    k++;
+                return k < packets ? int64_t(k) * kPayload + field(k) : -1;
+            };
+            std::vector<std::vector<uint8_t>> frames;
+            const size_t end = size_t(packets) * kPayload;
+            for (int64_t pos = next(0); pos >= 0 && size_t(pos) + 15 <= end;)
+            {
+                uint32_t length = 0;
+                for (int i = 0; i < 15; i++)
+                    length = length << 1 | Bit(data, at(size_t(pos) + i));
+                const uint32_t start = uint32_t(size_t(pos) / kPayload);
+                if (length <= 15 || length == 0x7FFF)
+                {
+                    pos = next(start + 1);
+                    continue;
+                }
+                if (size_t(pos) + length > end)
+                    break;
+                std::vector<uint8_t> bits((length + 7) / 8 + 1, 0);
+                for (uint32_t i = 0; i < length; i++)
+                    PutBit(bits.data(), i, Bit(data, at(size_t(pos) + i)));
+                const bool another = Bit(bits.data(), length - 1);
+                frames.push_back(std::move(bits));
+                lengths.push_back(length);
+                if (size_t(pos) % kPayload + length < kPayload && another)
+                    pos += length;
+                else
+                    pos = next(start + 1);
+            }
+            return frames;
+        }
+
+        // One entry's XMA as 48 kHz stereo float: each frame in a packet of
+        // its own for FFmpeg's XMA1 decoder (as apu/xma.cpp does), `samples`
+        // of the result kept.
+        std::vector<float> Decode(const uint8_t* data, uint32_t size, int rate, int channels, uint32_t samples)
         {
             std::vector<float> out;
+            std::vector<uint32_t> lengths;
+            const std::vector<std::vector<uint8_t>> frames = Frames(data, size, lengths);
             const AVCodec* codec = avcodec_find_decoder(AV_CODEC_ID_XMA1);
-            AVCodecContext* ctx = codec ? avcodec_alloc_context3(codec) : nullptr;
+            AVCodecContext* ctx = codec && !frames.empty() ? avcodec_alloc_context3(codec) : nullptr;
             if (!ctx)
                 return out;
             ctx->sample_rate = rate;
-            av_channel_layout_default(&ctx->ch_layout, 1);
+            av_channel_layout_default(&ctx->ch_layout, channels);
             ctx->block_align = kPacket;
-            // XMAWAVEFORMAT: one stream, one channel (as apu/xma.cpp).
+            ctx->flags2 |= AV_CODEC_FLAG2_SKIP_MANUAL;
+            // XMAWAVEFORMAT: one stream (as apu/xma.cpp).
             ctx->extradata = static_cast<uint8_t*>(av_mallocz(28 + AV_INPUT_BUFFER_PADDING_SIZE));
             ctx->extradata_size = 28;
             ctx->extradata[4] = 1;
-            ctx->extradata[8 + 17] = 1;
+            ctx->extradata[8 + 17] = uint8_t(channels);
             AVPacket* pkt = av_packet_alloc();
             AVFrame* frame = av_frame_alloc();
             SwrContext* swr = nullptr;
             AVChannelLayout stereo = AV_CHANNEL_LAYOUT_STEREO;
-            if (avcodec_open2(ctx, codec, nullptr) == 0 && pkt && frame && av_new_packet(pkt, kPacket) == 0 &&
+            static uint8_t packet[kPacket + AV_INPUT_BUFFER_PADDING_SIZE];
+            if (avcodec_open2(ctx, codec, nullptr) == 0 && pkt && frame &&
                 swr_alloc_set_opts2(&swr, &stereo, AV_SAMPLE_FMT_FLT, kRate, &ctx->ch_layout, ctx->sample_fmt, rate, 0, nullptr) == 0 &&
                 swr_init(swr) == 0)
             {
-                std::memcpy(pkt->data, packet, kPacket);
                 uint32_t left = samples;
-                auto convert = [&](const uint8_t** data, int count) {
+                auto convert = [&](const uint8_t** in, int count) {
                     int room = swr_get_out_samples(swr, count);
                     if (room <= 0)
                         return;
                     size_t at = out.size();
                     out.resize(at + size_t(room) * 2);
                     uint8_t* dst = reinterpret_cast<uint8_t*>(out.data() + at);
-                    int made = swr_convert(swr, &dst, room, data, count);
+                    int made = swr_convert(swr, &dst, room, in, count);
                     out.resize(at + size_t(std::max(made, 0)) * 2);
                 };
-                if (avcodec_send_packet(ctx, pkt) >= 0)
+                constexpr uint32_t kPayload = (kPacket - 4) * 8;
+                for (size_t f = 0; f < frames.size(); f++)
                 {
-                    avcodec_send_packet(ctx, nullptr);
+                    const uint32_t length = std::min(lengths[f], kPayload);  // (a click's frames fit one payload)
+                    std::memset(packet, 0, kPacket);
+                    for (uint32_t i = 0; i < length; i++)
+                        PutBit(packet, 32 + i, Bit(frames[f].data(), i));
+                    PutBit(packet, 32 + length - 1, 0);  // no frame follows in this packet
+                    av_packet_unref(pkt);
+                    pkt->data = packet;
+                    pkt->size = kPacket;
+                    if (avcodec_send_packet(ctx, pkt) != 0)
+                        continue;
                     while (avcodec_receive_frame(ctx, frame) == 0)
                     {
                         int count = int(std::min<uint32_t>(left, uint32_t(frame->nb_samples)));
@@ -104,6 +175,40 @@ namespace ui::menu_sounds
             return out;
         }
 
+        // BURNOUT_MENU_SOUNDS_DUMP=<folder>: every entry of the bank as a
+        // 48 kHz stereo float WAV there (fe_NN_<channels>.wav), mono and
+        // stereo readings both, to find which the game's menus play.
+        void DumpBank(const std::vector<uint8_t>& d, uint32_t count, uint32_t size, uint32_t meta, uint32_t wave, const char* folder)
+        {
+            for (uint32_t i = 0; i < count; i++)
+            {
+                const size_t e = size_t(meta) + size_t(i) * size;
+                if (e + 16 > d.size())
+                    break;
+                const uint32_t samples = Be32(&d[e]) >> 4, format = Be32(&d[e + 4]);
+                const uint32_t offset = Be32(&d[e + 8]), length = Be32(&d[e + 12]);
+                if (size_t(wave) + offset + length > d.size())
+                    continue;
+                for (int channels : { 1, 2 })
+                {
+                    std::vector<float> pcm = Decode(&d[size_t(wave) + offset], length, int((format >> 5) & 0x3FFFF), channels, samples);
+                    std::string name = std::format("{}/fe_{:02}_{}.wav", folder, i, channels);
+                    FILE* f = fopen(name.c_str(), "wb");
+                    if (!f)
+                        continue;
+                    const uint32_t bytes = uint32_t(pcm.size() * sizeof(float));
+                    auto u32 = [&](uint32_t v) { fwrite(&v, 4, 1, f); };
+                    auto u16 = [&](uint16_t v) { fwrite(&v, 2, 1, f); };
+                    fwrite("RIFF", 1, 4, f); u32(36 + bytes); fwrite("WAVEfmt ", 1, 8, f); u32(16);
+                    u16(3); u16(2); u32(kRate); u32(kRate * 8); u16(8); u16(32);
+                    fwrite("data", 1, 4, f); u32(bytes);
+                    fwrite(pcm.data(), 1, bytes, f);
+                    fclose(f);
+                }
+            }
+            fprintf(stderr, "[menu-sounds] BURNOUT_MENU_SOUNDS_DUMP: %u entries written to %s\n", count, folder);
+        }
+
         // The bank, whole (5 MB): its four clicks into s_pcm.
         bool Load(const std::vector<uint8_t>& d, const char* from)
         {
@@ -116,6 +221,8 @@ namespace ui::menu_sounds
             if (bank + 76 > d.size())
                 return false;
             const uint32_t count = Be32(&d[bank + 4]), size = Be32(&d[bank + 72]);
+            if (const char* folder = std::getenv("BURNOUT_MENU_SOUNDS_DUMP"); folder && *folder)
+                DumpBank(d, count, size, meta, wave, folder);
             for (size_t s = 0; s < kEntry.size(); s++)
             {
                 const uint32_t i = uint32_t(kEntry[s]);
@@ -125,15 +232,21 @@ namespace ui::menu_sounds
                 const uint32_t samples = Be32(&d[e]) >> 4, format = Be32(&d[e + 4]);
                 const uint32_t offset = Be32(&d[e + 8]), length = Be32(&d[e + 12]);
                 const int rate = int((format >> 5) & 0x3FFFF);
-                if (length != kPacket || size_t(wave) + offset + kPacket > d.size() || rate < 8000 || rate > 48000)
+                if (size_t(wave) + offset + length > d.size() || length > (1u << 20) || rate < 8000 || rate > 48000)
                 {
-                    fprintf(stderr, "[menu-sounds] entry %u isn't a one-packet click (%u bytes, %d Hz)\n", i, length, rate);
+                    fprintf(stderr, "[menu-sounds] entry %u can't be a click (%u bytes, %d Hz)\n", i, length, rate);
                     return false;
                 }
-                s_pcm[s] = Decode(&d[size_t(wave) + offset], rate, samples);
-                if (s_pcm[s].empty())
+                s_pcm[s] = Decode(&d[size_t(wave) + offset], length, rate, kChannels[s], samples);
+                float peak = 0;
+                for (float v : s_pcm[s])
+                    peak = std::max(peak, std::abs(v));
+                // Silence or garbage (a misread stream reads as huge values):
+                // never played, the menus stay quiet.
+                if (s_pcm[s].empty() || peak < 1e-4f || peak > 1.5f)
                 {
-                    fprintf(stderr, "[menu-sounds] entry %u didn't decode\n", i);
+                    fprintf(stderr, "[menu-sounds] entry %u didn't decode to a usable sound (peak %.3g): no menu sounds\n", i, double(peak));
+                    s_pcm = {};
                     return false;
                 }
             }
@@ -166,7 +279,8 @@ namespace ui::menu_sounds
 
     void LoadFromDisc(const install::DiscSource& source)
     {
-        if (s_loaded)
+        static const bool enabled = [] { const char* v = std::getenv("BURNOUT_MENU_SOUNDS"); return v && *v == '1'; }();
+        if (s_loaded || !enabled)
             return;
         const install::DiscFile* file = source.Find("sound/fe.xwb");
         std::string error;
@@ -180,6 +294,12 @@ namespace ui::menu_sounds
 
     void Play(Sound sound)
     {
+        // Experimental until the clicks the game's own menus play are
+        // identified: their bank entries didn't decode to usable sounds
+        // (docs/ACTIVE_WORK.md). BURNOUT_MENU_SOUNDS=1 tries them.
+        static const bool enabled = [] { const char* v = std::getenv("BURNOUT_MENU_SOUNDS"); return v && *v == '1'; }();
+        if (!enabled)
+            return;
         if (!s_loaded && !s_tried && !GetGamePath().empty())
             LoadFromGame(GetGamePath());
         const std::vector<float>& pcm = s_pcm[size_t(sound)];
