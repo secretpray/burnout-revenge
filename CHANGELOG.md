@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.1.10
 
 - Burnout Clips save: "Save Clip" in the replay failed every time ("continue
   without saving?"), leaving empty clips behind. A clip now saves, shows in
@@ -16,6 +16,8 @@
   takes an Xbox 360 save package (CON, as a USB stick's Content folder holds it),
   a folder with such packages, Xenia's content folder, or the game's Player Files.
   Your current saves are backed up first; the import applies at the next launch.
+- A finished save comes with the release (BurnoutRevenge-100-percent-save.zip):
+  Elite rank, every event, all 86 cars. Unzip it and import its Player Files.
 
 ## v0.1.9
 
