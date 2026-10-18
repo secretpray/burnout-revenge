@@ -4,7 +4,9 @@
 
 - New Settings > Graphics > Anti-Aliasing Type: SMAA 1x beside the existing FXAA.
   SMAA smooths geometry edges while keeping text and textures sharper, for about
-  0.4 ms more GPU time at 1080p on M1 Pro. FXAA stays the default for now.
+  0.4 ms more GPU time at 1080p on M1 Pro. SMAA is the new default.
+- The settings menu's help line, its dialogs and notices use the game's
+  description face (condensed bold italic) instead of the generic UI font.
 
 ## v0.1.4
 

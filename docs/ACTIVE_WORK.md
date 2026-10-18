@@ -27,8 +27,8 @@
   встроенные кэши уже экономят 3–4 мс на маршруте. Вернуться, только если другие режимы
   покажут компиляцию внутри hitch.
 - [ ] Качество изображения ([IMAGE_QUALITY](IMAGE_QUALITY.md)): SMAA 1x добавлен
-  (Anti-Aliasing Type, по умолчанию FXAA): +0,4 мс GPU при 1080p, текст/текстуры чётче, края
-  гладкие (прогоны 131–133). Дальше: проверка в игре пользователем, затем CAS и bloom.
+  (Anti-Aliasing Type): +0,4 мс GPU при 1080p, текст/текстуры чётче, края гладкие (прогоны
+  131–133). Пользователь в игре предпочёл SMAA — теперь по умолчанию (v0.1.5). Дальше CAS и bloom.
 - [ ] GPU history consumer/leases/events и MetalFX FI; сравнить draw-state interpolation.
   Сначала Crash 30→60, затем 60→120. Live FG пока выключена.
 - [ ] Save backup/restore, controller glyphs, custom music, полное Add-on покрытие.

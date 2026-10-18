@@ -20,7 +20,8 @@ the body texture. SMAA smooths the same edges and keeps the text and texture clo
 to the unfiltered picture. (131 also had sharpening 0.3; 133 had none.)
 
 SMAA is added as Settings > Graphics > Anti-Aliasing Type (FXAA / SMAA,
-`BURNOUT_AA_METHOD`), FXAA still the default until it's checked in play. Under Hor+
+`BURNOUT_AA_METHOD`). The user compared both in play and preferred SMAA: it is the
+default from v0.1.5. Under Hor+
 and Vert+ FXAA runs instead (its fetches stay within the 16:9 band's spans).
 
 Next: CAS versus the existing sharpening/RCAS on the same crops, then the bloom

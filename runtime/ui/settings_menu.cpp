@@ -318,6 +318,8 @@ namespace ui
         // The game's settings rows: orange labels; the chosen one white.
         constexpr ImU32 kRowOrange = IM_COL32(242, 154, 34, 255);
         constexpr ImU32 kRowWhite = IM_COL32(246, 242, 232, 255);
+        // The help line's and the dialogs' text (Barlow Condensed Bold Italic).
+        constexpr float kTextFontSize = 24.0f;
 
         // A row's label, drawn here rather than by its Selectable (after it:
         // the highlight is the Selectable's item rect). As the game's
@@ -1091,7 +1093,10 @@ namespace ui
         ImGui::PopStyleColor(2);
 
         ImGui::Separator();
+        // The game's description face (its menus' bold italic, in sentence case).
+        ImGui::PushFont(burnout::LabelFont(), kTextFontSize);
         HelpLine();
+        ImGui::PopFont();
 
         // Buttons (the help above runs to one, two or three lines), in the
         // labels' face.
@@ -1136,6 +1141,12 @@ namespace ui
             Legend({ { "Choose", "D-PAD" }, { "Page", "LB RB" }, { "Close", "B" } });
 
         if (s_openAddons) { ImGui::OpenPopup("burnout-addons"); s_openAddons = false; }
+        // The dialogs (Reset, add-ons, updates, Quit Game): the game's face
+        // and square corners, as its own prompts.
+        ImGui::PushFont(burnout::LabelFont(), kTextFontSize);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_PopupRounding, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0.0f);
         bool popup = false;  // a dialog has the input: B is its, not the menu's
         if (ImGui::BeginPopupModal("reset", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar))
         {
@@ -1165,6 +1176,8 @@ namespace ui
         if (DrawQuitPrompt())
             popup = true;
 #endif
+        ImGui::PopStyleVar(3);
+        ImGui::PopFont();
         // B (or Esc) closes the menu; while a Controls row was waiting for
         // a key at the top of this frame it ends the wait instead (the
         // cursor goes with it, as after the Reset dialog: the next D-pad

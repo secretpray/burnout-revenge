@@ -189,7 +189,7 @@ namespace settings
             { .id = Id::AntiAliasingMethod, .category = Category::Graphics, .type = Type::Enum, .apply = Apply::Live,
               .table = "video", .key = "anti_aliasing_method", .label = "Anti-Aliasing Type",
               .description = "FXAA softens every edge and some texture detail. SMAA smooths geometry edges and keeps textures and text sharper, for a little more GPU time.",
-              .env = "BURNOUT_AA_METHOD", .defaultValue = double(AaMethod::Fxaa), .entries = kAaMethodEntries },
+              .env = "BURNOUT_AA_METHOD", .defaultValue = double(AaMethod::Smaa), .entries = kAaMethodEntries },
             { .id = Id::Scaling, .category = Category::Graphics, .type = Type::Enum, .apply = Apply::Live,
               .table = "video", .key = "scaling", .label = "Upscaling",
 #if defined(BR_GAME_BURNOUT) && defined(__APPLE__) && !TARGET_OS_IOS

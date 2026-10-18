@@ -106,7 +106,9 @@ namespace ui
                 // (A window-local x: the text wraps where the window's
                 // right padding starts at its widest.)
                 ImGui::PushTextWrapPos(maxWidth - kSpaceL * s);
+                ImGui::PushFont(burnout::LabelFont(), 24.0f);  // the game's description face
                 ImGui::TextUnformatted(text.c_str());
+                ImGui::PopFont();
                 ImGui::PopTextWrapPos();
             }
             ImGui::End();
