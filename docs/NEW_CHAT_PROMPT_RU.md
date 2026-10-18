@@ -1,50 +1,70 @@
-Продолжи разработку Burnout Revenge для macOS из текущего состояния. Общайся по-русски.
+Продолжи разработку Burnout Revenge для macOS (Apple silicon) с текущего состояния.
+Общайся по-русски. Историю старых чатов не подгружай.
 
-Основной репозиторий: /Users/secretpray/Documents/Projects/XBOX360/burnout-revenge
-Remote: https://github.com/secretpray/burnout-revenge
-Существующая сборочная копия с зависимостями/generated PPC:
-/Users/secretpray/Documents/Projects/XBOX360/speedbreaker/build/standalone/burnout-revenge
-Не веди две расходящиеся версии исходников: сначала сверь git status, remote и commit.
-Исходную сборку Most Wanted сохрани работоспособной.
+## Где что лежит
 
-Сначала прочитай docs/ACTIVE_WORK.md и docs/ROADMAP_RU.md. Остальные документы
-читай только по нужным ссылкам; PROGRESS.md и историю старого чата целиком не загружай.
+- Репозиторий (правки, коммиты, push в main): /Users/secretpray/Documents/Projects/XBOX360/burnout-revenge
+  Remote: https://github.com/secretpray/burnout-revenge
+- Сборочная копия того же репозитория с зависимостями и generated PPC:
+  /Users/secretpray/Documents/Projects/XBOX360/speedbreaker/build/standalone/burnout-revenge
+  Правь только основной репозиторий. Сборочную копию синхронизируй так:
+  `git -C $B checkout -q -- . && git -C $B pull -q --ff-only`, а для незакоммиченных правок
+  ещё `git diff HEAD | git -C $B apply` (новые файлы сначала `git add -N`).
+- Сборка и тесты (в сборочной копии):
+  `T=…/speedbreaker/tools; export PATH=$T/build-python/cmake/data/bin:$T/bin:$PATH`
+  `cmake --build build/burnout-mac -j6` и `ctest --test-dir build/burnout-mac` (сейчас 67/67).
+- Пакет: `MOLTENVK=$T/moltenvk/MoltenVK/MoltenVK/dylib/macOS/libMoltenVK.dylib MOLTENVK_VERSION=1.4.2
+  python3 scripts/macos/make_app.py build/burnout-mac <out> --game=burnout [--dmg]`, затем
+  `python3 scripts/macos/check_app.py <app или dmg>` (должно быть PASS).
+- Тестовые запуски: `…/speedbreaker/build/release-0.1.9-validation/run.py`
+  `python3 run.py <имя> <сек> "<UI-клавиши и N:Shot>" "<скрипт пада: 8-30/3:START,10-44/3:A,45~140:RT>" "" "" <env.json> <бинарь>`.
+  Профиль копируй из `release-0.1.7-validation/data-bk` в новую папку, env — из
+  `release-0.1.8-validation/env-base.json` с заменой BR_DATA_DIR. Настоящие сейвы
+  пользователя (~/Library/Application Support/BurnoutRevenge) не трогать. 100%-сейв для
+  событий с соперниками: `env-full.json` (data-full). Запуски оборачивай во временный
+  `caffeinate -d -i -s -u`. Снимки: `<run>/build/ui_shot_N.ppm`, лог: `<run>/session.log`.
+- Игра: ~/Library/Application Support/BurnoutRevenge/game; ISO: /Volumes/1Tb NVME/XBOX360.
 
-Контрольная точка на 18.10.2026:
-— Runtime focus-правки в 2cf1d87, изолированный SDL probe в 99fcf50; новые docs-коммиты
-  могут быть выше. Полные suites: standalone 61/61, shared Burnout 63/63, NFSMW 62/62.
-— В /Applications/Burnout Revenge.app установлен скачанный v0.1.1/cda797a БЕЗ новых
-  focus-правок. Он воспроизводил отказ Magic Keyboard. v0.1.0 опубликован, v0.1.1 draft;
-  существующие теги не передвигать. Сверь фактическое состояние перед изменениями.
-— Отдельный новый кандидат, запуск 96: 313,5 с, exit 0, без pad removals/fatal imports.
-  Пользователь подтвердил стабильную Magic Keyboard в игре и после возврата. Это
-  короткая положительная keyboard-проверка, не гарантия для всех Bluetooth-устройств.
-— Live FG выключена. FSR 1/MetalFX Spatial уже реализованы. Остаётся 57 fatal stubs.
-— Экранная клавиатура: пользователь предпочитает родной экран САМОЙ Burnout, только
-  если он реально точнее; иначе оставить нашу. Xerenge тоже использует ImGui.
-  В APT есть KeyboardShow/Move/Type/Back, но рабочий родной путь ещё не доказан.
+## Состояние (18.10.2026)
 
-Ближайшая задача: собрать чистый новый пакет с focus-правками, проверить его как
-скачанный артефакт, установить в Applications и отдельно подтвердить реальный
-контроллер, звук, печать после обоих направлений Cmd+Tab, Cmd+H, exit/relaunch.
-Не публикуй старый cda797a как исправленный. Для нового кода нужен новый свободный
-patch-tag после проверки тегов, а не перенос v0.1.1. Затем следуй этапам плана:
-shader/PSO preparation → image quality → безопасная FG → остальные функции.
+- v0.1.11 опубликован (Latest, 436a13b) и установлен в /Applications из скачанного DMG:
+  ползунки Bloom и Motion Blur 0–100%, звуки меню из fe.xwb (XMA2 целыми пакетами,
+  подтверждены на слух). v0.1.10: импорт сейвов, 100%-сейв, пропуск трека в Crash.
+- Сначала прочитай docs/ACTIVE_WORK.md (раздел с нумерованным планом) и при нужде
+  docs/ROADMAP_RU.md; остальные документы — только по ссылкам. PROGRESS.md целиком не читать.
 
-ISO: /Volumes/1Tb NVME/XBOX360/Burnout Revenge (USA).iso
-Add-on: /Volumes/1Tb NVME/XBOX360/454107DC
-Пользовательские settings/save: ~/Library/Application Support/BurnoutRevenge
-Кэши: ~/Library/Caches/BurnoutRevenge
-Приватная история тестов: старый workspace, build/release-validation-20261018;
-изолированный тестовый профиль — tested-data. Настоящие saves не сбрасывать.
+## Оставшиеся пункты плана (по порядку)
 
-Разрешаю необходимые сборки, локальные проверки/запуски, обновление приложения и
-подготовку исправленного релиза. Если нужна реальная печать/геймпад — скажи, что
-нажать: я участвую в ручных проверках. Не применяй CUA/OS UI automation и не внедряй
-системные нажатия; отключение клавиатуры было системным. Для бодрствования только
-временный caffeinate, лучше привязанный к тестовому процессу; постоянную блокировку
-macOS не менять. После каждого запуска обновляй результаты и открытые задачи.
-Разделяй наблюдение логов, кадров и ручное подтверждение. Не выдавай prototype,
-счётчик FPS или стилизованный UI за завершённую/родную реализацию. Не публикуй ISO,
-assets, generated PPC, saves, raw device logs и dSYM. Сохраняй лицензии и атрибуцию
-SpeedBreaker/Xbox360-Native-Ports. Действуй по плану без повторных общих согласований.
+1. **3б. Редкое зависание на старте при Skip Intro Movies** (1 из ~100 запусков): что известно
+   и что исключено — в ACTIVE_WORK.md. Дальше: лог resume/suspend/событий плеера под env,
+   серия запусков под нагрузкой CPU; запасной вариант — пропускать ролик не раньше, чем
+   плеер покажет первый кадр.
+2. **Камера Takedown и её повтор** (TODO в п. 2 ACTIVE_WORK): проверить в событии с соперниками
+   (100%-сейв, `BURNOUT_LOG_CLEARS=1`), что нет пустого scissor и артефактов.
+3. **Аддон-машины**: вручную в Car Select шесть машин (Spike TV, Monster, Plantronics,
+   360 livery, Yellowcard, Dolby) — попросить пользователя или снять снимками.
+4. **Матрица карьеры/режимов** и оставшиеся 57 fatal stubs (в основном сеть) — по находкам.
+5. **Руль** (SpeedBreaker PR #29): G29 через SDL joystick, без force feedback на macOS.
+6. **HDR/EDR** — отложено: разведка в docs/IMAGE_QUALITY.md; экран пользователя (Samsung
+   M70D) отдаёт EDR-запас 1,0. Вернуться только при HDR-экране.
+7. Родной APT-экран клавиатуры — только ограниченный эксперимент; пока оставить нашу.
+
+## Правила
+
+- Я единственный автор: никаких `Co-Authored-By`, `Signed-off-by` и строк «Generated with»
+  в коммитах, PR и релизах; после коммита проверяй, что `git log --format='%(trailers)'` пуст.
+- После успешного этапа собирай пакет и ставь его в /Applications (прежний .app — в
+  приватный backup в папке validation); после каждого релиза ставь скачанный релизный DMG
+  (проверь SHA-256 и codesign).
+- Релиз: поднять версию в CMakeLists.txt, перенести CHANGELOG из Unreleased, сборка, 67+
+  тестов, пакет с `--dmg`, короткий запуск кандидата, `package_sources.py` для исходников
+  third-party, SHA256SUMS, черновик `gh release create --target <полный SHA> --draft`,
+  сверка скачанных ассетов, затем публикация Latest. Существующие теги не передвигать.
+- В каждый релиз прикладывать `BurnoutRevenge-100-percent-save.zip` из
+  speedbreaker/build/release-assets-next/ (только `Player Files`, sha256 dfcc64b3…6878);
+  никаких CON, профилей и наших тестовых сейвов.
+- Не публиковать ISO, ассеты игры, generated PPC, сейвы, сырые логи устройств и dSYM.
+  Сохранять лицензии и атрибуцию SpeedBreaker/Xbox360-Native-Ports.
+- Разделяй наблюдение по логам, по кадрам и ручное подтверждение пользователя. Если нужна
+  ручная проверка (геймпад, звук), скажи, что нажать. Не используй системную автоматизацию UI.
+- После каждого этапа обновляй ACTIVE_WORK.md. Действуй по плану без повторных согласований.
