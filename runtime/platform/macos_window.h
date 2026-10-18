@@ -48,6 +48,20 @@ namespace platform::macos
     // Before SDL_DestroyWindow: stops watching the window.
     void ForgetWindow(SDL_Window* window);
 
+    // Cmd+H (the app menu's Hide, which SDL makes). macOS doesn't hide an
+    // app whose window is in a fullscreen Space: the key did nothing. Once
+    // installed (ConfigureWindow does), Hide on a fullscreen window leaves
+    // fullscreen first; the event loop then calls HideAfterLeavingFullscreen
+    // on SDL_EVENT_WINDOW_LEAVE_FULLSCREEN, and ReturnToFullscreen when the
+    // window has the focus again (true: make it fullscreen again). Windowed,
+    // Hide hides at once, as before.
+    bool HideAfterLeavingFullscreen();
+    bool ReturnToFullscreen();
+    // What Cmd+H and a click on the Dock icon do, for automated runs
+    // (BURNOUT_UI_KEYS Hide, Unhide): the app's own calls, no system input.
+    void HideGame();
+    void UnhideGame();
+
     // System Settings > Accessibility > Display > Reduce motion: the
     // first-run screens then keep still (ui/burnout_setup.cpp).
     bool ReduceMotion();

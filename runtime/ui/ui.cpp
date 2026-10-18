@@ -4,6 +4,7 @@
 #include "cursor_idle.h"
 #include "guest_keyboard.h"
 #include "burnout_setup.h"
+#include "menu_sounds.h"
 
 #include <kernel/xam.h>
 #include <report/report.h>
@@ -642,6 +643,7 @@ namespace ui
         }
         ImGui_ImplSDL3_Shutdown();
         burnout::ReleaseArt();
+        menu_sounds::Shutdown();
         ImGui::DestroyContext();
         s_ready = false;
         s_rendererReady = false;
@@ -784,7 +786,8 @@ namespace ui
         // a motion of no distance, which isn't the mouse moving), then the
         // motion a mouse moving there makes is posted.
         constexpr SDL_Keycode kFocusLost = SDLK_EXTENDED_MASK | 0x7F01, kFocusGained = SDLK_EXTENDED_MASK | 0x7F02,
-                              kShot = SDLK_EXTENDED_MASK | 0x7F03, kMouseMove = SDLK_EXTENDED_MASK | 0x7F04;
+                              kShot = SDLK_EXTENDED_MASK | 0x7F03, kMouseMove = SDLK_EXTENDED_MASK | 0x7F04,
+                              kHide = SDLK_EXTENDED_MASK | 0x7F05, kUnhide = SDLK_EXTENDED_MASK | 0x7F06;
         enum class Press : uint8_t { Tap, Hold, Repeat, Release };
         struct Key { double time; SDL_Keycode key; Press press = Press::Tap; };
         static const auto start = std::chrono::steady_clock::now();
@@ -811,6 +814,8 @@ namespace ui
                     SDL_Keycode key = name == "FocusLost" ? kFocusLost : name == "FocusGained" ? kFocusGained
                         : name == "Shot"                                                         ? kShot
                         : name == "MouseMove"                                                    ? kMouseMove
+                        : name == "Hide"                                                         ? kHide
+                        : name == "Unhide"                                                       ? kUnhide
                                                                                                  : SDL_GetKeyFromName(name.c_str());
                     if (key != SDLK_UNKNOWN)
                         parsed.push_back({ std::atof(item.c_str()), key, press });
@@ -868,6 +873,18 @@ namespace ui
                 e.motion.yrel = y - fromY;
                 SDL_PushEvent(&e);
                 fprintf(stderr, "[ui] BURNOUT_UI_KEYS: mouse to %.0f,%.0f\n", x, y);
+                continue;
+            }
+            // Hide and Unhide: Cmd+H's and the Dock icon's calls (macOS).
+            if (keys[next].key == kHide || keys[next].key == kUnhide)
+            {
+#if defined(__APPLE__) && !TARGET_OS_IOS
+                fprintf(stderr, "[ui] BURNOUT_UI_KEYS: %s\n", keys[next].key == kHide ? "hide (as Cmd+H)" : "unhide (as the Dock icon)");
+                if (keys[next].key == kHide)
+                    platform::macos::HideGame();
+                else
+                    platform::macos::UnhideGame();
+#endif
                 continue;
             }
             if (keys[next].key == kFocusLost || keys[next].key == kFocusGained)

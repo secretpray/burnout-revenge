@@ -3213,8 +3213,30 @@ void main()
             }
             if (e.type == SDL_EVENT_WINDOW_RESIZED)
                 RememberWindowSize();
-            else if (e.type == SDL_EVENT_WINDOW_FOCUS_GAINED || e.type == SDL_EVENT_WINDOW_FOCUS_LOST)
+            // Each change of the window's state, by name, with whether SDL
+            // gives it the keyboard: a menu deaf after Cmd+H reads here.
+            if (const char* name = e.type == SDL_EVENT_WINDOW_SHOWN ? "shown" : e.type == SDL_EVENT_WINDOW_HIDDEN ? "hidden"
+                    : e.type == SDL_EVENT_WINDOW_EXPOSED ? "exposed" : e.type == SDL_EVENT_WINDOW_OCCLUDED ? "occluded"
+                    : e.type == SDL_EVENT_WINDOW_MINIMIZED ? "minimized" : e.type == SDL_EVENT_WINDOW_RESTORED ? "restored"
+                    : e.type == SDL_EVENT_WINDOW_FOCUS_GAINED ? "focus gained" : e.type == SDL_EVENT_WINDOW_FOCUS_LOST ? "focus lost"
+                    : nullptr)
+                fprintf(stderr, "[video] window %s (keyboard focus %s, flags%s%s%s)\n", name,
+                    SDL_GetKeyboardFocus() == s_window ? "here" : "elsewhere",
+                    SDL_GetWindowFlags(s_window) & SDL_WINDOW_HIDDEN ? " hidden" : "",
+                    SDL_GetWindowFlags(s_window) & SDL_WINDOW_OCCLUDED ? " occluded" : "",
+                    SDL_GetWindowFlags(s_window) & SDL_WINDOW_INPUT_FOCUS ? " input-focus" : "");
+            if (e.type == SDL_EVENT_WINDOW_FOCUS_GAINED || e.type == SDL_EVENT_WINDOW_FOCUS_LOST)
+            {
                 s_focused.store(e.type == SDL_EVENT_WINDOW_FOCUS_GAINED, std::memory_order_relaxed);
+#if defined(__APPLE__) && !TARGET_OS_IOS
+                // Back from Cmd+H, which left fullscreen to hide: fullscreen again.
+                if (e.type == SDL_EVENT_WINDOW_FOCUS_GAINED && platform::macos::ReturnToFullscreen())
+                {
+                    fprintf(stderr, "[video] back from Cmd+H: fullscreen again\n");
+                    SDL_SetWindowFullscreen(s_window, true);
+                }
+#endif
+            }
             else if (e.type == SDL_EVENT_WINDOW_MINIMIZED || e.type == SDL_EVENT_WINDOW_HIDDEN || e.type == SDL_EVENT_WINDOW_OCCLUDED)
                 s_visible.store(false, std::memory_order_relaxed);
             else if (e.type == SDL_EVENT_WINDOW_RESTORED || e.type == SDL_EVENT_WINDOW_SHOWN || e.type == SDL_EVENT_WINDOW_EXPOSED ||
@@ -3239,6 +3261,9 @@ void main()
                 int windowW = 0, windowH = 0;
                 if (!on && platform::macos::RestoreAfterFullscreen(s_window) && SDL_GetWindowSize(s_window, &windowW, &windowH))
                     fprintf(stderr, "[video] the title bar over the picture again (window %dx%d)\n", windowW, windowH);
+                // Cmd+H left fullscreen to hide (macos_window.h): now hide.
+                if (!on && platform::macos::HideAfterLeavingFullscreen())
+                    fprintf(stderr, "[video] hidden (Cmd+H)\n");
 #endif
             }
         }

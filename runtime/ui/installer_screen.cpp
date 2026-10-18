@@ -10,6 +10,7 @@
 #include "ui.h"
 #include "burnout_setup.h"
 #include "setup_music.h"
+#include "menu_sounds.h"
 #include <game/burnout_addons.h>
 
 #include <install/installer.h>
@@ -877,6 +878,7 @@ namespace ui
             }
             if (hit)
             {
+                menu_sounds::Play(std::string_view(label) == "BACK" ? menu_sounds::Sound::Back : menu_sounds::Sound::Select);
                 // Which input pressed it: a press nobody made shows up here.
                 static const char* const kSources[] = { "none", "mouse", "keyboard", "gamepad" };
                 int source = int(ImGui::GetCurrentContext()->ActiveIdSource);
@@ -1059,6 +1061,11 @@ namespace ui
         }
         footer();
         ImGui::EndDisabled();
+        // The cursor moved to another button: the game's click.
+        static ImGuiID lastNav = 0;
+        if (const ImGuiID nav = ImGui::GetCurrentContext()->NavId; nav && lastNav && nav != lastNav)
+            menu_sounds::Play(menu_sounds::Sound::Move);
+        lastNav = ImGui::GetCurrentContext()->NavId;
         ImGui::EndChild();
         ImGui::PopFont();
         ImGui::End();
@@ -1118,6 +1125,7 @@ namespace ui
                 // The game's own music from here on, from the player's disc.
                 if (!setup_music::Playing())
                     setup_music::Start(*st.source);
+                menu_sounds::LoadFromDisc(*st.source);  // the game's clicks from here on
             }
             st.Go(st.result.Ok() ? Page::Confirm : Page::Failed);
         }

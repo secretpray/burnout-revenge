@@ -13,6 +13,7 @@
 #include "ui.h"
 #include "quit_game.h"
 #include "burnout_setup.h"  // the game's look: its faces, hazard dashes, button glyphs
+#include "menu_sounds.h"    // and its clicks
 
 #include <report/report.h>
 #include <user/settings.h>
@@ -276,6 +277,7 @@ namespace ui
             case settings::SetResult::Unchanged: return;
             case settings::SetResult::Invalid: how = "invalid"; break;
             }
+            menu_sounds::Play(menu_sounds::Sound::Change);
             fprintf(stderr, "[settings] menu: %s.%s %s -> %s (%s)\n", o.table, o.key, settings::FormatValue(o.id, from).c_str(),
                 settings::FormatValue(o.id, settings::GetStoredValue(o.id)).c_str(), how);
         }
@@ -675,6 +677,8 @@ namespace ui
             ImGui::GetWindowDrawList()->AddText(ImVec2(min.x + arrow + (valueWidth - size.x) * 0.5f, CentredTextTop(mid)),
                 kRowWhite, text.c_str());
             ImGui::PopID();
+            if (activated)
+                menu_sounds::Play(menu_sounds::Sound::Select);
             return activated;
         }
 
@@ -1100,11 +1104,17 @@ namespace ui
                 anyChanged = true;
         ImGui::BeginDisabled(!anyChanged);
         if (ImGui::Button("RESET PAGE###Reset page"))
+        {
+            menu_sounds::Play(menu_sounds::Sound::Select);
             ImGui::OpenPopup("reset");
+        }
         ImGui::EndDisabled();
         ImGui::SameLine();
         if (ImGui::Button("CLOSE###Close"))
+        {
+            menu_sounds::Play(menu_sounds::Sound::Back);
             CloseSettings();
+        }
 #if BR_QUIT_GAME
         // Last, after Close: Down from the rows lands on the footer's first
         // button, so Quit Game takes a Right more, and then asks.
@@ -1163,17 +1173,25 @@ namespace ui
         if (!popup && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !ImGui::IsAnyItemActive() &&
             (ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight, false) || ImGui::IsKeyPressed(ImGuiKey_Escape, false)))
         {
+            menu_sounds::Play(menu_sounds::Sound::Back);
             if (wasWaiting)
                 EndWait();
             else
                 CloseSettings();
         }
+        // The cursor moved (D-pad, arrows, LB/RB): the game's click.
+        static ImGuiID lastNav = 0;
+        const ImGuiID nav = ImGui::GetCurrentContext()->NavId;
+        if (nav && lastNav && nav != lastNav && !s_opened)
+            menu_sounds::Play(menu_sounds::Sound::Move);
+        lastNav = nav;
         ImGui::End();
     }
 
     void ResetSettingsMenu()
     {
         s_opened = true;
+        menu_sounds::Play(menu_sounds::Sound::Select);
         EndWait();  // a wait the menu was closed under is over
         s_takenKey = SDL_SCANCODE_UNKNOWN;
         s_slotRow = Id::Count;
