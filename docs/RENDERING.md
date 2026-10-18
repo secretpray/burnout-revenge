@@ -37,3 +37,13 @@ MetalFX Frame Interpolation needs a compatible SDK/OS/device (the developer Mac
 reported support on macOS 27). No claim is made that it works on the minimum macOS
 15 deployment target. DLSS needs NVIDIA hardware; it is not an M1 implementation.
 FSR 3 frame-generation algorithms are research references, not part of this release.
+
+## Where interpolation would help (measured 2026-10-18)
+
+On the measured Traffic Attack route (runs 126–130, M1 Pro, a 60 Hz display) the
+game holds 60 FPS everywhere except loading (43–46 s) and the crash camera: 92–97 s
+runs at exactly 30 FPS (every frame 33.5 ms, GPU busy 13.5 ms: the game's own 30
+FPS presentation, not a shortage of GPU time). Crash mode and replays use the same
+camera. On a 60 Hz display 60 FPS play can't gain from generated frames; the crash
+camera's ~5 s at 30 FPS per crash is the only place a 30 → 60 interpolation would
+show. 60 → 120 needs a 120 Hz display.
