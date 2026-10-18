@@ -15,6 +15,7 @@
 #include "shader_translator.h"
 #include "texture_volume_layout.h"
 #include "temporal_history.h"
+#include "burnout_bloom.h"
 #include "burnout_motion.h"
 #include "pad_glyphs.h"
 #include "zpd_report.h"
@@ -1669,6 +1670,7 @@ namespace gpu::renderer
             std::string log;
             std::string source=ps.info.glsl;
             if (outputs&4) source=gpu::burnout::WithTrueMotion(ps.hash,source);
+            source = gpu::burnout::WithBloomInPlace(ps.hash, source);
             auto spirv = CompileGlsl(source, GLSLANG_STAGE_FRAGMENT, log, preamble);
             VkShaderModule module = VK_NULL_HANDLE;
             if (spirv.empty())
@@ -7903,6 +7905,12 @@ void main()
         pc.posScale[2] = 2.0f * ox / w - 1.0f;
         pc.posScale[3] = 2.0f * oy / h - 1.0f;
         pc.flags = 1u | (vte.vtx_w0_fmt ? 2u : 0u) | (vte.vtx_xy_fmt ? 4u : 0u) | (vte.vtx_z_fmt ? 8u : 0u);
+        // Settings > Graphics > Bloom off: the composite keeps the glow in place (burnout_bloom.h).
+        if (gpu::burnout::IsBloomComposite(s_ps->hash) && !settings::GetBool(settings::Id::Bloom))
+        {
+            static const bool split = [] { const char* v = std::getenv("BURNOUT_BLOOM_SPLIT"); return v && v[0] == '1'; }();
+            pc.flags |= gpu::burnout::kBloomInPlace | (split ? gpu::burnout::kBloomSplit : 0u);
+        }
         // Ultrawide (game/ultrawide): the 16:9 guest frame is stretched to the
         // screen and the front-end (HUD and menu) matrix is narrowed by s to
         // match. Full-screen front-end layers (fades to black, the dims behind

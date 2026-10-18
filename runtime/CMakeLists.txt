@@ -24,6 +24,7 @@ if(BR_GAME STREQUAL "burnout")
     list(APPEND RUNTIME_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/game/burnout.cpp)
     list(APPEND RUNTIME_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/game/burnout_addons.cpp)
     list(APPEND RUNTIME_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/game/movies.cpp)
+    list(APPEND RUNTIME_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/game/render_patches.cpp)
     # Stubs are generated into this build's folder, never over the NW stubs.
     find_package(Python3 REQUIRED COMPONENTS Interpreter)
     file(GLOB_RECURSE IMPORT_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/kernel/*.cpp)

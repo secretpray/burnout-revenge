@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Bloom and Motion Blur switches (Settings > Graphics). Bloom off removes the
+  game's haze and the glow round edges but keeps its bright sky and colours: the
+  glow stays where it comes from instead of being switched off (which turns the
+  sky grey). Motion Blur off keeps the picture sharp at speed. Both apply at once.
 - The game's own button prompts ("Select", "Exit Replay", "Camera", "PRESS TO
   BOOST!") show the buttons of the device you use: PlayStation shapes with a
   DualSense, your keys as Mac key caps with the keyboard, Xbox buttons otherwise.

@@ -55,3 +55,39 @@ The renderer keeps the game's bloom and luminance chain (320x180 and below) at
 (gpu/renderer.cpp, Internal resolution). The shimmer reported in another port —
 720p-sized blur taps stepping over a larger target — has no counterpart here.
 No change; revisit only on a visible report, with consecutive-frame captures.
+
+## Bloom off and Motion Blur off (runs 167–183)
+
+Settings > Graphics > **Bloom** and **Motion Blur**, both on by default, both live.
+
+The bloom chain (one race frame's draw log, run 172): a bright pass shrinks the scene
+to 320x180, `ps_007687…` blurs it with 13 taps and mixes in last frame's bloom, and the
+composite `ps_2072de…` adds that bloom with **one bilinear fetch** (`t2d_4`) over the
+motion-blurred scene (`t2d_0`, 8 fetches along the velocity in `t2d_1`), then grades
+it (`t3d_2`). The bloom image is a dim, blurred copy of the whole scene: much of the
+picture's brightness. boma's Xenia patch (as Xerenge applies it) empties the kernel:
+the same passes run (run 173), the bloom target is black, and the frame loses half
+its brightness and its blue sky (run 168: sky 88,65,64 against 159,150,161; mean
+luma 44–70 against 106–136).
+
+Bloom off here keeps the game's bloom and puts it back where it came from
+(`runtime/gpu/burnout_bloom.h`): the composite's bloom fetch is multiplied by the
+scene's brightness at the pixel over its brightness around it (rings of 10, 24, 44
+guest pixels), capped at 1.6. In even areas the ratio is 1 and the bloom is the
+game's; a dark edge beside the sky gets none of the sky's glow, so the haze and
+halos go and the sky stays.
+
+| Run | Bloom | Sky (same box) | Mean luma (3 frames) |
+| --- | --- | --- | --- |
+| 174 | on | 159,150,161 | 107 / 131 / 120 |
+| 175 | off (in place) | 159,150,160 | 108 / 137 / 117 |
+| 168 | kernel emptied (Xerenge's way) | 88,65,64 | 44 / 70 / 48 |
+
+Split-frame runs 177–180 (`BURNOUT_BLOOM_SPLIT=1`: the left half in place, the right
+the game's, in one frame; `BURNOUT_BLOOM_CAP`, `BURNOUT_BLOOM_REACH` for tuning): no
+seam in the sky; palms and wires against the sky lose the milky glow. A cap of 1
+leaves a darker rim of sky round the leaves; 1.4 to 2 look alike; a reach of 1.6 x
+changes nothing visible.
+
+Motion Blur off: `sub_821436D0` (the blur's frame counter) reads as finished, as in
+boma's patch. Run 176: the race at speed without the streaks; nothing else changes.

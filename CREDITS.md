@@ -35,3 +35,8 @@ project name in source license headers is retained deliberately.
 input lifecycle, graphics preparation and interpolation approaches. This tranche
 copies no source blocks from them. See the pinned revisions and boundaries in
 [the adoption plan](docs/EXTERNAL_PORTS_PLAN.md).
+
+Settings > Graphics > Motion Blur follows boma's Burnout Revenge game patch for
+Xenia, as Xerenge applies it (the motion blur's frame counter reads as finished);
+the code is our own. Bloom off does not use that patch set's bloom half (it greys
+the sky): it is our own composite change, `runtime/gpu/burnout_bloom.h`.

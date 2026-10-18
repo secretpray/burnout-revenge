@@ -54,6 +54,8 @@ namespace settings
         Anisotropy,
         Mipmaps,
         InternalResolution,
+        Bloom,       // off: the glow kept in place, no halo (gpu/burnout_bloom.h)
+        MotionBlur,  // the game's motion and radial blur (game/render_patches.cpp)
         WindowWidth,   // hidden: the window's size, remembered between runs
         WindowHeight,  // hidden
         // Audio
