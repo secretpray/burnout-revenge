@@ -1,6 +1,8 @@
 // SpeedBreaker runtime. GPL-3.0-or-later (see COPYING).
 #pragma once
 #include <imgui.h>
+#include <initializer_list>
+#include <utility>
 namespace ui::burnout
 {
     void LoadFonts();  // ui::Initialize, after the UI font (the default stays first)
@@ -21,6 +23,27 @@ namespace ui::burnout
     void SelectorLines(ImDrawList* draw, ImVec2 a, ImVec2 b);
     // The thin dark rule under one of the game's other rows, at y.
     void RowRule(ImDrawList* draw, float x0, float x1, float y);
+    // Button hints as the game writes them ("Back" and a B disc), right-
+    // aligned on the current line; a glyph of "LB RB" is two.
+    void Hints(std::initializer_list<std::pair<const char*, const char*>> items, float size = 18);
+
+    // Dialogs (confirmations and notices) as the game's own prompts: a dark
+    // panel in a white notched frame, centred white text, the choices
+    // stacked and centred (the focused one large and white on a yellow
+    // band, the others orange on dark ones), button hints under them.
+    // PushDialogStyle before ImGui::BeginPopupModal and PopDialogStyle
+    // right after it (whether or not it opened); inside, DialogFrame first
+    // (it sets the dialog's face) and EndDialog in place of EndPopup.
+    void PushDialogStyle();
+    void PopDialogStyle();
+    void DialogFrame();
+    void EndDialog();
+    constexpr float kDialogWidth = 560;  // the text's and the choices' width, before Scale()
+    void DialogText(const char* text, float width);
+    bool DialogOption(const char* label, float width);
+    // A notice's band (Toast): the game's description bar, behind a..b.
+    void NoticeBand(ImDrawList* draw, ImVec2 a, ImVec2 b);
+
     // A screen's heading band: dark, slanted, with a strip of yellow
     // chevrons running into the heading as on the game's screens (still for
     // Reduce motion), from `a` to `b`. Returns where the heading's text starts.

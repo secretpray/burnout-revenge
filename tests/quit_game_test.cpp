@@ -286,9 +286,9 @@ namespace
                 button = int(i);
             if (Has(l, "\"Quit Burnout Revenge? Progress since your last save will be lost.\""))
                 text = int(i);
-            if (Has(l, "ImGui::Button(\"Quit\")"))
+            if (Has(l, "burnout::DialogOption(\"Quit\""))
                 quitButton = int(i);
-            if (Has(l, "ImGui::Button(\"Cancel\")") && quitButton >= 0 && cancelButton < 0 && int(i) > quitButton)
+            if (Has(l, "burnout::DialogOption(\"Cancel\"") && quitButton >= 0 && cancelButton < 0 && int(i) > quitButton)
                 cancelButton = int(i);
             if (Has(l, "s_quit.TakeFocus()"))
                 focus = int(i);

@@ -101,18 +101,27 @@ namespace ui
             constexpr ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
                 ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoFocusOnAppearing |
                 ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoMove;
+            // The game's description bar (its main menu's): a yellow-brown
+            // band fading at its ends, white text in its bold italic face.
+            ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0, 0, 0, 0));
+            ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0, 0, 0, 0));
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.97f, 0.95f, 0.91f, 1));
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(4 * kSpaceL * s, kSpaceS * s));
             if (ImGui::Begin("##toast", nullptr, flags))
             {
+                const ImVec2 at = ImGui::GetWindowPos();
+                burnout::NoticeBand(ImGui::GetWindowDrawList(), at, ImVec2(at.x + ImGui::GetWindowWidth(), at.y + ImGui::GetWindowHeight()));
                 // (A window-local x: the text wraps where the window's
                 // right padding starts at its widest.)
-                ImGui::PushTextWrapPos(maxWidth - kSpaceL * s);
+                ImGui::PushTextWrapPos(maxWidth - 4 * kSpaceL * s);
                 ImGui::PushFont(burnout::LabelFont(), 24.0f);  // the game's description face
                 ImGui::TextUnformatted(text.c_str());
                 ImGui::PopFont();
                 ImGui::PopTextWrapPos();
             }
             ImGui::End();
-            ImGui::PopStyleVar();
+            ImGui::PopStyleVar(2);
+            ImGui::PopStyleColor(3);
         }
 
         float s_appliedScale = 0.0f;

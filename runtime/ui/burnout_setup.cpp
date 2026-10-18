@@ -15,6 +15,7 @@
 #include <cstring>
 #include <filesystem>
 #include <memory>
+#include <string>
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
 #endif
@@ -82,6 +83,160 @@ namespace ui::burnout
     ImFont* DisplayFont() { return Or(s_display); }
     ImFont* LabelFont() { return Or(s_label); }
     ImFont* RowFont() { return Or(s_row); }
+
+    void Hints(std::initializer_list<std::pair<const char*, const char*>> items, float size)
+    {
+        const float s = Scale();
+        ImGui::PushFont(Or(s_label), size);
+        const float h = ImGui::GetFontSize() * 1.1f, gap = 6 * s, between = 18 * s;
+        auto glyphs = [&](ImDrawList* draw, ImVec2 at, const char* list) {
+            float x = at.x;
+            std::string all(list);
+            for (size_t start = 0; start <= all.size();)
+            {
+                size_t space = all.find(' ', start);
+                std::string one = all.substr(start, space == std::string::npos ? std::string::npos : space - start);
+                x += ButtonGlyph(draw, ImVec2(x, at.y), h, one.c_str()) + 3 * s;
+                if (space == std::string::npos)
+                    break;
+                start = space + 1;
+            }
+            return x - at.x - 3 * s;
+        };
+        float width = 0;
+        for (auto [label, button] : items)
+            width += ImGui::CalcTextSize(label).x + gap + glyphs(nullptr, ImVec2(), button) + between;
+        width -= between;
+        ImVec2 at = ImGui::GetCursorScreenPos();
+        const float frame = ImGui::GetFrameHeight();
+        at.x = std::max(at.x, ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x - width);
+        at.y += (frame - h) * 0.5f;
+        ImDrawList* draw = ImGui::GetWindowDrawList();
+        for (auto [label, button] : items)
+        {
+            const ImVec2 text = ImGui::CalcTextSize(label);
+            draw->AddText(ImVec2(at.x, at.y + (h - text.y) * 0.5f), Faded(kPaper), label);
+            at.x += text.x + gap;
+            at.x += glyphs(draw, at, button) + between;
+        }
+        ImGui::Dummy(ImVec2(0, frame));
+        ImGui::PopFont();
+    }
+
+    void PushDialogStyle()
+    {
+        const float s = Scale();
+        ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.035f, 0.032f, 0.028f, 0.97f));
+        ImGui::PushStyleColor(ImGuiCol_ModalWindowDimBg, ImVec4(0, 0, 0, 0.6f));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_PopupRounding, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_PopupBorderSize, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(34 * s, 26 * s));
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8 * s, 6 * s));
+    }
+
+    void PopDialogStyle()
+    {
+        ImGui::PopStyleVar(6);
+        ImGui::PopStyleColor(2);
+    }
+
+    void EndDialog()
+    {
+        ImGui::PopStyleVar();
+        ImGui::PopStyleColor(3);
+        ImGui::PopFont();
+        ImGui::EndPopup();
+    }
+
+    void DialogFrame()
+    {
+        // The game's frame: white, a little inside the panel's edge, with
+        // notches along its top and bottom (SAVE/LOAD's player file box).
+        const float s = Scale();
+        ImDrawList* draw = ImGui::GetWindowDrawList();
+        ImVec2 a = ImGui::GetWindowPos(), b(a.x + ImGui::GetWindowWidth(), a.y + ImGui::GetWindowHeight());
+        a.x += 6 * s; a.y += 6 * s; b.x -= 6 * s; b.y -= 6 * s;
+        const ImU32 white = Faded(IM_COL32(236, 232, 222, 255));
+        draw->AddRect(a, b, white, 0, 0, 3 * s);
+        for (float x = a.x + 70 * s; x < b.x - 30 * s; x += 120 * s)
+        {
+            draw->AddLine({x, a.y}, {x, a.y + 9 * s}, white, 3 * s);
+            draw->AddLine({x, b.y}, {x, b.y - 9 * s}, white, 3 * s);
+        }
+        ImGui::PushFont(Or(s_label), 24);
+        // Any plain button inside (the update notes' links and the like):
+        // the game's dark band, yellow when lit, square.
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.24f, 0.21f, 0.16f, 0.85f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.84f, 0.62f, 0.13f, 0.95f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.96f, 0.71f, 0.15f, 1.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0.0f);
+    }
+
+    void DialogText(const char* text, float width)
+    {
+        // Centred lines, wrapped at `width`, white with the game's shadow.
+        ImFont* font = ImGui::GetFont();
+        const float size = ImGui::GetFontSize(), s = Scale();
+        ImDrawList* draw = ImGui::GetWindowDrawList();
+        const char* end = text + std::strlen(text);
+        for (const char* line = text; line < end;)
+        {
+            const char* wrap = font->CalcWordWrapPosition(size, line, end, width);
+            if (wrap == line)
+                wrap = line + 1;
+            const char* stop = wrap;
+            while (stop > line && (stop[-1] == ' ' || stop[-1] == '\n'))
+                stop--;
+            const ImVec2 at = ImGui::GetCursorScreenPos();
+            const float w = font->CalcTextSizeA(size, FLT_MAX, 0, line, stop).x;
+            const ImVec2 pos(at.x + (width - w) * 0.5f, at.y);
+            draw->AddText(font, size, {pos.x + 2 * s, pos.y + 2 * s}, Faded(IM_COL32(0, 0, 0, 200)), line, stop);
+            draw->AddText(font, size, pos, Faded(kPaper), line, stop);
+            ImGui::Dummy(ImVec2(width, size * 1.15f));
+            line = wrap;
+            while (line < end && (*line == ' ' || *line == '\n'))
+                line++;
+        }
+    }
+
+    bool DialogOption(const char* label, float width)
+    {
+        // A choice: the focused (or hovered) one as the game's selection,
+        // large and white on a yellow band; the others orange on dark bands.
+        const float s = Scale();
+        const float height = 44 * s;
+        ImGui::PushStyleColor(ImGuiCol_NavCursor, ImVec4(0, 0, 0, 0));
+        const bool hit = ImGui::InvisibleButton(label, {width, height}, ImGuiButtonFlags_EnableNav);
+        ImGui::PopStyleColor();
+        const bool lit = ImGui::IsItemFocused() || ImGui::IsItemHovered();
+        ImDrawList* draw = ImGui::GetWindowDrawList();
+        const ImVec2 a = ImGui::GetItemRectMin(), b = ImGui::GetItemRectMax();
+        const float fade = std::min(70 * s, width * 0.25f);
+        const ImU32 band = lit ? IM_COL32(214, 158, 32, 235) : IM_COL32(60, 54, 40, 200);
+        const ImU32 clear = band & ~IM_COL32_A_MASK;
+        draw->AddRectFilledMultiColor(a, {a.x + fade, b.y}, Faded(clear), Faded(band), Faded(band), Faded(clear));
+        draw->AddRectFilled({a.x + fade, a.y}, {b.x - fade, b.y}, Faded(band));
+        draw->AddRectFilledMultiColor({b.x - fade, a.y}, b, Faded(band), Faded(clear), Faded(clear), Faded(band));
+        ImFont* font = Or(s_label);
+        const float size = lit ? 34 * s : 27 * s;
+        const char* end = ImGui::FindRenderedTextEnd(label);
+        const ImVec2 text = font->CalcTextSizeA(size, FLT_MAX, 0, label, end);
+        const ImVec2 pos(a.x + (width - text.x) * 0.5f, a.y + (height - text.y) * 0.5f);
+        draw->AddText(font, size, {pos.x + 2 * s, pos.y + 2 * s}, Faded(IM_COL32(0, 0, 0, 190)), label, end);
+        draw->AddText(font, size, pos, Faded(lit ? kPaper : IM_COL32(242, 154, 34, 255)), label, end);
+        return hit;
+    }
+
+    void NoticeBand(ImDrawList* draw, ImVec2 a, ImVec2 b)
+    {
+        const float s = Scale(), fade = std::min(90 * s, (b.x - a.x) * 0.2f);
+        const ImU32 band = IM_COL32(150, 112, 34, 225), clear = band & ~IM_COL32_A_MASK;
+        draw->AddRectFilledMultiColor(a, {a.x + fade, b.y}, clear, band, band, clear);
+        draw->AddRectFilled({a.x + fade, a.y}, {b.x - fade, b.y}, band);
+        draw->AddRectFilledMultiColor({b.x - fade, a.y}, b, band, clear, clear, band);
+    }
 
     void SelectorLines(ImDrawList* draw, ImVec2 a, ImVec2 b)
     {

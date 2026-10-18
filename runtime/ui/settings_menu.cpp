@@ -71,8 +71,14 @@ namespace ui
             ImGuiViewport* viewport = ImGui::GetMainViewport();
             ImGui::SetNextWindowPos(viewport->GetWorkCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
             ImGui::SetNextWindowSize(ImVec2(std::min(viewport->WorkSize.x - 40, 680.0f * Scale()), 0), ImGuiCond_Always);
-            if (!ImGui::BeginPopupModal("burnout-addons", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar)) return true;
-            TitleText("Burnout Revenge Add-ons");
+            burnout::PushDialogStyle();
+            const bool shown = ImGui::BeginPopupModal("burnout-addons", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar);
+            burnout::PopDialogStyle();
+            if (!shown) return true;
+            burnout::DialogFrame();
+            ImGui::PushFont(burnout::DisplayFont(), 34.0f);
+            ImGui::TextUnformatted("ADD-ONS");
+            ImGui::PopFont();
             ImGui::TextWrapped("Connected this session: %zu", game::BurnoutAddons().size());
             for (const auto& addon : game::BurnoutAddons()) ImGui::BulletText("%s", addon.name.c_str());
             if (game::BurnoutAddons().empty()) ImGui::TextWrapped("No car packs connected yet.");
@@ -96,18 +102,20 @@ namespace ui
             }
             if (!message.empty()) ImGui::TextWrapped("%s", message.c_str());
             ImGui::Spacing();
+            const float width = ImGui::GetContentRegionAvail().x;
             ImGui::BeginDisabled(picking);
-            bool choose = ImGui::Button("Import from Folder...");
+            bool choose = burnout::DialogOption("Import from Folder...", width);
             ImGui::EndDisabled();
             if (choose)
             {
                 { std::lock_guard lock(s_addonPickerMutex); s_addonPickerOpen = true; }
                 SDL_ShowOpenFolderDialog(AddonFolderPicked, nullptr, GetWindow(), nullptr, false);
             }
-            ImGui::SameLine();
-            if (ImGui::Button("Close") || ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight, false) || ImGui::IsKeyPressed(ImGuiKey_Escape, false))
+            if (burnout::DialogOption("Close", width) || ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight, false) || ImGui::IsKeyPressed(ImGuiKey_Escape, false))
                 ImGui::CloseCurrentPopup();
-            ImGui::EndPopup();
+            ImGui::Dummy(ImVec2(0, 6 * Scale()));
+            burnout::Hints({ { "Select", "A" }, { "Back", "B" } });
+            burnout::EndDialog();
             return true;
         }
         // The Controls page (KeyRow). A row's two keys are cells; the chosen
@@ -373,44 +381,10 @@ namespace ui
         }
 
         // The footer's legend as the game writes its own: "Back" and the
-        // button, right-aligned on this line. A glyph of "LB RB" is two.
+        // button, right-aligned on this line.
         void Legend(std::initializer_list<std::pair<const char*, const char*>> items)
         {
-            const float s = Scale();
-            ImGui::PushFont(burnout::LabelFont(), 18.0f);
-            const float h = ImGui::GetFontSize() * 1.1f, gap = 6 * s, between = 18 * s;
-            auto glyphs = [&](ImDrawList* draw, ImVec2 at, const char* list) {
-                float x = at.x;
-                std::string all(list);
-                for (size_t start = 0; start <= all.size();)
-                {
-                    size_t space = all.find(' ', start);
-                    std::string one = all.substr(start, space == std::string::npos ? std::string::npos : space - start);
-                    x += burnout::ButtonGlyph(draw, ImVec2(x, at.y), h, one.c_str()) + 3 * s;
-                    if (space == std::string::npos)
-                        break;
-                    start = space + 1;
-                }
-                return x - at.x - 3 * s;
-            };
-            float width = 0;
-            for (auto [label, button] : items)
-                width += ImGui::CalcTextSize(label).x + gap + glyphs(nullptr, ImVec2(), button) + between;
-            width -= between;
-            ImVec2 at = ImGui::GetCursorScreenPos();
-            const float frame = ImGui::GetFrameHeight();
-            at.x = std::max(at.x, ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x - width);
-            at.y += (frame - h) * 0.5f;
-            ImDrawList* draw = ImGui::GetWindowDrawList();
-            for (auto [label, button] : items)
-            {
-                const ImVec2 size = ImGui::CalcTextSize(label);
-                draw->AddText(ImVec2(at.x, at.y + (h - size.y) * 0.5f), ImGui::GetColorU32(ImGuiCol_Text), label);
-                at.x += size.x + gap;
-                at.x += glyphs(draw, at, button) + between;
-            }
-            ImGui::Dummy(ImVec2(0, frame));
-            ImGui::PopFont();
+            burnout::Hints(items);
         }
 
         void OptionRow(const settings::Option& o, float valueWidth, bool focus)
@@ -721,20 +695,24 @@ namespace ui
             }
             ImGuiViewport* viewport = ImGui::GetMainViewport();
             ImGui::SetNextWindowPos(viewport->GetWorkCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-            if (!ImGui::BeginPopupModal(kQuitPopup, nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar))
+            burnout::PushDialogStyle();
+            const bool shown = ImGui::BeginPopupModal(kQuitPopup, nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar);
+            burnout::PopDialogStyle();
+            if (!shown)
             {
                 if (s_quit.Dismiss() == quit::Outcome::Cancelled)
                     fprintf(stderr, "[ui] Quit Game: cancelled (the prompt closed)\n");
                 return false;
             }
+            burnout::DialogFrame();
             s_quit.Shown();
-            ImGui::TextUnformatted("Quit Burnout Revenge? Progress since your last save will be lost.");
-            ImGui::Spacing();
-            const bool quitPressed = ImGui::Button("Quit");
-            ImGui::SameLine();
+            const float width = burnout::kDialogWidth * Scale();
+            burnout::DialogText("Quit Burnout Revenge? Progress since your last save will be lost.", width);
+            ImGui::Dummy(ImVec2(0, 10 * Scale()));
+            const bool quitPressed = burnout::DialogOption("Quit", width);
             if (s_quit.TakeFocus())
                 ImGui::SetKeyboardFocusHere();  // Cancel (quit::Prompt::kDefaultFocus)
-            const bool cancelPressed = ImGui::Button("Cancel");
+            const bool cancelPressed = burnout::DialogOption("Cancel", width);
             ImGui::SetItemDefaultFocus();
             quit::Outcome outcome = quit::Outcome::None;
             const char* how = "";
@@ -771,7 +749,9 @@ namespace ui
                     s_quit.QuitFailed();
                 }
             }
-            ImGui::EndPopup();
+            ImGui::Dummy(ImVec2(0, 6 * Scale()));
+            burnout::Hints({ { "Select", "A" }, { "Back", "B" } });
+            burnout::EndDialog();
             return true;
         }
 #endif
@@ -1141,19 +1121,25 @@ namespace ui
             Legend({ { "Choose", "D-PAD" }, { "Page", "LB RB" }, { "Close", "B" } });
 
         if (s_openAddons) { ImGui::OpenPopup("burnout-addons"); s_openAddons = false; }
-        // The dialogs (Reset, add-ons, updates, Quit Game): the game's face
-        // and square corners, as its own prompts.
+        // The dialogs (Reset, add-ons, updates, Quit Game) are the game's
+        // prompts (burnout::PushDialogStyle); the update notes' text too.
         ImGui::PushFont(burnout::LabelFont(), kTextFontSize);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_PopupRounding, 0.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0.0f);
         bool popup = false;  // a dialog has the input: B is its, not the menu's
-        if (ImGui::BeginPopupModal("reset", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar))
         {
+            ImGuiViewport* viewport = ImGui::GetMainViewport();
+            ImGui::SetNextWindowPos(viewport->GetWorkCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+        }
+        burnout::PushDialogStyle();
+        const bool resetShown = ImGui::BeginPopupModal("reset", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar);
+        burnout::PopDialogStyle();
+        if (resetShown)
+        {
+            burnout::DialogFrame();
             popup = true;
-            ImGui::Text("Reset every %s setting to its default?", settings::CategoryName(s_category));
-            ImGui::Spacing();
-            if (ImGui::Button("Reset"))
+            const float width = burnout::kDialogWidth * s;
+            burnout::DialogText(std::format("Reset every {} setting to its default?", settings::CategoryName(s_category)).c_str(), width);
+            ImGui::Dummy(ImVec2(0, 10 * s));
+            if (burnout::DialogOption("Reset", width))
             {
                 for (const auto& o : settings::Options())
                     if (o.category == s_category && !o.hidden)
@@ -1163,11 +1149,12 @@ namespace ui
                     }
                 ImGui::CloseCurrentPopup();
             }
-            ImGui::SameLine();
-            if (ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight, false) || ImGui::IsKeyPressed(ImGuiKey_Escape, false))
+            if (burnout::DialogOption("Cancel", width) || ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight, false) || ImGui::IsKeyPressed(ImGuiKey_Escape, false))
                 ImGui::CloseCurrentPopup();
             ImGui::SetItemDefaultFocus();
-            ImGui::EndPopup();
+            ImGui::Dummy(ImVec2(0, 6 * s));
+            burnout::Hints({ { "Select", "A" }, { "Back", "B" } });
+            burnout::EndDialog();
         }
         if (DrawUpdateDialog())
             popup = true;
@@ -1176,7 +1163,6 @@ namespace ui
         if (DrawQuitPrompt())
             popup = true;
 #endif
-        ImGui::PopStyleVar(3);
         ImGui::PopFont();
         // B (or Esc) closes the menu; while a Controls row was waiting for
         // a key at the top of this frame it ends the wait instead (the

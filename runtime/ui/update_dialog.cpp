@@ -13,6 +13,7 @@
 // up/down scrolls the notes, B goes back to the menu.
 #include <stdafx.h>
 #include "ui.h"
+#include "burnout_setup.h"
 
 #include <update/updater.h>
 
@@ -339,18 +340,20 @@ namespace ui
         ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
         constexpr ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
             ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
-        // Opaque: the menu's text mustn't show through the notes.
-        ImVec4 background = ImGui::GetStyleColorVec4(ImGuiCol_PopupBg);
-        background.w = 1.0f;
-        ImGui::PushStyleColor(ImGuiCol_PopupBg, background);
+        // The game's prompt (burnout::PushDialogStyle), opaque: the menu's
+        // text mustn't show through the notes.
+        burnout::PushDialogStyle();
+        ImGui::PushStyleColor(ImGuiCol_PopupBg, ImVec4(0.035f, 0.032f, 0.028f, 1.0f));
         const bool open = ImGui::BeginPopupModal(kPopup, nullptr, flags);
         ImGui::PopStyleColor();
+        burnout::PopDialogStyle();
         if (!open)
         {
             if (s_showing)
                 ForgetUpdateDialog();
             return false;
         }
+        burnout::DialogFrame();
         if (!s_showing)
         {
             s_showing = true;
@@ -370,7 +373,7 @@ namespace ui
             ImGui::CloseCurrentPopup();
             ForgetUpdateDialog();
         }
-        ImGui::EndPopup();
+        burnout::EndDialog();
         return true;
     }
 

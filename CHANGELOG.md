@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.1.6
+
+- Dialogs (Quit Game, Reset page, add-ons, update notes) look like the game's own
+  prompts: a white notched frame, centred text, stacked choices with the selected
+  one on a yellow band, and Select/Back button hints.
+- Notices appear on the game's yellow-brown description bar.
+
 ## v0.1.5
 
 - New Settings > Graphics > Anti-Aliasing Type: SMAA 1x beside the existing FXAA.
