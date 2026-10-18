@@ -14,6 +14,7 @@
 #include "music.h"
 #include "audio.h"
 #include <cpu/guest_thread.h>
+#include <platform/audio_file.h>
 #ifdef __APPLE__
 #include <pthread.h>
 #endif
@@ -230,20 +231,41 @@ namespace
                 path = s.path;
                 song = s.song;
             }
+            // The game's EA Trax (WMA) through FFmpeg; the player's own music
+            // (MP3, AAC, FLAC, ...) through the system's decoder, 3 dB down:
+            // today's masters are louder than the 2005 soundtrack.
             Decoder decoder;
-            bool opened = decoder.Open(path);
+            std::unique_ptr<platform::audio_file::Reader> own;
+            uint64_t ownFrames = 0;
+            std::string error;
+            bool opened;
+            if (platform::audio_file::IsMusicFile(path))
+                opened = bool(own = platform::audio_file::Open(path, error));
+            else if (!(opened = decoder.Open(path)))
+                error = decoder.Error();
             if (!opened)
-                fprintf(stderr, "[music] %s %s: skipped\n", path.filename().string().c_str(), decoder.Error().c_str());
+                fprintf(stderr, "[music] %s %s: skipped\n", path.filename().string().c_str(), error.c_str());
+            auto decode = [&](std::vector<float>& out) {
+                if (!own)
+                    return decoder.Decode(out);
+                const size_t before = out.size();
+                const bool got = own->Read(out, 4096);
+                for (size_t i = before; i < out.size(); i++)
+                    out[i] *= 0.708f;  // -3 dB
+                ownFrames += (out.size() - before) / 2;
+                return got;
+            };
+            auto decodedFrames = [&] { return own ? ownFrames : decoder.Frames(); };
             bool more = opened;
             while (more)
             {
                 chunk.clear();
-                while (chunk.size() < 8192 && (more = decoder.Decode(chunk)))
+                while (chunk.size() < 8192 && (more = decode(chunk)))
                     ;
                 // BR_MUSIC_SONG_SECONDS=<n> (testing): each song ends after n
                 // seconds, so the song changes come within a short run.
                 static const double songSeconds = [] { const char* v = std::getenv("BR_MUSIC_SONG_SECONDS"); return v ? std::atof(v) : 0.0; }();
-                if (songSeconds > 0 && double(decoder.Frames()) >= songSeconds * kRate)
+                if (songSeconds > 0 && double(decodedFrames()) >= songSeconds * kRate)
                     more = false;
                 std::unique_lock lock(s.mutex);
                 size_t at = 0, frames = chunk.size() / 2;
@@ -267,8 +289,8 @@ namespace
                 if (!more)
                 {
                     s.decoded = true;
-                    s.failed = decoder.Frames() == 0;
-                    fprintf(stderr, "[music] %s decoded: %.1f s\n", path.filename().string().c_str(), double(decoder.Frames()) / kRate);
+                    s.failed = decodedFrames() == 0;
+                    fprintf(stderr, "[music] %s decoded: %.1f s\n", path.filename().string().c_str(), double(decodedFrames()) / kRate);
                     if (s.failed)
                         fprintf(stderr, "[music] %s: no audio decoded\n", path.filename().string().c_str());
                 }

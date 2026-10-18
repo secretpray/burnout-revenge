@@ -23,6 +23,11 @@ sb_test(burnout_motion_test)
 sb_test(xma_mmio_test)
 # Save backups at launch and restores (user/save_backup.h), in a scratch folder.
 sb_test(save_backup_test SOURCES ${RT}/user/save_backup.cpp ARGS ${CMAKE_BINARY_DIR})
+# The player's own music through the system decoder (platform/audio_file.h).
+if(APPLE)
+    sb_test(audio_file_test SOURCES ${RT}/platform/apple/audio_file.mm ARGS ${CMAKE_BINARY_DIR})
+    target_link_libraries(audio_file_test PRIVATE "-framework AudioToolbox" "-framework Foundation" "-framework CoreFoundation")
+endif()
 sb_test(rumble_focus_test)
 # The XMA decoder's bit copies (apu/bit_copy.h, header only), with
 # AddressSanitizer: no byte outside the bits copied is read or written.
