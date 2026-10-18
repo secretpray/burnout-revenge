@@ -29,6 +29,9 @@ sb_test(xma_mmio_test)
 sb_test(refresh_notice_test SOURCES ${RT}/video/refresh_fit.cpp ${RT}/user/settings.cpp
     ARGS ${CMAKE_CURRENT_BINARY_DIR}/refresh_notice_scratch)
 sb_test(save_backup_test SOURCES ${RT}/user/save_backup.cpp ARGS ${CMAKE_BINARY_DIR})
+# Save imports: console packages (STFS), Xenia's folders, applied by a restore
+# (user/save_import.h, user/stfs.h), in a scratch folder.
+sb_test(save_import_test SOURCES ${RT}/user/save_import.cpp ${RT}/user/save_backup.cpp ARGS ${CMAKE_BINARY_DIR})
 # The player's own music: its folder's files in a shuffled round (user/my_music.h).
 sb_test(my_music_test SOURCES ${RT}/user/my_music.cpp ARGS ${CMAKE_BINARY_DIR})
 target_compile_definitions(my_music_test PRIVATE BR_MY_MUSIC_TEST)

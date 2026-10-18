@@ -21,6 +21,7 @@ namespace user::save_backup
         constexpr const char* kPending = "restore-pending.txt";
         constexpr const char* kIncoming = ".incoming-";
         constexpr const char* kBeforeRestore = "-before-restore";
+        constexpr const char* kImported = "-imported";
 
         // Every file under `dir`, by its path relative to it, with its bytes.
         std::map<std::string, std::string> Contents(const fs::path& dir)
@@ -116,7 +117,7 @@ namespace user::save_backup
             size_t kept = 0;
             for (const Backup& b : List(backupsDir))
             {
-                if (b.beforeRestore || ++kept <= kKeep)
+                if (b.beforeRestore || b.imported || ++kept <= kKeep)
                     continue;
                 std::error_code ec;
                 fs::remove_all(b.path, ec);
@@ -220,6 +221,7 @@ namespace user::save_backup
                 b.files++;
             }
             b.beforeRestore = name.find(kBeforeRestore) != std::string::npos;
+            b.imported = name.find(kImported) != std::string::npos;
             backups.push_back(std::move(b));
         }
         // Names sort by time (zero-padded, a -2 after the plain one).
@@ -242,6 +244,39 @@ namespace user::save_backup
             return false;
         }
         return true;
+    }
+
+    bool RequestImport(const fs::path& saveDir, const fs::path& backupsDir,
+        const std::function<bool(const fs::path& folder, std::string& error)>& add, std::string& name, std::string& error)
+    {
+        std::error_code ec;
+        fs::create_directories(backupsDir, ec);
+        name = FreeName(backupsDir, kImported);
+        const fs::path incoming = backupsDir / (kIncoming + name);
+        fs::remove_all(incoming, ec);
+        if (fs::is_directory(saveDir, ec))
+            fs::copy(saveDir, incoming, fs::copy_options::recursive, ec);
+        else
+            fs::create_directories(incoming, ec);
+        if (ec || Contents(incoming) != Contents(saveDir))
+        {
+            error = "Couldn't copy the current saves: " + (ec ? ec.message() : std::string("the copy differs")) + ".";
+            fs::remove_all(incoming, ec);
+            return false;
+        }
+        if (!add(incoming, error))
+        {
+            fs::remove_all(incoming, ec);
+            return false;
+        }
+        fs::rename(incoming, backupsDir / name, ec);
+        if (ec)
+        {
+            error = "Couldn't record the import: " + ec.message() + ".";
+            fs::remove_all(incoming, ec);
+            return false;
+        }
+        return RequestRestore(backupsDir, name, error);
     }
 
     std::string PendingRestore(const fs::path& backupsDir)

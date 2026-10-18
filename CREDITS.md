@@ -40,3 +40,9 @@ Settings > Graphics > Motion Blur follows boma's Burnout Revenge game patch for
 Xenia, as Xerenge applies it (the motion blur's frame counter reads as finished);
 the code is our own. Bloom off does not use that patch set's bloom half (it greys
 the sky): it is our own composite change, `runtime/gpu/burnout_bloom.h`.
+
+The track skip lost between two pad polls of a frame was found by Xerenge (its
+`music_trace.cpp`, the addresses `sub_8210F940` and `0x82846670`); our hook is
+`runtime/game/music_skip.cpp`. Save import follows Takedawn's "Import Xbox save"
+(MIT) as an idea; the STFS reader `runtime/user/stfs.h` is ours, after Xenia's
+STFS layout (BSD-3-Clause), as the add-on reader is.

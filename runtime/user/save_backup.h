@@ -32,6 +32,7 @@ namespace user::save_backup
         uint64_t bytes = 0;
         size_t files = 0;
         bool beforeRestore = false;     // made by a restore, of the saves it replaced
+        bool imported = false;          // made by an import
     };
 
     // Before the game starts. Applies a pending restore, then snapshots
@@ -44,6 +45,11 @@ namespace user::save_backup
     // The next launch restores `name` (one of List's). False, with `error`,
     // when it isn't a usable backup.
     bool RequestRestore(const std::filesystem::path& backupsDir, const std::string& name, std::string& error);
+    // A backup of the current saves (if any) that `add` then adds to (given
+    // its folder), restored at the next launch. False, with `error` (from
+    // `add` too), when nothing was recorded; `name` is the new backup's.
+    bool RequestImport(const std::filesystem::path& saveDir, const std::filesystem::path& backupsDir,
+        const std::function<bool(const std::filesystem::path& folder, std::string& error)>& add, std::string& name, std::string& error);
     // The backup a restore is pending for, or "".
     std::string PendingRestore(const std::filesystem::path& backupsDir);
     void CancelRestore(const std::filesystem::path& backupsDir);

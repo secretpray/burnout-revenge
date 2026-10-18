@@ -22,6 +22,7 @@
 #include <hid/input.h>
 #include <apu/audio.h>
 #include <user/save_backup.h>
+#include <user/save_import.h>
 #include <cpu/guest_thread.h>
 #include <cpu/host_cpu.h>
 #include <install/install_cli.h>
@@ -309,6 +310,27 @@ int main(int argc, char** argv)
         fputs(migrated.c_str(), stderr);
         return *code;
     }
+    // --import-save <file or folder>: saves made elsewhere (a console's save
+    // package, Xenia's folder), put in at the next launch (user/save_import.h).
+    if (argc > 1 && !strcmp(argv[1], "--import-save"))
+    {
+        if (argc < 3)
+        {
+            fprintf(stderr, "Usage: %s --import-save <save package (CON), a folder holding saves, or Player Files>\n", argv[0]);
+            return 2;
+        }
+        std::vector<user::save_import::Container> found;
+        std::string name, error;
+        if (!user::save_import::Request(argv[2], GetSavePath(true), GetUserPath() / "backups", found, name, error))
+        {
+            fprintf(stderr, "Import failed: %s\n", error.c_str());
+            return 1;
+        }
+        for (const auto& c : found)
+            printf("Found %s in %s\n", c.name.c_str(), c.from.string().c_str());
+        printf("Recorded as the backup %s. Start the game: it backs up your current saves, then puts these in.\n", name.c_str());
+        return 0;
+    }
 
     // stderr also goes to GetUserPath()/logs/<date>_<time>.log from here on
     // (report/log.cpp); its copying thread starts after the core split.
@@ -386,8 +408,9 @@ int main(int argc, char** argv)
         fprintf(stderr, "[runtime] unknown option %s. Usage:\n"
                         "  %s                          run the installed game (or install it)\n"
                         "  %s path/to/default.xex      run a specific XEX (development)\n"
-                        "  %s --install <image|folder> [--dest <dir>] | --verify <image|folder> | --find-images | --where\n",
-            argv[1], argv[0], argv[0], argv[0]);
+                        "  %s --install <image|folder> [--dest <dir>] | --verify <image|folder> | --find-images | --where\n"
+                        "  %s --import-save <save package or folder>   import saves at the next launch\n",
+            argv[1], argv[0], argv[0], argv[0], argv[0]);
         return 2;
     }
 

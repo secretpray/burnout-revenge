@@ -124,6 +124,11 @@
   let the game find `XBOX360/454107DC/00000002` on a mounted drive.
 - Save backups: each launch backs up your saves when they changed (the newest
   10 are kept). Settings > Advanced > Save Backups restores one.
+- Save import: Save Backups > Import Save File / Import Save Folder (or
+  `--import-save <path>` with the game closed) brings in a save from an Xbox 360
+  (its save package, e.g. `Content/<profile>/454107DC/00000001/` on a USB stick),
+  from Xenia's content folder, or the game's `Player Files`. Your current saves
+  are backed up first; the import applies at the next launch.
 - Skip Intro Movies (on by default): the title screen in about 8 seconds.
 - Save Bug Report gathers the logs and settings into one file; Check for
   Updates asks GitHub for a newer release.

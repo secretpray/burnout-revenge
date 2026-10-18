@@ -9,6 +9,13 @@
   story"; it says what the game asks and Done.
 - Our dialogs show the same buttons as the game's prompts (Settings > Input >
   Button Prompts).
+- Track skip (RB) is no longer lost in a frame where the game runs two steps,
+  as Crash mode does every frame (and a race after a late frame).
+- Import saves made elsewhere: Settings > Advanced > Save Backups > Import Save
+  File or Import Save Folder, or `--import-save <path>` with the game closed. It
+  takes an Xbox 360 save package (CON, as a USB stick's Content folder holds it),
+  a folder with such packages, Xenia's content folder, or the game's Player Files.
+  Your current saves are backed up first; the import applies at the next launch.
 
 ## v0.1.9
 

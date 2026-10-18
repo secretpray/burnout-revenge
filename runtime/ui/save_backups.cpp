@@ -5,8 +5,10 @@
 #include "burnout_setup.h"
 #include <user/paths.h>
 #include <user/save_backup.h>
+#include <user/save_import.h>
 
 #include <imgui.h>
+#include <SDL3/SDL_dialog.h>
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_misc.h>
 #include <SDL3/SDL_timer.h>
@@ -16,6 +18,7 @@ namespace ui
     namespace
     {
         namespace sb = user::save_backup;
+        namespace si = user::save_import;
         constexpr const char* kPopup = "save-backups";
         bool s_open = false;
         bool s_openPending = false;  // asked from a row; opened at the dialogs' level
@@ -34,6 +37,63 @@ namespace ui
 
         std::filesystem::path Folder() { return GetUserPath() / "backups"; }
 
+        // An import: the file or folder picked (from the dialog's callback,
+        // which may come on another thread), then the saves found in it,
+        // asked about before anything is recorded.
+        std::mutex s_pickMutex;
+        std::string s_picked;
+        bool s_hasPick = false;
+        std::filesystem::path s_importFrom;
+        std::vector<si::Container> s_importing;
+
+        void OnPick(void*, const char* const* files, int)
+        {
+            std::lock_guard lock(s_pickMutex);
+            if (files && files[0])
+            {
+                s_picked = files[0];
+                s_hasPick = true;
+            }
+            else if (!files)
+                fprintf(stderr, "[saves] the file dialog failed: %s\n", SDL_GetError());
+        }
+
+        void PickImport(bool folder)
+        {
+            // BURNOUT_TEST_PICK_SAVE (automated runs): the path stands in for the dialog's pick.
+            if (const char* test = std::getenv("BURNOUT_TEST_PICK_SAVE"); test && *test)
+            {
+                fprintf(stderr, "[saves] a test pick stands in for the file dialog: %s\n", test);
+                const char* files[] = { test, nullptr };
+                OnPick(nullptr, files, -1);
+                return;
+            }
+            if (folder)
+                SDL_ShowOpenFolderDialog(OnPick, nullptr, GetWindow(), std::getenv("HOME"), false);
+            else
+                SDL_ShowOpenFileDialog(OnPick, nullptr, GetWindow(), nullptr, 0, std::getenv("HOME"), false);
+        }
+
+        // A pick that came in: the saves in it, or a message why none.
+        void TakePick()
+        {
+            std::string picked;
+            {
+                std::lock_guard lock(s_pickMutex);
+                if (!s_hasPick)
+                    return;
+                s_hasPick = false;
+                picked = std::move(s_picked);
+            }
+            std::string error;
+            s_importing = si::Find(picked, error);
+            s_importFrom = picked;
+            fprintf(stderr, "[saves] import from %s: %s\n", picked.c_str(),
+                s_importing.empty() ? error.c_str() : ("found " + si::Describe(s_importing)).c_str());
+            if (s_importing.empty())
+                Toast(error);
+        }
+
         // The list and the pending restore, read from disk when the dialog
         // opens or changes something, and for the row every 2 s: not every frame.
         std::vector<sb::Backup> s_backups;
@@ -51,6 +111,8 @@ namespace ui
             std::string label = sb::DisplayName(b.name);
             if (b.beforeRestore)
                 label += "  (before a restore)";
+            else if (b.imported)
+                label += "  (imported)";
             return label + "###" + b.name;
         }
 
@@ -77,8 +139,8 @@ namespace ui
 
     const char* SaveBackupsHelp()
     {
-        return "Each launch backs up your saves when they changed (the newest 10 are kept). Restore one here; your "
-               "current saves are backed up first.";
+        return "Each launch backs up your saves when they changed (the newest 10 are kept). Restore one here, or import "
+               "saves from an Xbox 360 (a save package) or Xenia; your current saves are backed up first.";
     }
 
     void OpenSaveBackups()
@@ -93,6 +155,7 @@ namespace ui
             s_openPending = false;
             s_open = true;
             s_confirm.clear();
+            s_importing.clear();
             s_focusFrom = ImGui::GetFrameCount();
             Refresh();
             ImGui::OpenPopup(kPopup);
@@ -116,7 +179,47 @@ namespace ui
         const float s = Scale(), width = burnout::kDialogWidth * s;
         bool close = false;
         const std::string pending = s_pending;
-        if (!s_confirm.empty())
+        if (s_confirm.empty() && s_importing.empty())
+        {
+            TakePick();
+            if (!s_importing.empty())
+                FocusSafeNext();
+        }
+        if (!s_importing.empty())
+        {
+            burnout::DialogText(std::format("Import {} from {}? Saves of the same name are replaced; your current saves are "
+                "backed up first. The game quits now; start it again to play the imported saves.", si::Describe(s_importing),
+                s_importFrom.filename().string()).c_str(), width);
+            ImGui::Dummy(ImVec2(0, 10 * s));
+            if (burnout::DialogOption("Import and Quit", width))
+            {
+                std::string name, error;
+                std::vector<si::Container> found;
+                if (si::Request(s_importFrom, GetSavePath(true), Folder(), found, name, error))
+                {
+                    fprintf(stderr, "[saves] import of %s from %s recorded as %s\n", si::Describe(found).c_str(),
+                        s_importFrom.string().c_str(), name.c_str());
+                    Refresh();
+                    close = true;
+                    QuitForRestore();
+                }
+                else
+                {
+                    fprintf(stderr, "[saves] import from %s not recorded: %s\n", s_importFrom.string().c_str(), error.c_str());
+                    Toast(error);
+                }
+                s_importing.clear();
+            }
+            if (TakeFocusSafe())
+                ImGui::SetKeyboardFocusHere();
+            if (burnout::DialogOption("Cancel", width) || ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight, false) ||
+                ImGui::IsKeyPressed(ImGuiKey_Escape, false))
+            {
+                s_importing.clear();
+                FocusSafeNext();
+            }
+        }
+        else if (!s_confirm.empty())
         {
             // The question, before anything changes.
             burnout::DialogText(std::format("Restore the saves from {}? Your current saves are backed up first. The game "
@@ -169,6 +272,10 @@ namespace ui
                     s_confirm = b.name;
                     FocusSafeNext();
                 }
+            if (burnout::DialogOption("Import Save File...", width))
+                PickImport(false);
+            if (burnout::DialogOption("Import Save Folder...", width))
+                PickImport(true);
             if (burnout::DialogOption("Open Backups Folder", width))
             {
                 std::error_code ec;
