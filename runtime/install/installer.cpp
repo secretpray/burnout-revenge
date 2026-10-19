@@ -420,6 +420,96 @@ namespace install
             bool busy = false;
         };
 
+        // A note of the install under way, in the player's data folder
+        // (kUnfinishedInstall): its partial copy, the folder that holds it,
+        // and the topmost folder Install had to create on the way (empty:
+        // none). Written before the copy starts; removed once Install has
+        // finished or cleaned up after itself. One that is still there at a
+        // start is an install a crash, a kill or a power cut stopped:
+        // RemoveUnfinishedInstall clears what it left, wherever it was.
+        struct Journal
+        {
+            fs::path partial, parent, created;
+        };
+
+        fs::path JournalFile()
+        {
+            return GetUserPath() / kUnfinishedInstall;
+        }
+
+        void WriteJournal(const Journal& journal)
+        {
+            std::error_code ec;
+            const fs::path file = JournalFile(), temp = fs::path(file) += ".tmp";
+            fs::create_directories(file.parent_path(), ec);
+            const std::string text = journal.partial.string() + "\n" + journal.parent.string() + "\n" + journal.created.string() + "\n";
+            int fd = open(temp.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
+            bool ok = fd >= 0 && WriteAll(fd, text.data(), text.size()) && fsync(fd) == 0;
+            if (fd >= 0 && close(fd) != 0)
+                ok = false;
+            if (ok)
+                fs::rename(temp, file, ec);
+            if (!ok || ec)
+            {
+                fs::remove(temp, ec);
+                fprintf(stderr, "[install] couldn't note the install under way in %s\n", file.c_str());
+            }
+        }
+
+        std::optional<Journal> ReadJournal()
+        {
+            std::ifstream f(JournalFile());
+            std::string partial, parent, created;
+            if (!std::getline(f, partial) || !std::getline(f, parent) || partial.empty() || parent.empty())
+                return std::nullopt;
+            std::getline(f, created);
+            return Journal{ partial, parent, created };
+        }
+
+        void ClearJournal()
+        {
+            std::error_code ec;
+            fs::remove(JournalFile(), ec);
+        }
+
+        // The topmost folder of `dir` that doesn't exist yet: what creating
+        // `dir` will make (empty if it exists).
+        fs::path FirstMissing(const fs::path& dir)
+        {
+            std::error_code ec;
+            fs::path missing;
+            for (fs::path p = dir; !p.empty() && !fs::exists(p, ec); p = p.parent_path())
+            {
+                if (ec || p == p.parent_path())
+                    return {};
+                missing = p;
+            }
+            return missing;
+        }
+
+        // The folders Install made for an install that didn't happen, from
+        // `parent` up to `created`, each while it is empty (or holds only a
+        // Finder .DS_Store): never one with anything of the player's in it.
+        void RemoveCreatedFolders(const fs::path& parent, const fs::path& created)
+        {
+            if (created.empty())
+                return;
+            std::error_code ec;
+            const fs::path top = created.lexically_normal();
+            for (fs::path dir = parent.lexically_normal(); !dir.empty(); dir = dir.parent_path())
+            {
+                const auto [from, to] = std::mismatch(top.begin(), top.end(), dir.begin(), dir.end());
+                if (from != top.end())
+                    return;  // above what Install made
+                fs::remove(dir / ".DS_Store", ec);
+                if (!IsEmptyDirectory(dir) || !fs::remove(dir, ec) || ec)
+                    return;
+                fprintf(stderr, "[install] removed the folder made for it: %s\n", dir.c_str());
+                if (dir == top)
+                    return;
+            }
+        }
+
         // The manifest's spelling of a folder it has files in, matched
         // case-insensitively; nullopt if `relative` isn't one.
         std::optional<std::string> ManifestFolder(const Manifest& manifest, std::string_view relative)
@@ -694,6 +784,33 @@ namespace install
             Recover(layout, manifest);
     }
 
+    void RemoveUnfinishedInstall()
+    {
+        std::optional<Journal> journal = ReadJournal();
+        if (!journal)
+            return;
+        std::error_code ec;
+        if (Present(journal->partial))
+        {
+            FolderLock lock(journal->parent);
+            if (lock.Busy())
+                return;  // that install is still running (another copy of the app)
+            if (!PartialIsOurs(journal->partial))
+            {
+                fprintf(stderr, "[install] %s isn't the installer's own copy now; left as it is\n", journal->partial.c_str());
+                ClearJournal();
+                return;
+            }
+            const uintmax_t removed = fs::remove_all(journal->partial, ec);
+            fprintf(stderr, "[install] an install stopped by a crash or power cut left %s: %s\n", journal->partial.c_str(),
+                ec ? ec.message().c_str() : std::format("removed ({} items)", removed).c_str());
+            if (ec)
+                return;  // tried again next time
+        }
+        RemoveCreatedFolders(journal->parent, journal->created);
+        ClearJournal();
+    }
+
     Result Install(const DiscSource& source, const std::filesystem::path& destination,
         const ProgressCallback& progress, const std::atomic<bool>* cancel, const Manifest& manifest)
     {
@@ -720,10 +837,18 @@ namespace install
             return r;
 
         std::error_code ec;
+        // What a cancelled or failed install leaves: nothing. The folders
+        // made for it go again (`left`); its partial copy too (`failed`).
+        const fs::path created = FirstMissing(layout.parent);
+        auto left = [&](Result result)
+        {
+            RemoveCreatedFolders(layout.parent, created);
+            return result;
+        };
         fs::create_directories(layout.parent, ec);
         if (ec)
-            return Fail(Error::DestinationNotWritable, std::format("Cannot create {}: {}.", layout.parent.string(),
-                ec.message()), layout.parent.string());
+            return left(Fail(Error::DestinationNotWritable, std::format("Cannot create {}: {}.", layout.parent.string(),
+                ec.message()), layout.parent.string()));
         FolderLock lock(layout.parent);
         if (lock.Busy())
             return Fail(Error::DestinationNotWritable, std::format("Another install into {} is running. Wait for it to "
@@ -734,7 +859,7 @@ namespace install
         Recover(layout, manifest);
         r = Inspect(layout, manifest, true, info);
         if (!r.Ok())
-            return r;
+            return left(r);
         if (Present(layout.partial))
         {
             fs::remove_all(layout.partial, ec);
@@ -744,15 +869,21 @@ namespace install
         }
         r = CheckSpace(layout, info, 0);
         if (!r.Ok())
-            return r;
+            return left(r);
 
+        WriteJournal({ layout.partial, layout.parent, created });
         if (!fs::create_directory(layout.partial, ec) || ec)
-            return Fail(Error::DestinationNotWritable, std::format("Cannot create {}: {}. Choose another folder.",
-                layout.partial.string(), ec ? ec.message() : "it already exists"), layout.partial.string());
+        {
+            ClearJournal();
+            return left(Fail(Error::DestinationNotWritable, std::format("Cannot create {}: {}. Choose another folder.",
+                layout.partial.string(), ec ? ec.message() : "it already exists"), layout.partial.string()));
+        }
         auto failed = [&](Result result)
         {
             std::error_code removeEc;
             fs::remove_all(layout.partial, removeEc);
+            RemoveCreatedFolders(layout.parent, created);
+            ClearJournal();
             return result;
         };
         int tag = open((layout.partial / kPartialTag).c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
@@ -812,6 +943,7 @@ namespace install
         r = MoveIntoPlace(layout, manifest);
         if (!r.Ok())
             return failed(r);
+        ClearJournal();
 #if defined(__APPLE__) && TARGET_OS_IOS
         // The game folder too: the rename keeps the mark, but a lost one
         // would put 7 GB into the player's iCloud backup.

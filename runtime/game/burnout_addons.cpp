@@ -63,10 +63,11 @@ namespace game
             fs::path temp = path; temp += ".partial";
             if (fs::is_symlink(temp, ec)) return false;
             std::ofstream f(temp, std::ios::binary | std::ios::trunc);
-            if (!f.write(reinterpret_cast<const char*>(bytes.data()), bytes.size())) return false;
-            f.close(); if (!f) return false;
-            fs::rename(temp, path, ec);
-            return !ec;
+            bool ok = bool(f.write(reinterpret_cast<const char*>(bytes.data()), bytes.size()));
+            f.close();
+            if (ok && f) fs::rename(temp, path, ec);
+            if (!ok || !f || ec) { fs::remove(temp, ec); return false; }  // nothing half-written left behind
+            return true;
         }
         std::string Name(const std::u16string& text)
         {
@@ -98,6 +99,19 @@ namespace game
     {
         // A bounded search of Xbox content folders, never a recursive drive scan.
         std::error_code ec;
+        // A copy a crash stopped (Write's "<file>.partial") is no pack: thrown away.
+        std::vector<fs::path> unfinished;
+        for (const fs::path& folder : {BurnoutAddonFolder(), GetUserPath() / "addons/mounted"})
+        {
+            for (auto it = fs::recursive_directory_iterator(folder, ec); !ec && it != fs::recursive_directory_iterator(); it.increment(ec))
+                if (it->path().extension() == ".partial" && !it->is_symlink(ec) && it->is_regular_file(ec))
+                    unfinished.push_back(it->path());
+            ec.clear();
+        }
+        for (const fs::path& path : unfinished)
+            if (fs::remove(path, ec))
+                fprintf(stderr, "[addons] removed an unfinished copy: %s\n", path.c_str());
+        ec.clear();
         if (settings::GetBool(settings::Id::AutoImportAddons))
         {
             std::vector<fs::path> sources{ GetGamePath() / "454107DC", GetGamePath().parent_path() / "454107DC" };

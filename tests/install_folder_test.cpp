@@ -385,6 +385,54 @@ static void Write(const fs::path& file, const std::string& text)
     std::ofstream(file, std::ios::binary) << text;
 }
 
+// What an install a crash stopped leaves, cleared at the next start
+// (RemoveUnfinishedInstall), from the note Install keeps in the data folder.
+// After DiskRules: HOME is the sandbox, so GetUserPath() is in the scratch folder.
+static void UnfinishedInstall(const fs::path& root)
+{
+    const fs::path note = GetUserPath() / kUnfinishedInstall;
+    auto plant = [&](const fs::path& partial, const fs::path& created) {
+        Write(note, partial.string() + "\n" + partial.parent_path().string() + "\n" + created.string() + "\n");
+    };
+    const fs::path base = root / "unfinished";
+
+    // The partial copy (the installer's tag in it) and the two folders made
+    // for it go; the folder above them stays.
+    fs::path created = base / "new", partial = created / "deeper" / "game.partial";
+    Write(partial / ".burnout-install-partial", "");
+    Write(partial / "NFS" / "ZZDATA0.BIN", "half a file");
+    plant(partial, created);
+    RemoveUnfinishedInstall();
+    CHECK(!fs::exists(partial) && !fs::exists(created) && fs::exists(base), "crash leftovers removed");
+    CHECK(!fs::exists(note), "the note goes with them");
+    RemoveUnfinishedInstall();  // nothing noted: nothing to do
+    CHECK(fs::exists(base), "no note: untouched");
+
+    // A folder made for the install that the player has used since keeps
+    // what is in it; only the copy goes.
+    Write(partial / ".burnout-install-partial", "");
+    Write(created / "my notes.txt", "mine");
+    plant(partial, created);
+    RemoveUnfinishedInstall();
+    CHECK(!fs::exists(partial) && fs::exists(created / "my notes.txt"), "the player's folder kept");
+    CHECK(!fs::exists(created / "deeper"), "the empty folder below it goes");
+
+    // Something else at the noted place now (no tag, files in it): left alone.
+    fs::path other = base / "other" / "game.partial";
+    Write(other / "photo.jpg", "not ours");
+    plant(other, {});
+    RemoveUnfinishedInstall();
+    CHECK(fs::exists(other / "photo.jpg"), "not the installer's: kept");
+    CHECK(!fs::exists(note), "and the note dropped");
+
+    // An install with nothing to create (the folder existed): only the copy.
+    fs::path existing = base / "existing";
+    Write(existing / "game.partial" / ".burnout-install-partial", "");
+    plant(existing / "game.partial", {});
+    RemoveUnfinishedInstall();
+    CHECK(!fs::exists(existing / "game.partial") && fs::is_directory(existing), "existing folder kept");
+}
+
 static void DiskRules(const fs::path& root, const char* argv0)
 {
     // A sandbox HOME, so the default install and the record are in the scratch folder.
@@ -661,6 +709,7 @@ int main(int argc, char** argv)
     }
     fs::path root = fs::canonical(pattern);
     DiskRules(root, argv[0]);
+    UnfinishedInstall(root);
     // Leave nothing read-only behind, then clean up (only the folder made here).
     for (const char* dir : { "ro", "rop", "nr", "ro-empty" })
         chmod((root / dir).c_str(), 0755);

@@ -138,6 +138,8 @@ namespace install
         if (std::optional<fs::path> xex = UsableXex(game::kDevelopmentDirectory, false, manifest))
             return Found(game::kDevelopmentDirectory, *xex, InstallOrigin::Development, manifest);
 
+        // What an install a crash stopped left, wherever it was.
+        RemoveUnfinishedInstall();
         // An install the player put on another drive.
         if (std::optional<fs::path> recorded = RecordedInstallPath())
         {

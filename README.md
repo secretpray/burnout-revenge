@@ -129,7 +129,9 @@
 
 - A first-run setup in the game's style: choose your ISO, and all 802 files are
   checked against the supported release before anything is installed. EA Trax
-  from your own disc plays while it installs.
+  from your own disc plays while it installs. Cancelled, failed or cut short
+  by a crash, an install leaves nothing behind: no partial copy, no empty
+  folders.
 - Add-on car packs: choose a folder at setup, import later from Settings, or
   let the game find `XBOX360/454107DC/00000002` on a mounted drive.
 - Saves can't be half-written: a save is written to a copy and put in

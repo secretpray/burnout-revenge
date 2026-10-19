@@ -70,7 +70,7 @@ namespace install
     // then holds a lock on the destination's parent folder, so a second
     // Install into the same place fails (DestinationNotWritable) instead of
     // colliding. Stops between chunks when `cancel` becomes true (Cancelled;
-    // the partial copy is deleted).
+    // the partial copy is deleted, with the folders made for it).
     Result Install(const DiscSource& source, const std::filesystem::path& destination,
         const ProgressCallback& progress = {}, const std::atomic<bool>* cancel = nullptr,
         const Manifest& manifest = GameManifest());
@@ -100,6 +100,15 @@ namespace install
     // new install made it. Install and FindGameInstall call it; one stat when
     // there is nothing to do, and a no-op while an Install is running there.
     void RecoverInterruptedInstall(const std::filesystem::path& destination, const Manifest& manifest = GameManifest());
+
+    // Clears what an install stopped by a crash, a kill or a power cut left
+    // (Install notes the one under way in GetUserPath()/kUnfinishedInstall):
+    // its partial copy, if it is still the installer's own, and the folders
+    // it made that are empty again; a cancelled or failed install cleans up
+    // after itself. A no-op while that install is still running, and when
+    // there is no note. FindGameInstall calls it.
+    void RemoveUnfinishedInstall();
+    inline constexpr const char* kUnfinishedInstall = "install-unfinished";
 
     // Hashes every manifest file in `source` without copying: checks an image
     // before installing, or an installed folder ("verify game files").

@@ -21,6 +21,13 @@
   to the disk and swapped in whole when the game closes the file, so the
   previous save stays intact until then. A copy a crash left behind is
   thrown away at the next start. After Fukami's memory card writes.
+- An install that doesn't finish leaves nothing behind. Cancelled or
+  failed, it already removed its partial copy; now the folders it made for
+  the game go too. Cut short by a crash, a forced quit or a power cut, it
+  left a partial copy of up to 8 GB that only a new install into the same
+  folder cleared; the next start now removes it, wherever it was, with the
+  folders made for it (a folder with anything of yours in it is kept). An
+  add-on pack copy that fails, or that a crash stopped, is removed too.
 
 ## v0.1.14
 
