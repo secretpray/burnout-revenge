@@ -186,6 +186,8 @@ sb_test(suspend_count_test)
 # Settings > Graphics > Vehicle Detail: the car model switch distances
 # (game/vehicle_detail.h, header only).
 sb_test(vehicle_detail_test)
+# Which controller is which player (hid/pad_slots.h, header only).
+sb_test(pad_slots_test)
 # When the mouse cursor shows over the game (ui/cursor_idle.h, header only),
 # and how ui.cpp drives it.
 sb_test(cursor_idle_test ARGS ${RT}/ui/ui.cpp)

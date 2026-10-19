@@ -3,6 +3,7 @@
 #include <stdafx.h>
 #include "input.h"
 #include "key_map.h"
+#include "pad_slots.h"
 #include "rumble_focus.h"
 #include "virtual_wheel.h"
 #include "wheel.h"
@@ -41,103 +42,117 @@ namespace
         int16_t lx = 0, ly = 0, rx = 0, ry = 0;
     };
 
+    // XInput users 0 to 3, one player each (hid/pad_slots.h): user 0 has the
+    // keyboard, the wheel and the scripted input besides its controller.
+    constexpr unsigned kUsers = hid::padslots::kSlots;
+
     std::mutex s_mutex;
-    Pad s_pad;                      // latest sample (devices only)
-    bool s_deviceConnected = false; // a gamepad, or the keyboard of our window
-    uint32_t s_packet = 0;
-    uint16_t s_rumbleLow = 0, s_rumbleHigh = 0;
-    bool s_rumbleDirty = false;
+    Pad s_pads[kUsers];               // latest sample per user (devices only)
+    bool s_connected[kUsers] = {};    // user 0: always, once Initialize ran (the keyboard of our window); others: a controller
+    uint32_t s_packets[kUsers] = {};
+    struct RumbleRequest { uint16_t low = 0, high = 0; bool dirty = false; };
+    RumbleRequest s_rumble[kUsers];
 
-    SDL_Gamepad* s_gamepad = nullptr;
+    // Main thread: each user's controller, and the SDL ids they are.
+    SDL_Gamepad* s_gamepads[kUsers] = {};
+    hid::padslots::Ids s_slots = hid::padslots::Empty();
     hid::RumbleFocus s_rumbleFocus;
-    bool s_rumbleErrorReported = false;
+    bool s_rumbleErrorReported[kUsers] = {};
 
-    void SendRumble(uint16_t low, uint16_t high)
+    void SendRumble(unsigned user, uint16_t low, uint16_t high)
     {
-        if (!s_gamepad)
+        if (!s_gamepads[user])
             return;
-        if (SDL_RumbleGamepad(s_gamepad, low, high, low || high ? 5000 : 0))
-            s_rumbleErrorReported = false;
-        else if (!s_rumbleErrorReported)
+        if (SDL_RumbleGamepad(s_gamepads[user], low, high, low || high ? 5000 : 0))
+            s_rumbleErrorReported[user] = false;
+        else if (!s_rumbleErrorReported[user])
         {
-            fprintf(stderr, "[input] controller rumble failed: %s\n", SDL_GetError());
-            s_rumbleErrorReported = true;
+            fprintf(stderr, "[input] player %u's controller rumble failed: %s\n", user + 1, SDL_GetError());
+            s_rumbleErrorReported[user] = true;
         }
     }
 
     void ApplyRumbleActivity(hid::RumbleFocus::Change change)
     {
         if (change == hid::RumbleFocus::Change::Stop)
-            SendRumble(0, 0);
+        {
+            for (unsigned user = 0; user < kUsers; user++)
+                SendRumble(user, 0, 0);
+        }
         else if (change == hid::RumbleFocus::Change::Restore)
         {
             std::lock_guard lock(s_mutex);
-            s_rumbleDirty = true; // the latest request, not a stale focus-time value
+            for (RumbleRequest& r : s_rumble)
+                r.dirty = true; // the latest request, not a stale focus-time value
         }
     }
     std::atomic<bool> s_blocked{ false };
     // Main thread: buttons held when a menu closed, hidden from the game
-    // until each is released (the B, Start or A that closed it).
-    uint16_t s_latchedButtons = 0;
+    // until each is released (the B, Start or A that closed it). Per user.
+    uint16_t s_latchedButtons[kUsers] = {};
     bool s_wasBlocked = false;
     bool s_scriptSuppressed = false;  // under s_mutex: no scripted input while a menu is open
     std::chrono::steady_clock::time_point s_lastInput;  // main thread: a control last in use (SecondsSinceInput)
     bool s_inputSeen = false;
 
-    // The controller's Back is held back from the game until it's clear it
+    // A controller's Back is held back from the game until it's clear it
     // isn't the start of the Back + Start settings chord: released (then
-    // replayed as a short tap), or held 250 ms without Start. Main thread.
-    // In guest time, so a suspension can't eat the replayed tap.
+    // replayed as a short tap), or held 250 ms without Start. Main thread,
+    // one per user. In guest time, so a suspension can't eat the replayed tap.
     enum class BackState { Idle, Pending, Passing, Replay, Swallow };
-    BackState s_backState = BackState::Idle;
-    int64_t s_backSince = 0;  // guest ns
-
-    bool PadBackForGame(bool back, bool start)
+    struct BackChord
     {
-        int64_t now = guesttime::NowNs();
-        switch (s_backState)
+        BackState state = BackState::Idle;
+        int64_t since = 0;  // guest ns
+
+        bool ForGame(bool back, bool start)
         {
-        case BackState::Idle:
-            if (back)
+            int64_t now = guesttime::NowNs();
+            switch (state)
             {
-                s_backState = start ? BackState::Swallow : BackState::Pending;
-                s_backSince = now;
-            }
-            return false;
-        case BackState::Pending:
-            if (start)
-            {
-                s_backState = BackState::Swallow;  // the chord: the UI has it
+            case BackState::Idle:
+                if (back)
+                {
+                    state = start ? BackState::Swallow : BackState::Pending;
+                    since = now;
+                }
+                return false;
+            case BackState::Pending:
+                if (start)
+                {
+                    state = BackState::Swallow;  // the chord: the UI has it
+                    return false;
+                }
+                if (!back)
+                {
+                    state = BackState::Replay;
+                    since = now;
+                    return true;
+                }
+                if (now - since >= 250'000'000)
+                {
+                    state = BackState::Passing;
+                    return true;
+                }
+                return false;
+            case BackState::Passing:
+                if (!back)
+                    state = BackState::Idle;
+                return back;
+            case BackState::Replay:
+                if (now - since < 100'000'000)
+                    return true;
+                state = BackState::Idle;
+                return false;
+            case BackState::Swallow:
+                if (!back && !start)
+                    state = BackState::Idle;
                 return false;
             }
-            if (!back)
-            {
-                s_backState = BackState::Replay;
-                s_backSince = now;
-                return true;
-            }
-            if (now - s_backSince >= 250'000'000)
-            {
-                s_backState = BackState::Passing;
-                return true;
-            }
-            return false;
-        case BackState::Passing:
-            if (!back)
-                s_backState = BackState::Idle;
-            return back;
-        case BackState::Replay:
-            if (now - s_backSince < 100'000'000)
-                return true;
-            s_backState = BackState::Idle;
-            return false;
-        case BackState::Swallow:
-            if (!back && !start)
-                s_backState = BackState::Idle;
             return false;
         }
-        return false;
-    }
+    };
+    BackChord s_back[kUsers];
 
     // A scripted input: buttons (or analog: RT/LT triggers, LL/LR/LU/LD left
     // stick) held over [time, time + duration).
@@ -291,25 +306,34 @@ namespace
     // device path; this goes through it, so the deadzones and Vibration
     // reach it as they would a real controller, for tests without one. Each
     // step logs what the game then gets; the rumble the game asks for and
-    // the rumble the pad receives are logged.
+    // the rumble the pad receives are logged. BURNOUT_VIRTUAL_PAD2, the same
+    // way, is a second one, attached after it (player 2: hid/pad_slots.h).
+    // "20:DETACH" unplugs a virtual pad for good.
     struct PadStep { double time; SDL_GamepadAxis axis; float value; std::string text; int button = -1; bool down = false; };
     constexpr int kShotStep = -2;  // PadStep::button: a capture, not a button
-    std::vector<PadStep> s_padSteps;
-    size_t s_padNext = 0;
-    SDL_JoystickID s_virtualPadId = 0;
-    SDL_Joystick* s_virtualPad = nullptr;
-
-    bool SDLCALL VirtualPadRumble(void*, Uint16 low, Uint16 high)
+    constexpr int kDetachStep = -3;  // PadStep::button: the pad unplugged
+    struct VirtualPad
     {
-        fprintf(stderr, "[input] virtual pad: rumble low %u, high %u\n", unsigned(low), unsigned(high));
+        std::vector<PadStep> steps;
+        size_t next = 0;
+        SDL_JoystickID id = 0;
+        SDL_Joystick* joystick = nullptr;
+    };
+    VirtualPad s_virtualPads[2];
+    bool s_anyVirtualPad = false;  // then those are the only controllers used
+
+    bool SDLCALL VirtualPadRumble(void* userdata, Uint16 low, Uint16 high)
+    {
+        fprintf(stderr, "[input] virtual pad %d: rumble low %u, high %u\n", int(intptr_t(userdata)), unsigned(low), unsigned(high));
         return true;
     }
 
-    void AttachVirtualPad()
+    void AttachVirtualPad(int number)
     {
-        const char* v = std::getenv("BURNOUT_VIRTUAL_PAD");
+        const char* v = std::getenv(number == 1 ? "BURNOUT_VIRTUAL_PAD" : "BURNOUT_VIRTUAL_PAD2");
         if (!v || !*v)
             return;
+        VirtualPad& pad = s_virtualPads[number - 1];
         // A test's window rarely has the keyboard focus (on the Mac it's
         // started from a shell behind other windows), and without it SDL
         // drops stick and trigger changes: the pad kept its first value.
@@ -335,9 +359,9 @@ namespace
                 { "UP", SDL_GAMEPAD_BUTTON_DPAD_UP }, { "DOWN", SDL_GAMEPAD_BUTTON_DPAD_DOWN },
                 { "LEFT", SDL_GAMEPAD_BUTTON_DPAD_LEFT }, { "RIGHT", SDL_GAMEPAD_BUTTON_DPAD_RIGHT },
             };
-            if (name == "SHOT")
+            if (name == "SHOT" || name == "DETACH")
             {
-                s_padSteps.push_back({ std::atof(item.c_str()), SDL_GAMEPAD_AXIS_INVALID, 0.0f, name, kShotStep, false });
+                pad.steps.push_back({ std::atof(item.c_str()), SDL_GAMEPAD_AXIS_INVALID, 0.0f, name, name == "SHOT" ? kShotStep : kDetachStep, false });
                 continue;
             }
             bool found = false;
@@ -348,13 +372,13 @@ namespace
                     if (equals == std::string::npos)
                     {
                         // A tap: down, and up again 0.15 s later.
-                        s_padSteps.push_back({ at, SDL_GAMEPAD_AXIS_INVALID, 0.0f, name + " down", int(button), true });
-                        s_padSteps.push_back({ at + 0.15, SDL_GAMEPAD_AXIS_INVALID, 0.0f, name + " up", int(button), false });
+                        pad.steps.push_back({ at, SDL_GAMEPAD_AXIS_INVALID, 0.0f, name + " down", int(button), true });
+                        pad.steps.push_back({ at + 0.15, SDL_GAMEPAD_AXIS_INVALID, 0.0f, name + " up", int(button), false });
                     }
                     else
                     {
                         const bool down = std::atof(item.c_str() + equals + 1) != 0.0;
-                        s_padSteps.push_back({ at, SDL_GAMEPAD_AXIS_INVALID, 0.0f, name + (down ? " down" : " up"), int(button), down });
+                        pad.steps.push_back({ at, SDL_GAMEPAD_AXIS_INVALID, 0.0f, name + (down ? " down" : " up"), int(button), down });
                     }
                     found = true;
                 }
@@ -368,53 +392,64 @@ namespace
             for (auto& [n, axis] : axes)
                 if (name == n)
                 {
-                    s_padSteps.push_back({ std::atof(item.c_str()), axis, float(std::atof(item.c_str() + equals + 1)), item.substr(colon + 1) });
+                    pad.steps.push_back({ std::atof(item.c_str()), axis, float(std::atof(item.c_str() + equals + 1)), item.substr(colon + 1) });
                     found = true;
                 }
             if (!found)
                 fprintf(stderr, "[input] BURNOUT_VIRTUAL_PAD: unknown axis in \"%s\"\n", item.c_str());
         }
-        std::stable_sort(s_padSteps.begin(), s_padSteps.end(), [](const PadStep& a, const PadStep& b) { return a.time < b.time; });
+        std::stable_sort(pad.steps.begin(), pad.steps.end(), [](const PadStep& a, const PadStep& b) { return a.time < b.time; });
         SDL_VirtualJoystickDesc desc;
         SDL_INIT_INTERFACE(&desc);
         desc.type = SDL_JOYSTICK_TYPE_GAMEPAD;
         desc.naxes = SDL_GAMEPAD_AXIS_COUNT;
         desc.nbuttons = SDL_GAMEPAD_BUTTON_COUNT;
-        desc.name = "BurnoutRevenge virtual pad";
+        desc.name = number == 1 ? "BurnoutRevenge virtual pad" : "BurnoutRevenge virtual pad 2";
         desc.Rumble = VirtualPadRumble;
-        s_virtualPadId = SDL_AttachVirtualJoystick(&desc);
-        s_virtualPad = s_virtualPadId ? SDL_OpenJoystick(s_virtualPadId) : nullptr;
-        if (!s_virtualPad)
+        desc.userdata = reinterpret_cast<void*>(intptr_t(number));
+        pad.id = SDL_AttachVirtualJoystick(&desc);
+        pad.joystick = pad.id ? SDL_OpenJoystick(pad.id) : nullptr;
+        if (!pad.joystick)
         {
-            fprintf(stderr, "[input] BURNOUT_VIRTUAL_PAD: no virtual controller: %s\n", SDL_GetError());
+            fprintf(stderr, "[input] virtual pad %d: no virtual controller: %s\n", number, SDL_GetError());
             return;
         }
-        fprintf(stderr, "[input] virtual pad attached, %zu steps\n", s_padSteps.size());
+        s_anyVirtualPad = true;
+        fprintf(stderr, "[input] virtual pad %d attached, %zu steps\n", number, pad.steps.size());
     }
 
-    // Moves the virtual pad's axes due by now. Returns the steps taken ("" if none).
-    std::string StepVirtualPad()
+    // Moves a virtual pad's axes due by now. Returns the steps taken ("" if none).
+    std::string StepVirtualPad(VirtualPad& pad)
     {
-        if (!s_virtualPad || s_padNext >= s_padSteps.size())
+        if (!pad.joystick || pad.next >= pad.steps.size())
             return {};
         double t = SecondsSinceLaunch();
         std::string taken;
         uint32_t changed = 0;  // buttons changed this frame
-        for (; s_padNext < s_padSteps.size() && s_padSteps[s_padNext].time <= t; s_padNext++)
+        for (; pad.next < pad.steps.size() && pad.steps[pad.next].time <= t; pad.next++)
         {
-            const PadStep& step = s_padSteps[s_padNext];
+            const PadStep& step = pad.steps[pad.next];
             if (step.button == kShotStep)
             {
                 ui::RequestShot();
                 taken += (taken.empty() ? "" : " ") + step.text;
                 continue;
             }
+            if (step.button == kDetachStep)
+            {
+                // SDL then sends the removal, as for a real one.
+                SDL_CloseJoystick(pad.joystick);
+                SDL_DetachVirtualJoystick(pad.id);
+                pad.joystick = nullptr;
+                pad.next = pad.steps.size();
+                return taken + (taken.empty() ? "" : " ") + step.text;
+            }
             if (step.button >= 0)
             {
                 if (changed & (1u << step.button))
                     break;  // its next change waits a frame (the steps stay in order)
                 changed |= 1u << step.button;
-                SDL_SetJoystickVirtualButton(s_virtualPad, step.button, step.down);
+                SDL_SetJoystickVirtualButton(pad.joystick, step.button, step.down);
                 taken += (taken.empty() ? "" : " ") + step.text;
                 continue;
             }
@@ -424,7 +459,7 @@ namespace
                 value = -value;  // SDL: down is positive
             // A virtual gamepad's triggers span the whole axis (-32768 is released).
             float raw = trigger ? std::clamp(value, 0.0f, 1.0f) * 65535.0f - 32768.0f : std::clamp(value, -1.0f, 1.0f) * 32767.0f;
-            SDL_SetJoystickVirtualAxis(s_virtualPad, int(step.axis), Sint16(std::lround(std::clamp(raw, -32768.0f, 32767.0f))));
+            SDL_SetJoystickVirtualAxis(pad.joystick, int(step.axis), Sint16(std::lround(std::clamp(raw, -32768.0f, 32767.0f))));
             taken += (taken.empty() ? "" : " ") + step.text;
         }
         if (!taken.empty())
@@ -432,44 +467,81 @@ namespace
         return taken;
     }
 
-    void OpenFirstGamepad()
+    // The controllers that may take a player's slot, in the order they
+    // connected: the test's own pads when it has any (a real controller
+    // nearby must not play or rumble), else every gamepad but a wheel SDL
+    // happens to have a gamepad mapping for, which belongs to the wheel:
+    // one device, one owner (hid/wheel.h).
+    std::vector<int64_t> UsableGamepads()
     {
-        if (s_gamepad)
-            return;
-        if (s_virtualPad)
+        std::vector<int64_t> usable;
+        if (s_anyVirtualPad)
         {
-            // Only the test's pad: a real controller nearby must not rumble.
-            s_gamepad = SDL_OpenGamepad(s_virtualPadId);
-            if (s_gamepad)
-                fprintf(stderr, "[input] gamepad: %s\n", SDL_GetGamepadName(s_gamepad));
-            return;
+            for (const VirtualPad& pad : s_virtualPads)
+                if (pad.joystick && SDL_IsGamepad(pad.id))
+                    usable.push_back(pad.id);
+            return usable;
         }
         int count = 0;
         SDL_JoystickID* ids = SDL_GetGamepads(&count);
-        // A wheel SDL happens to have a gamepad mapping for belongs to the
-        // wheel, not to this path: one device, one owner (hid/wheel.h).
-        SDL_JoystickID pick = 0;
-        for (int i = 0; ids && i < count && !pick; i++)
+        for (int i = 0; ids && i < count; i++)
             if (!hid::wheel::Owns(ids[i]))
-                pick = ids[i];
-        if (pick)
-        {
-            s_gamepad = SDL_OpenGamepad(pick);
-            if (s_gamepad)
-            {
-                // What it can do: a pad without motors takes rumble and ignores it.
-                SDL_PropertiesID props = SDL_GetGamepadProperties(s_gamepad);
-                fprintf(stderr, "[input] gamepad: %s (rumble %s, trigger rumble %s)\n", SDL_GetGamepadName(s_gamepad),
-                    SDL_GetBooleanProperty(props, SDL_PROP_GAMEPAD_CAP_RUMBLE_BOOLEAN, false) ? "yes" : "no",
-                    SDL_GetBooleanProperty(props, SDL_PROP_GAMEPAD_CAP_TRIGGER_RUMBLE_BOOLEAN, false) ? "yes" : "no");
-                const auto connection = SDL_GetGamepadConnectionState(s_gamepad);
-                fprintf(stderr, "[input] controller transport: %s\n",
-                    connection == SDL_JOYSTICK_CONNECTION_WIRED ? "wired" :
-                    connection == SDL_JOYSTICK_CONNECTION_WIRELESS ? "wireless" : "unknown");
-                s_rumbleErrorReported = false;
-            }
-        }
+                usable.push_back(ids[i]);
         SDL_free(ids);
+        return usable;
+    }
+
+    void LogGamepad(unsigned user, SDL_Gamepad* gamepad)
+    {
+        // What it can do: a pad without motors takes rumble and ignores it.
+        SDL_PropertiesID props = SDL_GetGamepadProperties(gamepad);
+        const auto connection = SDL_GetGamepadConnectionState(gamepad);
+        fprintf(stderr, "[input] player %u: %s (rumble %s, trigger rumble %s; transport %s)\n", user + 1,
+            SDL_GetGamepadName(gamepad),
+            SDL_GetBooleanProperty(props, SDL_PROP_GAMEPAD_CAP_RUMBLE_BOOLEAN, false) ? "yes" : "no",
+            SDL_GetBooleanProperty(props, SDL_PROP_GAMEPAD_CAP_TRIGGER_RUMBLE_BOOLEAN, false) ? "yes" : "no",
+            connection == SDL_JOYSTICK_CONNECTION_WIRED ? "wired" :
+            connection == SDL_JOYSTICK_CONNECTION_WIRELESS ? "wireless" : "unknown");
+    }
+
+    // Main thread, as controllers come and go: the players' slots
+    // (hid/pad_slots.h) and their open controllers brought in step. A
+    // controller that moves to another player keeps its handle; one that
+    // leaves its slot is stopped and closed.
+    void SyncGamepads()
+    {
+        const hid::padslots::Ids before = s_slots;
+        if (!hid::padslots::Update(s_slots, UsableGamepads()))
+            return;
+        SDL_Gamepad* open[kUsers] = {};
+        for (unsigned user = 0; user < kUsers; user++)
+        {
+            if (s_slots[user] == hid::padslots::kEmpty)
+                continue;
+            const int was = hid::padslots::SlotOf(before, s_slots[user]);
+            open[user] = was >= 0 ? s_gamepads[was] : SDL_OpenGamepad(SDL_JoystickID(s_slots[user]));
+        }
+        for (unsigned user = 0; user < kUsers; user++)
+        {
+            SDL_Gamepad* gamepad = s_gamepads[user];
+            if (!gamepad || hid::padslots::SlotOf(s_slots, before[user]) >= 0)
+                continue;
+            SendRumble(user, 0, 0);
+            SDL_CloseGamepad(gamepad);
+            fprintf(stderr, "[input] player %u's controller removed\n", user + 1);
+        }
+        for (unsigned user = 0; user < kUsers; user++)
+            if (open[user] && hid::padslots::SlotOf(before, s_slots[user]) != int(user))
+                LogGamepad(user, open[user]);
+        std::lock_guard lock(s_mutex);
+        for (unsigned user = 0; user < kUsers; user++)
+        {
+            s_gamepads[user] = open[user];
+            s_rumbleErrorReported[user] = false;
+            s_rumble[user].dirty = true;  // the request for this player reaches the controller it has now
+            if (user > 0)
+                s_connected[user] = open[user] != nullptr;
+        }
     }
 
 #if defined(__APPLE__) && TARGET_OS_IOS
@@ -500,7 +572,7 @@ namespace
             return;
         s_noControllerAt = 0;
         // (BURNOUT_INPUT_SCRIPT is the controller of an automated run.)
-        if (s_gamepad || hid::wheel::Playing() || SDL_HasKeyboard() || !s_script.empty())
+        if (s_gamepads[0] || hid::wheel::Playing() || SDL_HasKeyboard() || !s_script.empty())
             return;
         fprintf(stderr, "[input] no controller: %s\n", s_noControllerText);
         ui::Toast(s_noControllerText, 10.0);
@@ -562,19 +634,20 @@ namespace hid
         // Keyboard input comes from Cocoa events, never a raw/exclusive HID handle.
         SDL_SetHint(SDL_HINT_HIDAPI_ENUMERATE_ONLY_CONTROLLERS, "1");
 #endif
-        AttachVirtualPad();
+        AttachVirtualPad(1);
+        AttachVirtualPad(2);
         // A steering wheel (hid/wheel.h), unless this run has the test's
-        // own controller: then that is the only device. The test's own
+        // own controllers: then those are the only devices. The test's own
         // wheel (BURNOUT_VIRTUAL_WHEEL, hid/virtual_wheel.h) is found as a
         // real one would be.
-        if (!s_virtualPad)
+        if (!s_anyVirtualPad)
         {
             virtual_wheel::Attach();
             wheel::Initialize();
         }
-        OpenFirstGamepad();
+        SyncGamepads();
         std::lock_guard lock(s_mutex);
-        s_deviceConnected = true;  // the keyboard always counts as controller 0
+        s_connected[0] = true;  // the keyboard always counts as player 1's controller
     }
 
     void NoteGameStarting()
@@ -704,23 +777,25 @@ namespace hid
             if (e.type == SDL_EVENT_KEYBOARD_ADDED) WithdrawNoControllerNotice();
 #endif
         }
-        else if (e.type == SDL_EVENT_GAMEPAD_ADDED)
+        else if (e.type == SDL_EVENT_GAMEPAD_ADDED || e.type == SDL_EVENT_JOYSTICK_ADDED)
         {
-            OpenFirstGamepad();
+            // (A joystick too: a wheel that comes takes its device, which
+            // may have looked like a gamepad.)
+            SyncGamepads();
 #if defined(__APPLE__) && TARGET_OS_IOS
-            if (s_gamepad || wheel::Playing())
+            if (s_gamepads[0] || wheel::Playing())
                 WithdrawNoControllerNotice();
 #endif
         }
-        else if (e.type == SDL_EVENT_GAMEPAD_REMOVED && s_gamepad && e.gdevice.which == SDL_GetGamepadID(s_gamepad))
+        else if (e.type == SDL_EVENT_GAMEPAD_REMOVED || e.type == SDL_EVENT_JOYSTICK_REMOVED)
         {
-            SDL_CloseGamepad(s_gamepad);
-            s_gamepad = nullptr;
-            fprintf(stderr, "[input] gamepad removed\n");
-            OpenFirstGamepad();
+            const bool hadOne = s_gamepads[0] != nullptr;
+            SyncGamepads();
 #if defined(__APPLE__) && TARGET_OS_IOS
-            if (!s_gamepad && !wheel::Playing())
+            if (hadOne && !s_gamepads[0] && !wheel::Playing())
                 NoControllerNoticeIn(1'000'000'000, kControllerGone);
+#else
+            (void)hadOne;
 #endif
         }
 
@@ -729,12 +804,13 @@ namespace hid
     void Shutdown()
     {
         wheel::Shutdown();
-        if (s_gamepad)
-        {
-            SendRumble(0, 0);
-            SDL_CloseGamepad(s_gamepad);
-            s_gamepad = nullptr;
-        }
+        for (unsigned user = 0; user < kUsers; user++)
+            if (s_gamepads[user])
+            {
+                SendRumble(user, 0, 0);
+                SDL_CloseGamepad(s_gamepads[user]);
+                s_gamepads[user] = nullptr;
+            }
     }
 
     void Suspend()
@@ -774,195 +850,228 @@ namespace hid
         // when one of our panels draws a hint.
         if (!s_glyphsKnown)
             LastGlyphs();
-        Pad p;
-        float lx = 0, ly = 0, rx = 0, ry = 0, lt = 0, rt = 0;
-        bool padBack = false;  // the controller's Back, as the device reports it
-        float rawX = 0, rawY = 0;  // the left stick before its deadzone (BURNOUT_INPUT_LOG)
-        const std::string padSteps = StepVirtualPad();
+        const std::string padSteps[2] = { StepVirtualPad(s_virtualPads[0]), StepVirtualPad(s_virtualPads[1]) };
         if (const std::string wheelSteps = virtual_wheel::Step(SecondsSinceLaunch()); !wheelSteps.empty())
             fprintf(stderr, "[wheel] virtual wheel %s\n", wheelSteps.c_str());
         const float deadzone = settings::GetFloat(settings::Id::StickDeadzone);
         const float triggerDeadzone = settings::GetFloat(settings::Id::TriggerDeadzone);
         // A steering wheel first, while one is plugged in and Settings >
-        // Wheel has it on: it brings its own steering curve and its pedals
-        // their own calibration (hid/wheel_map.h), so the stick's radial
-        // deadzone has nothing to do here. A button bound to push the right
-        // stick (none by default in Burnout: hid/wheel_map.h) does so.
+        // Wheel has it on: it is player 1's, in place of a controller. It
+        // brings its own steering curve and its pedals their own
+        // calibration (hid/wheel_map.h), so the stick's radial deadzone has
+        // nothing to do here. A button bound to push the right stick (none
+        // by default in Burnout: hid/wheel_map.h) does so.
         wheel::Reading wheelRead;
         const bool onWheel = wheel::Sample(wheelRead);
-        if (onWheel)
+        // While a menu has the input the game sees idle pads; after it
+        // closes, each button still held stays hidden until released, so the
+        // press that closed the menu (B, Start, Esc) doesn't reach the game.
+        const bool blocked = s_blocked.load(std::memory_order_relaxed);
+        Pad pads[kUsers];
+        for (unsigned user = 0; user < kUsers; user++)
         {
-            p.buttons = uint16_t(wheelRead.buttons & ~uint16_t(XAMINPUT_GAMEPAD_BACK));
-            padBack = wheelRead.back;
-            if (PadBackForGame(padBack, wheelRead.start))
-                p.buttons |= XAMINPUT_GAMEPAD_BACK;
-            lx = wheelRead.steer;
-            ry = float(wheelRead.rightY) / 32767.0f;
-            lt = wheelRead.brake;
-            rt = wheelRead.throttle;
-            rawX = lx;
-            rawY = ly;
-        }
-        else if (s_gamepad)
-        {
-            static const std::pair<SDL_GamepadButton, uint16_t> map[] = {
-                { SDL_GAMEPAD_BUTTON_SOUTH, XAMINPUT_GAMEPAD_A }, { SDL_GAMEPAD_BUTTON_EAST, XAMINPUT_GAMEPAD_B },
-                { SDL_GAMEPAD_BUTTON_WEST, XAMINPUT_GAMEPAD_X }, { SDL_GAMEPAD_BUTTON_NORTH, XAMINPUT_GAMEPAD_Y },
-                { SDL_GAMEPAD_BUTTON_BACK, XAMINPUT_GAMEPAD_BACK }, { SDL_GAMEPAD_BUTTON_START, XAMINPUT_GAMEPAD_START },
-                { SDL_GAMEPAD_BUTTON_LEFT_STICK, XAMINPUT_GAMEPAD_LEFT_THUMB },
-                { SDL_GAMEPAD_BUTTON_RIGHT_STICK, XAMINPUT_GAMEPAD_RIGHT_THUMB },
-                { SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, XAMINPUT_GAMEPAD_LEFT_SHOULDER },
-                { SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER, XAMINPUT_GAMEPAD_RIGHT_SHOULDER },
-                { SDL_GAMEPAD_BUTTON_DPAD_UP, XAMINPUT_GAMEPAD_DPAD_UP }, { SDL_GAMEPAD_BUTTON_DPAD_DOWN, XAMINPUT_GAMEPAD_DPAD_DOWN },
-                { SDL_GAMEPAD_BUTTON_DPAD_LEFT, XAMINPUT_GAMEPAD_DPAD_LEFT }, { SDL_GAMEPAD_BUTTON_DPAD_RIGHT, XAMINPUT_GAMEPAD_DPAD_RIGHT },
-            };
-            for (auto& [button, bit] : map)
-                if (bit != XAMINPUT_GAMEPAD_BACK && SDL_GetGamepadButton(s_gamepad, button))
-                    p.buttons |= bit;
-            padBack = SDL_GetGamepadButton(s_gamepad, SDL_GAMEPAD_BUTTON_BACK);
-            if (PadBackForGame(padBack, SDL_GetGamepadButton(s_gamepad, SDL_GAMEPAD_BUTTON_START)))
-                p.buttons |= XAMINPUT_GAMEPAD_BACK;
-            auto axis = [](SDL_Gamepad* g, SDL_GamepadAxis a) { return float(SDL_GetGamepadAxis(g, a)) / 32767.0f; };
-            lx = axis(s_gamepad, SDL_GAMEPAD_AXIS_LEFTX);
-            ly = -axis(s_gamepad, SDL_GAMEPAD_AXIS_LEFTY);  // XInput: up is positive
-            rx = axis(s_gamepad, SDL_GAMEPAD_AXIS_RIGHTX);
-            ry = -axis(s_gamepad, SDL_GAMEPAD_AXIS_RIGHTY);
-            lt = axis(s_gamepad, SDL_GAMEPAD_AXIS_LEFT_TRIGGER);
-            rt = axis(s_gamepad, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER);
-            rawX = lx;
-            rawY = ly;
-            ApplyDeadzone(lx, ly, deadzone);
-            ApplyDeadzone(rx, ry, deadzone);
-        }
-        const float rawLt = lt, rawRt = rt;
+            Pad& p = pads[user];
+            SDL_Gamepad* gamepad = s_gamepads[user];
+            float lx = 0, ly = 0, rx = 0, ry = 0, lt = 0, rt = 0;
+            bool padBack = false;  // the controller's Back, as the device reports it
+            float rawX = 0, rawY = 0;  // the left stick before its deadzone (BURNOUT_INPUT_LOG)
+            if (user == 0 && onWheel)
+            {
+                p.buttons = uint16_t(wheelRead.buttons & ~uint16_t(XAMINPUT_GAMEPAD_BACK));
+                padBack = wheelRead.back;
+                if (s_back[user].ForGame(padBack, wheelRead.start))
+                    p.buttons |= XAMINPUT_GAMEPAD_BACK;
+                lx = wheelRead.steer;
+                ry = float(wheelRead.rightY) / 32767.0f;
+                lt = wheelRead.brake;
+                rt = wheelRead.throttle;
+                rawX = lx;
+                rawY = ly;
+            }
+            else if (gamepad)
+            {
+                static const std::pair<SDL_GamepadButton, uint16_t> map[] = {
+                    { SDL_GAMEPAD_BUTTON_SOUTH, XAMINPUT_GAMEPAD_A }, { SDL_GAMEPAD_BUTTON_EAST, XAMINPUT_GAMEPAD_B },
+                    { SDL_GAMEPAD_BUTTON_WEST, XAMINPUT_GAMEPAD_X }, { SDL_GAMEPAD_BUTTON_NORTH, XAMINPUT_GAMEPAD_Y },
+                    { SDL_GAMEPAD_BUTTON_BACK, XAMINPUT_GAMEPAD_BACK }, { SDL_GAMEPAD_BUTTON_START, XAMINPUT_GAMEPAD_START },
+                    { SDL_GAMEPAD_BUTTON_LEFT_STICK, XAMINPUT_GAMEPAD_LEFT_THUMB },
+                    { SDL_GAMEPAD_BUTTON_RIGHT_STICK, XAMINPUT_GAMEPAD_RIGHT_THUMB },
+                    { SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, XAMINPUT_GAMEPAD_LEFT_SHOULDER },
+                    { SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER, XAMINPUT_GAMEPAD_RIGHT_SHOULDER },
+                    { SDL_GAMEPAD_BUTTON_DPAD_UP, XAMINPUT_GAMEPAD_DPAD_UP }, { SDL_GAMEPAD_BUTTON_DPAD_DOWN, XAMINPUT_GAMEPAD_DPAD_DOWN },
+                    { SDL_GAMEPAD_BUTTON_DPAD_LEFT, XAMINPUT_GAMEPAD_DPAD_LEFT }, { SDL_GAMEPAD_BUTTON_DPAD_RIGHT, XAMINPUT_GAMEPAD_DPAD_RIGHT },
+                };
+                for (auto& [button, bit] : map)
+                    if (bit != XAMINPUT_GAMEPAD_BACK && SDL_GetGamepadButton(gamepad, button))
+                        p.buttons |= bit;
+                padBack = SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_BACK);
+                if (s_back[user].ForGame(padBack, SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_START)))
+                    p.buttons |= XAMINPUT_GAMEPAD_BACK;
+                auto axis = [](SDL_Gamepad* g, SDL_GamepadAxis a) { return float(SDL_GetGamepadAxis(g, a)) / 32767.0f; };
+                lx = axis(gamepad, SDL_GAMEPAD_AXIS_LEFTX);
+                ly = -axis(gamepad, SDL_GAMEPAD_AXIS_LEFTY);  // XInput: up is positive
+                rx = axis(gamepad, SDL_GAMEPAD_AXIS_RIGHTX);
+                ry = -axis(gamepad, SDL_GAMEPAD_AXIS_RIGHTY);
+                lt = axis(gamepad, SDL_GAMEPAD_AXIS_LEFT_TRIGGER);
+                rt = axis(gamepad, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER);
+                rawX = lx;
+                rawY = ly;
+                ApplyDeadzone(lx, ly, deadzone);
+                ApplyDeadzone(rx, ry, deadzone);
+            }
+            const float rawLt = lt, rawRt = rt;
 
-        // Keyboard (digital; replaces the controller's value for what it
-        // touches): each control's key is Settings > Controls (the Key
-        // options), resolved by key_map.h. A key is a scancode SDL's state
-        // array is indexed by; an out-of-range value (a hand edit beat
-        // Load's checks) counts as not held.
-        // Cmd+Tab/H/M and other macOS shortcuts belong to the application,
-        // not to the driving key map. Do not turn their held letters into gas,
-        // steering or menu actions while Command is down. No global key hook.
-        const bool appShortcut = (SDL_GetModState() & SDL_KMOD_GUI) != 0;
-        if (const bool* k = SDL_GetKeyboardFocus() && !appShortcut ? SDL_GetKeyboardState(nullptr) : nullptr)
-        {
-            bool pressed[keymap::kControls] = {};
-            auto down = [&](settings::Id id) {
-                int code = settings::GetInt(id);  // 0: no key
-                return code > 0 && code < SDL_SCANCODE_COUNT && k[code];
-            };
-            for (size_t i = 0; i < keymap::kControls; i++)
-                pressed[i] = down(keymap::kEntries[i].id) || down(keymap::kEntries[i].id2);
-            keymap::Resolved r = keymap::Resolve(pressed);
-            p.buttons |= r.buttons;
-            if (r.rightTrigger)
-                rt = 1.0f;
-            if (r.leftTrigger)
-                lt = 1.0f;
-            float* axes[size_t(keymap::Axis::Count)] = { &lx, &ly, &rx, &ry };  // Axis order: LX, LY, RX, RY
-            for (size_t a = 0; a < size_t(keymap::Axis::Count); a++)
-                if (r.axisSet[a])
-                    *axes[a] = r.axis[a];
-        }
-        p.lx = ToShort(lx);
-        p.ly = ToShort(ly);
-        p.rx = ToShort(rx);
-        p.ry = ToShort(ry);
-        p.leftTrigger = Trigger(lt, triggerDeadzone);
-        p.rightTrigger = Trigger(rt, triggerDeadzone);
-        if (s_gamepad || onWheel)
-            LogStick(rawX, rawY, lx, ly, rawLt, rawRt, p.leftTrigger, p.rightTrigger);
-        if (!padSteps.empty())
-            fprintf(stderr, "[input] virtual pad %s: left stick raw (%+.4f, %+.4f) -> game (%d, %d), right (%d, %d); "
-                            "triggers raw (%.3f, %.3f) -> game (%u, %u); deadzones: stick %.2f, trigger %.2f%s\n",
-                padSteps.c_str(), rawX, rawY, int(p.lx), int(p.ly), int(p.rx), int(p.ry), rawLt, rawRt,
-                unsigned(p.leftTrigger), unsigned(p.rightTrigger), deadzone, triggerDeadzone,
-                s_blocked.load(std::memory_order_relaxed) ? " (a menu is open: the game sees an idle pad)" : "");
+            // Keyboard, player 1's (digital; replaces the controller's
+            // value for what it touches): each control's key is Settings >
+            // Controls (the Key options), resolved by key_map.h. A key is a
+            // scancode SDL's state array is indexed by; an out-of-range
+            // value (a hand edit beat Load's checks) counts as not held.
+            // Cmd+Tab/H/M and other macOS shortcuts belong to the application,
+            // not to the driving key map. Do not turn their held letters into gas,
+            // steering or menu actions while Command is down. No global key hook.
+            const bool appShortcut = (SDL_GetModState() & SDL_KMOD_GUI) != 0;
+            if (const bool* k = user == 0 && SDL_GetKeyboardFocus() && !appShortcut ? SDL_GetKeyboardState(nullptr) : nullptr)
+            {
+                bool pressed[keymap::kControls] = {};
+                auto down = [&](settings::Id id) {
+                    int code = settings::GetInt(id);  // 0: no key
+                    return code > 0 && code < SDL_SCANCODE_COUNT && k[code];
+                };
+                for (size_t i = 0; i < keymap::kControls; i++)
+                    pressed[i] = down(keymap::kEntries[i].id) || down(keymap::kEntries[i].id2);
+                keymap::Resolved r = keymap::Resolve(pressed);
+                p.buttons |= r.buttons;
+                if (r.rightTrigger)
+                    rt = 1.0f;
+                if (r.leftTrigger)
+                    lt = 1.0f;
+                float* axes[size_t(keymap::Axis::Count)] = { &lx, &ly, &rx, &ry };  // Axis order: LX, LY, RX, RY
+                for (size_t a = 0; a < size_t(keymap::Axis::Count); a++)
+                    if (r.axisSet[a])
+                        *axes[a] = r.axis[a];
+            }
+            p.lx = ToShort(lx);
+            p.ly = ToShort(ly);
+            p.rx = ToShort(rx);
+            p.ry = ToShort(ry);
+            p.leftTrigger = Trigger(lt, triggerDeadzone);
+            p.rightTrigger = Trigger(rt, triggerDeadzone);
+            if (user == 0 && (gamepad || onWheel))
+                LogStick(rawX, rawY, lx, ly, rawLt, rawRt, p.leftTrigger, p.rightTrigger);
+            for (int v = 0; v < 2; v++)
+                if (gamepad && !padSteps[v].empty() && SDL_GetGamepadID(gamepad) == s_virtualPads[v].id)
+                    fprintf(stderr, "[input] virtual pad %d (player %u) %s: left stick raw (%+.4f, %+.4f) -> game (%d, %d), right (%d, %d); "
+                                    "triggers raw (%.3f, %.3f) -> game (%u, %u); deadzones: stick %.2f, trigger %.2f%s\n",
+                        v + 1, user + 1, padSteps[v].c_str(), rawX, rawY, int(p.lx), int(p.ly), int(p.rx), int(p.ry), rawLt, rawRt,
+                        unsigned(p.leftTrigger), unsigned(p.rightTrigger), deadzone, triggerDeadzone,
+                        blocked ? " (a menu is open: the game sees an idle pad)" : "");
 
-        // The last time anything was pressed or moved, the script's taps
-        // included (SecondsSinceInput).
-        {
+            // The last time anything was pressed or moved, the script's taps
+            // included (SecondsSinceInput).
             Pad scripted = p;
-            ApplyScript(scripted);
+            if (user == 0)
+                ApplyScript(scripted);
             if (scripted.buttons || scripted.leftTrigger || scripted.rightTrigger || scripted.lx || scripted.ly || scripted.rx ||
                 scripted.ry || !s_inputSeen)
             {
                 s_lastInput = std::chrono::steady_clock::now();
                 s_inputSeen = true;
             }
+
+            if (s_wasBlocked && !blocked)
+                s_latchedButtons[user] = p.buttons;
+            // A Back pressed in the menu (or the one that closed it) is never replayed.
+            if ((blocked || s_wasBlocked) && padBack)
+                s_back[user].state = BackState::Swallow;
+            s_latchedButtons[user] &= p.buttons;
+            if (blocked)
+                p = Pad{};
+            else
+                p.buttons &= ~s_latchedButtons[user];
         }
-
-        // While a menu has the input the game sees an idle pad; after it
-        // closes, each button still held stays hidden until released, so the
-        // press that closed the menu (B, Start, Esc) doesn't reach the game.
-        bool blocked = s_blocked.load(std::memory_order_relaxed);
-        if (s_wasBlocked && !blocked)
-            s_latchedButtons = p.buttons;
-        // A Back pressed in the menu (or the one that closed it) is never replayed.
-        if ((blocked || s_wasBlocked) && padBack)
-            s_backState = BackState::Swallow;
         s_wasBlocked = blocked;
-        s_latchedButtons &= p.buttons;
-        if (blocked)
-            p = Pad{};
-        else
-            p.buttons &= ~s_latchedButtons;
 
-        uint16_t low, high;
-        bool rumble;
+        RumbleRequest requests[kUsers];
         {
             std::lock_guard lock(s_mutex);
-            s_pad = p;
+            for (unsigned user = 0; user < kUsers; user++)
+            {
+                s_pads[user] = pads[user];
+                requests[user] = s_rumble[user];
+                s_rumble[user].dirty = false;
+            }
             s_scriptSuppressed = blocked;
-            rumble = s_rumbleDirty;
-            s_rumbleDirty = false;
-            low = s_rumbleLow;
-            high = s_rumbleHigh;
         }
         static bool vibration = true;
+        bool vibrationChanged = false;
         if (bool on = settings::GetBool(settings::Id::Vibration); on != vibration)
         {
             vibration = on;
-            rumble = true;  // stop (or restart) a rumble under way
+            vibrationChanged = true;  // stop (or restart) a rumble under way
         }
-        if (rumble && s_virtualPad)
+        uint16_t wheelLow = 0, wheelHigh = 0;
+        for (unsigned user = 0; user < kUsers; user++)
         {
-            // What the game asked for and what the controller gets, on
-            // change. Only with the test's pad: while driving the game
-            // changes its request every frame, which would be a line a frame
-            // in a player's last-run.log (burnout-revenge.sh sets BURNOUT_INPUT_LOG).
-            static uint64_t logged = ~0ull;
-            uint64_t now = uint64_t(low) << 17 | uint64_t(high) << 1 | (vibration ? 1u : 0u);
-            if (now != logged)
+            uint16_t low = requests[user].low, high = requests[user].high;
+            const bool rumble = requests[user].dirty || vibrationChanged;
+            if (rumble && s_anyVirtualPad)
             {
-                logged = now;
-                fprintf(stderr, "[input] rumble: game low %u, high %u; Vibration %s%s\n", unsigned(low), unsigned(high),
-                    vibration ? "on" : "off (the controller gets 0)", s_gamepad ? "" : "; no controller");
+                // What the game asked for and what the controller gets, on
+                // change. Only with the test's pads: while driving the game
+                // changes its request every frame, which would be a line a frame
+                // in a player's last-run.log (burnout-revenge.sh sets BURNOUT_INPUT_LOG).
+                static uint64_t logged[kUsers] = { ~0ull, ~0ull, ~0ull, ~0ull };
+                uint64_t now = uint64_t(low) << 17 | uint64_t(high) << 1 | (vibration ? 1u : 0u);
+                if (now != logged[user] && (user == 0 || s_gamepads[user]))
+                {
+                    logged[user] = now;
+                    fprintf(stderr, "[input] rumble, player %u: game low %u, high %u; Vibration %s%s\n", user + 1, unsigned(low),
+                        unsigned(high), vibration ? "on" : "off (the controller gets 0)", s_gamepads[user] ? "" : "; no controller");
+                }
+            }
+            if (!vibration)
+                low = high = 0;
+            s_rumbleFocus.Filter(low, high);
+            if (rumble && s_gamepads[user])
+                SendRumble(user, low, high);
+            if (user == 0)
+            {
+                wheelLow = low;
+                wheelHigh = high;
             }
         }
-        if (!vibration)
-            low = high = 0;
-        s_rumbleFocus.Filter(low, high);
-        if (rumble && s_gamepad)
-            SendRumble(low, high);
-        // The wheel's own force feedback: every frame, since Settings >
-        // Wheel > Force Feedback and Centering Force can change under it
-        // without the game asking for anything new.
-        wheel::Rumble(low, high, vibration);
+        // The wheel's own force feedback, player 1's: every frame, since
+        // Settings > Wheel > Force Feedback and Centering Force can change
+        // under it without the game asking for anything new.
+        wheel::Rumble(wheelLow, wheelHigh, vibration);
         wheel::Update();
     }
 }
 
 namespace
 {
-    // The pad as the game sees it: devices plus scripted taps. Caller holds s_mutex.
-    Pad CurrentPadLocked()
+    // A user's pad as the game sees it: devices, plus scripted taps for
+    // player 1. Caller holds s_mutex.
+    Pad CurrentPadLocked(unsigned user)
     {
-        Pad p = s_pad;
-        if (!s_scriptSuppressed)
+        Pad p = s_pads[user];
+        if (user == 0 && !s_scriptSuppressed)
             ApplyScript(p);
         return p;
+    }
+
+    // Whether the game finds a controller as `user` (0 to 3). Player 1
+    // always has one: the keyboard, or the script of an automated run.
+    // Caller holds s_mutex.
+    bool ConnectedLocked(unsigned user)
+    {
+        return user < kUsers && (s_connected[user] || (user == 0 && !s_script.empty()));
+    }
+
+    // XInput's "any user" (0xFF) is player 1, as in Xenia.
+    unsigned UserOf(uint32_t userIndex)
+    {
+        return (userIndex & 0xFF) == 0xFF ? 0 : userIndex;
     }
 
     // Keystrokes (XamInputGetKeystroke[Ex]): edges of buttons, triggers and
@@ -996,9 +1105,9 @@ namespace
         { 0x5833, true, [](const Pad& p) { return p.rx < -16384; } },
     };
     constexpr size_t kKeyCount = sizeof(kKeys) / sizeof(kKeys[0]);
-    bool s_keyDown[kKeyCount] = {};
+    bool s_keyDown[kUsers][kKeyCount] = {};
     // Guest ns: a key held through a suspension doesn't repeat as soon as it's back.
-    int64_t s_keyRepeatAt[kKeyCount] = {};
+    int64_t s_keyRepeatAt[kUsers][kKeyCount] = {};
 
     struct Keystroke
     {
@@ -1012,38 +1121,46 @@ namespace
 
     constexpr uint32_t ERROR_EMPTY = 0x10D2;
 
-    uint32_t NextKeystroke(Keystroke* out)
+    // The next keystroke of `user`, or of the first user that has one
+    // (`anyUser`: XamInputGetKeystroke's "any"), with the user it came from.
+    uint32_t NextKeystroke(unsigned user, bool anyUser, Keystroke* out)
     {
         std::lock_guard lock(s_mutex);
-        if (!(s_deviceConnected || !s_script.empty()))
-            return ERROR_DEVICE_NOT_CONNECTED;
-        Pad p = CurrentPadLocked();
+        const unsigned first = anyUser ? 0 : user, last = anyUser ? kUsers - 1 : user;
+        bool any = false;
         int64_t now = guesttime::NowNs();
-        auto emit = [&](size_t i, uint16_t flags) {
-            out->virtualKey = kKeys[i].vk;
-            out->unicode = 0;
-            out->flags = flags;
-            out->userIndex = 0;
-            out->hidCode = 0;
-            return ERROR_SUCCESS;
-        };
-        for (size_t i = 0; i < kKeyCount; i++)
+        for (unsigned u = first; u <= last; u++)
         {
-            bool down = kKeys[i].down(p);
-            if (down != s_keyDown[i])
+            if (!ConnectedLocked(u))
+                continue;
+            any = true;
+            Pad p = CurrentPadLocked(u);
+            auto emit = [&](size_t i, uint16_t flags) {
+                out->virtualKey = kKeys[i].vk;
+                out->unicode = 0;
+                out->flags = flags;
+                out->userIndex = uint8_t(u);
+                out->hidCode = 0;
+                return ERROR_SUCCESS;
+            };
+            for (size_t i = 0; i < kKeyCount; i++)
             {
-                s_keyDown[i] = down;
-                s_keyRepeatAt[i] = now + 400'000'000;
-                return emit(i, down ? 1 : 2);
+                bool down = kKeys[i].down(p);
+                if (down != s_keyDown[u][i])
+                {
+                    s_keyDown[u][i] = down;
+                    s_keyRepeatAt[u][i] = now + 400'000'000;
+                    return emit(i, down ? 1 : 2);
+                }
             }
+            for (size_t i = 0; i < kKeyCount; i++)
+                if (s_keyDown[u][i] && kKeys[i].repeats && now >= s_keyRepeatAt[u][i])
+                {
+                    s_keyRepeatAt[u][i] = now + 100'000'000;
+                    return emit(i, 1 | 4);
+                }
         }
-        for (size_t i = 0; i < kKeyCount; i++)
-            if (s_keyDown[i] && kKeys[i].repeats && now >= s_keyRepeatAt[i])
-            {
-                s_keyRepeatAt[i] = now + 100'000'000;
-                return emit(i, 1 | 4);
-            }
-        return ERROR_EMPTY;
+        return any ? ERROR_EMPTY : ERROR_DEVICE_NOT_CONNECTED;
     }
 }
 
@@ -1055,10 +1172,10 @@ constexpr uint8_t XAMINPUT_DEVSUBTYPE_WHEEL = 0x02;
 
 uint32_t XamInputGetCapabilities(uint32_t userIndex, uint32_t flags, XAMINPUT_CAPABILITIES* caps)
 {
-    bool scripted = !s_script.empty();
+    const unsigned user = UserOf(userIndex);
     {
         std::lock_guard lock(s_mutex);
-        if ((userIndex != 0 && userIndex != 0xFF) || !(s_deviceConnected || scripted))
+        if (!ConnectedLocked(user))
             return ERROR_DEVICE_NOT_CONNECTED;
     }
     // A wheel in play says it is one. The type stays the gamepad one, as
@@ -1068,7 +1185,7 @@ uint32_t XamInputGetCapabilities(uint32_t userIndex, uint32_t flags, XAMINPUT_CA
     // its own axis, the force-feedback flag) was tried and changed nothing
     // the game does, so it is not worth the risk to the paddles: they reach
     // the game as the right stick, which such a wheel hasn't got.
-    const bool asWheel = hid::wheel::Playing();
+    const bool asWheel = user == 0 && hid::wheel::Playing();
     memset(caps, 0, sizeof(*caps));
     caps->Type = XAMINPUT_DEVTYPE_GAMEPAD;
     caps->SubType = asWheel ? XAMINPUT_DEVSUBTYPE_WHEEL : XAMINPUT_DEVSUBTYPE_GAMEPAD;
@@ -1086,31 +1203,32 @@ uint32_t XamInputGetCapabilities(uint32_t userIndex, uint32_t flags, XAMINPUT_CA
     caps->Vibration.wRightMotorSpeed = 0xFFFF;
     // On the first ask, and on any change: whether the game looks at all,
     // and what it was told.
-    static int told = -1;
-    if (int(asWheel) != told)
+    static int told[kUsers] = { -1, -1, -1, -1 };
+    if (int(asWheel) != told[user])
     {
-        told = int(asWheel);
-        fprintf(stderr, "[input] the game asked what is connected: told it a %s\n", asWheel ? "racing wheel" : "gamepad");
+        told[user] = int(asWheel);
+        fprintf(stderr, "[input] the game asked what player %u has: told it a %s\n", user + 1, asWheel ? "racing wheel" : "gamepad");
     }
     return ERROR_SUCCESS;
 }
 
 uint32_t XamInputGetState(uint32_t userIndex, uint32_t flags, XAMINPUT_STATE* state)
 {
+    const unsigned user = UserOf(userIndex);
     Pad p;
     uint32_t packet;
     {
         std::lock_guard lock(s_mutex);
-        if ((userIndex != 0 && userIndex != 0xFF) || !(s_deviceConnected || !s_script.empty()))
+        if (!ConnectedLocked(user))
             return ERROR_DEVICE_NOT_CONNECTED;
-        p = CurrentPadLocked();
-        static Pad last;
-        if (memcmp(&p, &last, sizeof(p)) != 0)
+        p = CurrentPadLocked(user);
+        static Pad last[kUsers];
+        if (memcmp(&p, &last[user], sizeof(p)) != 0)
         {
-            s_packet++;
-            last = p;
+            s_packets[user]++;
+            last[user] = p;
         }
-        packet = s_packet;
+        packet = s_packets[user];
     }
     state->dwPacketNumber = ByteSwap(packet);
     state->Gamepad.wButtons = ByteSwap(p.buttons);
@@ -1125,33 +1243,36 @@ uint32_t XamInputGetState(uint32_t userIndex, uint32_t flags, XAMINPUT_STATE* st
 
 uint32_t XamInputSetState(uint32_t userIndex, uint32_t flags, XAMINPUT_VIBRATION* vibration)
 {
+    const unsigned user = UserOf(userIndex);
     std::lock_guard lock(s_mutex);
-    if ((userIndex != 0 && userIndex != 0xFF) || !(s_deviceConnected || !s_script.empty()))
+    if (!ConnectedLocked(user))
         return ERROR_DEVICE_NOT_CONNECTED;
-    s_rumbleLow = ByteSwap(vibration->wLeftMotorSpeed);
-    s_rumbleHigh = ByteSwap(vibration->wRightMotorSpeed);
-    s_rumbleDirty = true;
+    s_rumble[user].low = ByteSwap(vibration->wLeftMotorSpeed);
+    s_rumble[user].high = ByteSwap(vibration->wRightMotorSpeed);
+    s_rumble[user].dirty = true;
     return ERROR_SUCCESS;
 }
 
-// Xenia's semantics: user 0xFF ("any") is pinned to user 0; queries for
-// non-gamepad devices report none connected.
+// User 0xFF ("any", or the flag 0x40000000) takes the first user with a
+// keystroke and says which; queries for non-gamepad devices report none
+// connected.
 uint32_t XamInputGetKeystroke(uint32_t userIndex, uint32_t flags, Keystroke* keystroke)
 {
     if (!keystroke)
         return 0xA0;  // ERROR_BAD_ARGUMENTS
     if ((flags & 0xFF) && (flags & 1) == 0)
         return ERROR_DEVICE_NOT_CONNECTED;
-    if ((userIndex & 0xFF) != 0xFF && userIndex != 0 && !(flags & 0x40000000))
+    const bool anyUser = (userIndex & 0xFF) == 0xFF || (flags & 0x40000000);
+    if (!anyUser && userIndex >= kUsers)
         return ERROR_DEVICE_NOT_CONNECTED;
-    return NextKeystroke(keystroke);
+    return NextKeystroke(anyUser ? 0 : userIndex, anyUser, keystroke);
 }
 
 uint32_t XamInputGetKeystrokeEx(be<uint32_t>* userIndex, uint32_t flags, Keystroke* keystroke)
 {
     uint32_t result = XamInputGetKeystroke(userIndex ? uint32_t(*userIndex) : 0xFF, flags, keystroke);
     if (result == ERROR_SUCCESS && userIndex)
-        *userIndex = 0;
+        *userIndex = keystroke->userIndex;
     return result;
 }
 

@@ -12,7 +12,7 @@
   ещё `git diff HEAD | git -C $B apply` (новые файлы сначала `git add -N`).
 - Сборка и тесты (в сборочной копии):
   `T=…/speedbreaker/tools; export PATH=$T/build-python/cmake/data/bin:$T/bin:$PATH`
-  `cmake --build build/burnout-mac -j6` и `ctest --test-dir build/burnout-mac` (сейчас 71/71).
+  `cmake --build build/burnout-mac -j6` и `ctest --test-dir build/burnout-mac` (сейчас 72/72).
   Если в сборочной копии остались новые файлы от прошлого `apply`, перед ним удали их.
 - Пакет: `MOLTENVK=$T/moltenvk/MoltenVK/MoltenVK/dylib/macOS/libMoltenVK.dylib MOLTENVK_VERSION=1.4.2
   python3 scripts/macos/make_app.py build/burnout-mac <out> --game=burnout [--dmg]`, затем
@@ -42,7 +42,7 @@
   (game/hud_anchor.h). v0.1.13: HUD у краёв ultrawide. v0.1.12: нет зависания на старте
   (cpu/suspend_count.h), Xbox Live офлайн без выхода из игры. Тесты 70/70.
 - Проверено: камера Takedown (ручные прогоны пользователя), шесть аддон-машин, матрица меню
-  и режимов (кроме Player File и мультиплеера на двух падах). Заглушек осталось 14
+  и режимов (кроме Player File; Multiplayer Race на двух виртуальных падах — да). Заглушек осталось 14
   (друзья/gamer card/сессии Live/исключения), офлайн не встречены.
 - Сначала прочитай docs/ACTIVE_WORK.md (раздел «Очередь», пункты 11–16) и при нужде
   docs/EXTERNAL_PORTS_PLAN.md (последние разделы: Xerenge online, Fukami, Takedawn); остальные
@@ -54,8 +54,7 @@
 пользователь, **онлайн только после них**. Подробности и критерии — ACTIVE_WORK, пункты 11–15.
 
 1. [x] **Дальность LOD машин** — сделано (Settings > Graphics > Vehicle Detail, ACTIVE_WORK п. 11).
-2. **Геймпады по слотам игроков** (Fukami `rrv_pad_slots.h`): пользователи 0–3 в XamInput*,
-   переход пада игрока 2 к игроку 1, пад BT+USB не застревает вторым; Multiplayer на двух падах.
+2. [x] **Геймпады по слотам игроков** — сделано (ACTIVE_WORK п. 12; `BURNOUT_VIRTUAL_PAD2`, шаг `DETACH`).
 3. **Сохранения, устойчивые к сбою**: проверить путь записи сейвов; если на месте — копия,
    F_FULLFSYNC и замена при закрытии; тест обрыва посреди записи.
 4. **Частота внешнего экрана в fullscreen** (Fukami `refresh_rate = auto`): 144/165 Гц → 120
@@ -76,7 +75,7 @@
   приватный backup в папке validation); после каждого релиза ставь скачанный релизный DMG
   (проверь SHA-256 и codesign).
 - Релиз: поднять версию в CMakeLists.txt, перенести CHANGELOG из Unreleased, обновить README,
-  сборка, 71+ тестов, пакет с `--dmg`, короткий запуск кандидата, `package_sources.py` для исходников
+  сборка, 72+ тестов, пакет с `--dmg`, короткий запуск кандидата, `package_sources.py` для исходников
   third-party, SHA256SUMS, черновик `gh release create --target <полный SHA> --draft`,
   сверка скачанных ассетов, затем публикация Latest. Существующие теги не передвигать.
 - В каждый релиз прикладывать `BurnoutRevenge-100-percent-save.zip` из

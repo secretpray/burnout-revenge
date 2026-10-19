@@ -172,7 +172,7 @@
    Заглушек 46 → 14: HalReturnToFirmware, RtlCaptureContext/RaiseException/Unwind,
    __C_specific_handler (исключения), XamParseGamerTileKey/ReadTileToTexture, XamSession*,
    XamShow{Friends,GamerCardForXUID,MessageCompose,PlayerReview}UI, XamUserAreUsersFriends — ни
-   один не встречен офлайн. Не проверены: Player File, Multiplayer на двух падах.
+   один не встречен офлайн. Не проверены: Player File. Multiplayer Race на двух виртуальных падах — п. 12.
 8. [~] **Руль** (19.10, перенос SpeedBreaker PR #29 с `ae418a8`; руля у пользователя нет):
    `hid/wheel.*`, `hid/wheel_map.h`, Settings > Wheel (Calibrate), тест wheel_map_test (70/70).
    Под Burnout: передач нет — лепестки G29 = RB/LB как R1/L1 у DualSense, R2/L2 свободны,
@@ -230,13 +230,16 @@
    GPU в пределах разброса и на 1x, и на 2x ([IMAGE_QUALITY](IMAGE_QUALITY.md#vehicle-detail-runs-rr--rr2x--menu-x2-1910)).
    По умолчанию Far (решение пользователя 19.10). Не сделано: окружение/пропсы (в Burnout 3 — данные трассы; для Revenge
    не искали), счётчик уровней трафика, кадр дальнего соперника «до/после», ручная проверка.
-12. [ ] **Геймпады по слотам игроков** (Fukami `src/host/rrv_pad_slots.h`). Сейчас
-   `XamInputGetState` (hid/input.cpp) отвечает только пользователю 0. Первый подключённый —
-   игрок 1, второй — игрок 2, третий ждёт; при отключении пада игрока 1 пад игрока 2 становится
-   игроком 1; один пад, видимый дважды (Bluetooth + USB), не застревает вторым. Клавиатура —
-   игроку 1, пока у него нет пада; вибрация — своему паду. Тест на логике слотов без SDL; затем
-   Multiplayer офлайн на двух падах (единственная непроверенная клетка матрицы режимов) —
-   нужен второй пад у пользователя или виртуальный.
+12. [x] **Геймпады по слотам игроков** (19.10; pads-validation, прогоны p1-rr, mp1–mp3, swap1/2, wheel1):
+   игра опрашивает пользователей 0–3 каждый кадр (трасса импортов), теперь каждый пад — свой
+   пользователь (`hid/pad_slots.h` по правилу Fukami на 4 слота, тест pad_slots_test; hid/input.cpp:
+   состояние, Back+Start, защёлка после меню, вибрация и keystrokes — на игрока). Клавиатура,
+   руль и скрипт — игрока 1; игрок 1 всегда «подключён». `BURNOUT_VIRTUAL_PAD2` — второй виртуальный
+   пад, шаг `DETACH` — отключение. По кадрам: Multiplayer Race → «Player 2 please press START» →
+   разделённый экран, оба едут (у P2 161 mph, POS 1/2), вибрация P2 доходит до его пада (лог);
+   игра сама держит 30 fps на двоих. Отключение пада P1 в меню: пад P2 стал игроком 1 и прошёл
+   в Multiplayer. Регрессия: один пад (Road Rage до Crashbreaker), виртуальный G29 (меню и гонка).
+   **Нужно вручную:** два настоящих пада, пад по BT+USB одновременно; Road Rage/Crash Battle на двоих.
 13. [ ] **Сохранения игры, устойчивые к сбою** (Fukami: карта памяти через временный файл, fsync,
    rename). Сначала проверить путь записи сейвов (kernel/imports_file.cpp, XContent): пишет ли
    игра поверх файла на месте. Если да — запись в копию, F_FULLFSYNC и замена при закрытии/

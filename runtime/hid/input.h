@@ -1,7 +1,14 @@
 // SpeedBreaker runtime. GPL-3.0-or-later (see COPYING).
 //
 // Controller input (Phase 6): SDL3 gamepads and the keyboard, presented to
-// the game as XInput controller 0 through XamInputGetState.
+// the game as XInput users 0 to 3 through XamInputGetState.
+//
+//   - Players: each controller is one player, in the order they connect
+//     (hid/pad_slots.h: the first player 1, the second player 2; if player
+//     1's goes and nobody waits, the next one up becomes player 1). The
+//     keyboard, a wheel and BURNOUT_INPUT_SCRIPT are player 1's; player 1
+//     always counts as connected (the keyboard), the others while they
+//     have a controller. Each player's rumble goes to their controller.
 //
 //   - Sticks get a radial deadzone with rescaling (Settings > Input, or
 //     BURNOUT_DEADZONE; default 0.08 of full deflection), so worn or drifting
@@ -30,6 +37,7 @@
 //     whose rumble is logged with what the game asked for (tests of the
 //     Input settings without a person). Buttons too ("5:BACK=1", "5.2:BACK=0",
 //     "6:DOWN" for a tap), which reach the menus as a real controller's do.
+//     BURNOUT_VIRTUAL_PAD2, the same way, is a second controller (player 2).
 //     Both count seconds of guest time (cpu/guest_time.h): a suspension
 //     doesn't count, so what falls due during one happens after it.
 //   - BURNOUT_INPUT_LOG=1: the left stick and triggers once a second, raw and

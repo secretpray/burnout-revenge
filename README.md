@@ -106,6 +106,8 @@
 
 - Xbox controllers and DualSense through SDL, with vibration. Back + Start
   (Share + Options on a DualSense) opens the settings anywhere.
+- Split-screen Multiplayer for two: each controller is a player, in the
+  order they connect, with its own vibration.
 - USB steering wheels (Logitech G29 and its family): wheel, pedals, buttons
   and Settings > Wheel with a Calibrate row; force feedback where the
   system can drive the wheel.

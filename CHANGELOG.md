@@ -9,6 +9,13 @@
   them. Far is the default. Applies from the next frame. Measured on an M1 Pro: 60 fps either
   way, up to 7% more draws with every rival in view and no GPU time to
   measure at 1x or 2x. The idea is Takedawn's and Fukami's.
+- Two controllers, two players: each controller is a player in the order
+  they connect (up to four), so Multiplayer's split screen works with a
+  second pad ("Player 2 please press START"), and each player's vibration
+  goes to their own pad. The keyboard and a wheel stay player 1's. If
+  player 1's controller goes and no other is waiting, the next one becomes
+  player 1, so one controller seen twice (Bluetooth and USB at once) is
+  never left as player 2. After Fukami's controller slots.
 
 ## v0.1.14
 
