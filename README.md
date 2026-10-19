@@ -166,6 +166,12 @@
    folder and your add-on car packs, then Install & Verify.
 4. Start your engines. Later launches go straight to the game.
 
+<p align="center">
+  <img src="docs/screenshots/setup-drag-to-applications.png" alt="The download's Finder window: hazard stripes, BURNOUT REVENGE in heavy italic capitals, the game's icon with chevrons running to the Applications folder, and DRAG THE GAME TO APPLICATIONS" width="60%">
+  <br>
+  <sub>The download: drag the game to Applications.</sub>
+</p>
+
 <table>
   <tr>
     <td width="25%"><img src="docs/screenshots/setup-choose-iso.jpg" alt="Setup page 1: Get ready to drive, Choose ISO"><br><sub>1. Your game.</sub></td>
