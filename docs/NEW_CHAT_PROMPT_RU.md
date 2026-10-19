@@ -15,7 +15,8 @@
   `cmake --build build/burnout-mac -j6` и `ctest --test-dir build/burnout-mac` (сейчас 73/73).
   Если в сборочной копии остались новые файлы от прошлого `apply`, перед ним удали их.
 - Пакет: `MOLTENVK=$T/moltenvk/MoltenVK/MoltenVK/dylib/macOS/libMoltenVK.dylib MOLTENVK_VERSION=1.4.2
-  python3 scripts/macos/make_app.py build/burnout-mac <out> --game=burnout [--dmg]`, затем
+  python3 scripts/macos/make_app.py build/burnout-mac <out> --game=burnout [--dmg]`, для `--dmg` ещё
+  `DMG_PYTHON=$T/dmg-python/bin/python3` (dmgbuild 1.6.5: оформленное окно образа), затем
   `python3 scripts/macos/check_app.py <app или dmg>` (должно быть PASS).
 - Тестовые запуски: `…/speedbreaker/build/release-0.1.12-validation/run.py` (скопируй в новую
   папку validation): `python3 run.py <имя> <сек> "<UI-клавиши и N:Shot>" "<скрипт пада>" "" "" <env.json> <бинарь>`.

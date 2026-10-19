@@ -74,6 +74,16 @@
 # builder), and the compression (diskutil has no zlib level to set; on
 # v0.1.1's app its dmg came out 4% smaller than hdiutil's level 9).
 # DMG_TOOL=hdiutil or DMG_TOOL=diskutil uses only that one.
+#
+# The release's dmg opens on a window in the first-run screens' look: the
+# background of scripts/macos/make_dmg_background.py (assets/dmg-background
+# .png and @2x, joined into one TIFF here), the app and the Applications
+# shortcut on it, the app's icon on the volume (named "Burnout Revenge").
+# styled_dmg.py makes it with dmgbuild, run by DMG_PYTHON (default: this
+# Python) — `python3 -m venv <dir> && <dir>/bin/pip install dmgbuild==1.6.5`.
+# Its files are hidden from Finder (.background, .DS_Store,
+# .VolumeIcon.icns); the checks below look past them. DMG_PLAIN=1 makes the
+# plain one above instead (no window layout), as DMG_TOOL does.
 import json, os, plistlib, re, shutil, stat, subprocess, sys, tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -90,6 +100,8 @@ if GAME != 'burnout':
 DMG_TOOL = os.environ.get('DMG_TOOL', '')  # '' (hdiutil, else diskutil), 'hdiutil' or 'diskutil'
 if DMG_TOOL not in ('', 'hdiutil', 'diskutil'):
     raise SystemExit(f'make_app.py: DMG_TOOL={DMG_TOOL}: use hdiutil or diskutil, or leave it unset')
+DMG_STYLED = os.environ.get('DMG_PLAIN') != '1' and not DMG_TOOL
+DMG_PYTHON = os.environ.get('DMG_PYTHON') or sys.executable
 for a in OPTIONS:
     if a not in ('--dmg', '--test') and not a.startswith(('--min-macos=', '--game=', '--icon=', '--cover=')):
         raise SystemExit(f'make_app.py: unknown option {a} (usage: make_app.py [build dir] [output dir] [--dmg] '
@@ -440,14 +452,14 @@ def check_dmg_with_diskutil(dmg, tmp):
     HFS+ image that mounts, holding the app and the Applications shortcut,
     and the app's code signature checks every file in it."""
     info = plistlib.loads(diskutil('image', 'info', '--plist', dmg).encode())
-    hints = [p.get('content-hint') for p in info.get('Partitions', [])]
+    hints = [p.get('content-hint') for p in info.get('Partitions', []) if p.get('content-hint') != 'Apple_Free']
     if info.get('Image Format') != 'UDZO' or hints != ['GUID_partition_scheme', 'Apple_HFS']:
         raise SystemExit(f'make_app.py: {dmg} is {info.get("Image Format")} {hints}, not UDZO with one HFS+ volume')
     mnt = os.path.join(tmp, 'check')
     os.makedirs(mnt)
     disks = attached_disks(diskutil('image', 'attach', '--plist', '--readOnly', '--nobrowse', '--mountPoint', mnt, dmg))
     try:
-        top = sorted(os.listdir(mnt))
+        top = sorted(n for n in os.listdir(mnt) if not n.startswith('.'))  # the styled dmg's hidden files aside
         link = os.path.join(mnt, 'Applications')
         if top != ['Applications', 'Burnout Revenge.app'] or not os.path.islink(link) or os.readlink(link) != '/Applications':
             raise SystemExit(f'make_app.py: {dmg} holds {top}, not BurnoutRevenge.app and a shortcut to /Applications')
@@ -456,11 +468,45 @@ def check_dmg_with_diskutil(dmg, tmp):
         subprocess.run(['diskutil', 'eject', disks[0][0]], capture_output=True)
 
 
+def styled_dmg(app, dmg, tmp):
+    """The dmg with its window laid out (styled_dmg.py, dmgbuild)."""
+    try:
+        run(DMG_PYTHON, '-c', 'import dmgbuild')
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        raise SystemExit(f'make_app.py: {DMG_PYTHON} has no dmgbuild, which lays out the dmg\'s window: '
+                         'python3 -m venv <dir> && <dir>/bin/pip install dmgbuild==1.6.5, then DMG_PYTHON=<dir>/bin/python3 '
+                         '(or DMG_PLAIN=1 for a dmg without the layout)')
+    background = os.path.join(tmp, 'background.tiff')
+    run('tiffutil', '-cathidpicheck', os.path.join(ROOT, 'assets/dmg-background.png'),
+        os.path.join(ROOT, 'assets/dmg-background@2x.png'), '-out', background)
+    icons = [f for f in os.listdir(os.path.join(app, 'Contents/Resources')) if f.endswith('.icns')]
+    if len(icons) != 1:
+        raise SystemExit(f'make_app.py: {app} has {len(icons)} .icns files, not the one for the volume')
+    try:
+        run(DMG_PYTHON, os.path.join(ROOT, 'scripts/macos/styled_dmg.py'), app, dmg, background,
+            os.path.join(app, 'Contents/Resources', icons[0]))
+    except subprocess.CalledProcessError as e:
+        raise SystemExit(f'make_app.py: styled_dmg.py: {failure(e)}')
+
+
 def make_dmg(app, version):
     """BurnoutRevenge-macos.dmg: the app and a shortcut to Applications. Returns
     it and the tool that made it."""
     dmg = os.path.join(OUT, 'BurnoutRevenge-macos.dmg')
     versioned = os.path.join(OUT, f'BurnoutRevenge-{version}-macos.dmg')
+    if DMG_STYLED:
+        with tempfile.TemporaryDirectory() as tmp:
+            for f in (dmg, versioned):
+                if os.path.exists(f):
+                    os.remove(f)
+            styled_dmg(app, dmg, tmp)
+            os.link(dmg, versioned)
+            for f in (dmg, versioned):
+                digest = run('shasum', '-a', '256', f).split()[0]
+                with open(f + '.sha256', 'w') as out:
+                    out.write(f'{digest}  {os.path.basename(f)}\n')
+            check_dmg_with_diskutil(dmg, tmp)
+        return dmg, 'dmgbuild'
     with tempfile.TemporaryDirectory() as tmp:
         stage = os.path.join(tmp, 'BurnoutRevenge')
         os.makedirs(stage)

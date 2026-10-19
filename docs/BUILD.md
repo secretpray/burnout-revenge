@@ -43,6 +43,17 @@ MOLTENVK_VERSION=1.4.2 python3 scripts/macos/make_app.py \
 python3 scripts/macos/check_app.py "build/app/Burnout Revenge.app"
 ```
 
+`--dmg` also makes the release's disk image, its Finder window laid out on the
+background in `assets/dmg-background*.png` (`scripts/macos/make_dmg_background.py`
+draws it). The layout is written by [dmgbuild](https://github.com/dmgbuild/dmgbuild)
+(MIT), from a Python that has it; `DMG_PLAIN=1` makes a plain image without it:
+
+```sh
+python3 -m venv tools/dmg-python && tools/dmg-python/bin/pip install dmgbuild==1.6.5
+DMG_PYTHON=tools/dmg-python/bin/python3 MOLTENVK=... MOLTENVK_VERSION=1.4.2 \
+  python3 scripts/macos/make_app.py build/burnout-mac build/app --game=burnout --dmg
+```
+
 Generated `ppc/`, `game/`, dependency `tools/` and all build artifacts are ignored.
 A fresh build regenerates all game code from your own XEX. The optional
 `BR_PREBUILT_RECOMP` cache value can reuse a locally generated library only when
