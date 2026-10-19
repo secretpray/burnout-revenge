@@ -22,6 +22,21 @@
   `claude/macos-usb-steering-wheel-dca9ae` at `ae418a8`): `hid/wheel.*`,
   `hid/wheel_map.h`, Settings > Wheel and `wheel_map_test`, adapted here to
   Burnout's controls (no gear shift).
+- **Xerenge**, shipa-2: the Burnout Revenge research this port leans on most —
+  the music-skip finding (`sub_8210F940`), boma's motion-blur patch as Xerenge
+  applies it, the Takedown-camera and rendering notes, and the online protocol
+  facts studied for a possible online mode. No source is copied (Xerenge has no
+  licence file); the code here is our own, with attribution in its comments.
+  https://github.com/shipa-2/Xerenge
+- **Fukami**, danisandoval (GPL-3.0; a Ridge Racer V port): the ideas behind
+  Settings > Graphics > Vehicle Detail (its `car_lod`), players by controller
+  with failover (`rrv_pad_slots.h`, here `hid/pad_slots.h` for four users),
+  crash-safe saves (its memory card's temporary file, fsync and rename, here
+  `user/save_commit.h`) and the load-time measurement (`docs/LOADING.md`).
+  The code here is our own. https://github.com/danisandoval/fukami
+- **Takedawn**, xenophobentx (MIT; Burnout 3): research behind Vehicle Detail
+  (Burnout 3's model switch distances), save import, the race HUD at a wide
+  screen's edges, and more. https://github.com/xenophobentx/takedawn
 - **secretpray**: Burnout Revenge macOS integration, testing and project direction.
 
 Additional bundled components, their authors and licenses are listed in
@@ -36,8 +51,10 @@ project name in source license headers is retained deliberately.
 [xenophobentx fork](https://github.com/xenophobentx/Xerenge),
 [Takedawn](https://github.com/xenophobentx/takedawn) and its
 [xboxrecomp toolkit](https://github.com/xenophobentx/xboxrecomp) were studied for
-input lifecycle, graphics preparation and interpolation approaches. This tranche
-copies no source blocks from them. See the pinned revisions and boundaries in
+input lifecycle, graphics preparation and interpolation approaches, and
+[Fukami](https://github.com/danisandoval/fukami) (`2ecb281`, v1.1.0) for car
+detail, controller slots, safe saves and loading. No source blocks are copied
+from them. See the pinned revisions and boundaries in
 [the adoption plan](docs/EXTERNAL_PORTS_PLAN.md).
 
 Settings > Graphics > Motion Blur follows boma's Burnout Revenge game patch for

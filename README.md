@@ -258,6 +258,12 @@ Built on [SpeedBreaker](https://github.com/SpeedBreakerProject/speedbreaker)
 It also relies on XenonRecomp, Xenia research, SDL, MoltenVK, FFmpeg, AMD
 FidelityFX, SMAA, Dear ImGui and the Barlow Condensed fonts; see
 [CREDITS.md](CREDITS.md) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Much of what this port knows about the game comes from
+[Xerenge](https://github.com/shipa-2/Xerenge) by shipa-2 (the ReXGlue-based
+Burnout Revenge port); ideas also come from
+[Takedawn](https://github.com/xenophobentx/takedawn) (Burnout 3) and
+[Fukami](https://github.com/danisandoval/fukami) (Ridge Racer V). Their code
+isn't copied; what came from each is in [CREDITS.md](CREDITS.md).
 
 The runtime and its changes are **GPL-3.0-or-later**; original authors'
 notices and third-party licenses are kept. See [COPYING](COPYING) and
