@@ -12,7 +12,7 @@
   ещё `git diff HEAD | git -C $B apply` (новые файлы сначала `git add -N`).
 - Сборка и тесты (в сборочной копии):
   `T=…/speedbreaker/tools; export PATH=$T/build-python/cmake/data/bin:$T/bin:$PATH`
-  `cmake --build build/burnout-mac -j6` и `ctest --test-dir build/burnout-mac` (сейчас 70/70).
+  `cmake --build build/burnout-mac -j6` и `ctest --test-dir build/burnout-mac` (сейчас 71/71).
   Если в сборочной копии остались новые файлы от прошлого `apply`, перед ним удали их.
 - Пакет: `MOLTENVK=$T/moltenvk/MoltenVK/MoltenVK/dylib/macOS/libMoltenVK.dylib MOLTENVK_VERSION=1.4.2
   python3 scripts/macos/make_app.py build/burnout-mac <out> --game=burnout [--dmg]`, затем
@@ -53,9 +53,7 @@
 Идеи из Fukami (Ridge Racer V, PS2, GPL-3.0, `danisandoval/fukami@2ecb281`) — порядок задал
 пользователь, **онлайн только после них**. Подробности и критерии — ACTIVE_WORK, пункты 11–15.
 
-1. **Дальность LOD машин и окружения** (Fukami `car_lod`, `draw_distance`): USA-функции LOD и
-   видимости, множитель не дальше дальности отсечения игры, защита от переполнения буферов,
-   замер FPS/GPU, настройка в Graphics.
+1. [x] **Дальность LOD машин** — сделано (Settings > Graphics > Vehicle Detail, ACTIVE_WORK п. 11).
 2. **Геймпады по слотам игроков** (Fukami `rrv_pad_slots.h`): пользователи 0–3 в XamInput*,
    переход пада игрока 2 к игроку 1, пад BT+USB не застревает вторым; Multiplayer на двух падах.
 3. **Сохранения, устойчивые к сбою**: проверить путь записи сейвов; если на месте — копия,
@@ -78,7 +76,7 @@
   приватный backup в папке validation); после каждого релиза ставь скачанный релизный DMG
   (проверь SHA-256 и codesign).
 - Релиз: поднять версию в CMakeLists.txt, перенести CHANGELOG из Unreleased, обновить README,
-  сборка, 70+ тестов, пакет с `--dmg`, короткий запуск кандидата, `package_sources.py` для исходников
+  сборка, 71+ тестов, пакет с `--dmg`, короткий запуск кандидата, `package_sources.py` для исходников
   third-party, SHA256SUMS, черновик `gh release create --target <полный SHA> --draft`,
   сверка скачанных ассетов, затем публикация Latest. Существующие теги не передвигать.
 - В каждый релиз прикладывать `BurnoutRevenge-100-percent-save.zip` из

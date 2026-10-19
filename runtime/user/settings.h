@@ -57,6 +57,7 @@ namespace settings
         InternalResolution,
         Bloom,       // %: 100 the game's glow, 0 kept in place, no halo (gpu/burnout_bloom.h)
         MotionBlur,  // %: the game's motion blur's length (gpu/burnout_blur.h); 0 off (game/render_patches.cpp)
+        VehicleDetail,  // the factor on the game's car model switch distances (game/vehicle_detail.h)
         WindowWidth,   // hidden: the window's size, remembered between runs
         WindowHeight,  // hidden
         // Audio

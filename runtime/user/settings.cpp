@@ -68,6 +68,11 @@ namespace settings
             { int32_t(ButtonPrompts::PlayStation), "playstation", "PlayStation" },
             { int32_t(ButtonPrompts::Keyboard), "keyboard", "Keyboard" },
         };
+        constexpr EnumEntry kVehicleDetailEntries[] = {
+            { 1, "original", "Original" },
+            { 2, "far", "Far" },
+            { 4, "farthest", "Farthest" },
+        };
         constexpr EnumEntry kAaMethodEntries[] = {
             { int32_t(AaMethod::Fxaa), "fxaa", "FXAA" },
             { int32_t(AaMethod::Smaa), "smaa", "SMAA" },
@@ -300,6 +305,10 @@ namespace settings
               .table = "video", .key = "motion_blur", .label = "Motion Blur",
               .description = "The game's blur of fast movement and its radial blur at boost and in crashes. 100% is the game's own; lower makes the streaks shorter. 0% keeps the picture sharp at speed.",
               .env = "BURNOUT_MOTION_BLUR", .defaultValue = 100, .min = 0, .max = 100, .step = 10, .unit = "%", .wasSwitch = true },
+            { .id = Id::VehicleDetail, .category = Category::Graphics, .type = Type::Enum, .apply = Apply::Live,
+              .table = "video", .key = "vehicle_detail", .label = "Vehicle Detail",
+              .description = "How far away cars and traffic keep their detailed models. Original: the full model within 30 m, the simplest beyond 90 m. Far doubles the distances, Farthest makes them four times as long: fewer cars change shape ahead of you, for a little more GPU work.",
+              .env = "BURNOUT_VEHICLE_DETAIL", .defaultValue = 2, .entries = kVehicleDetailEntries },
             { .id = Id::WindowWidth, .category = Category::Display, .type = Type::Int, .apply = Apply::Restart, .hidden = true,
               .table = "video", .key = "window_width", .label = "Window Width",
               .description = "The window's width when the game starts.",

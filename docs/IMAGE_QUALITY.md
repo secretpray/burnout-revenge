@@ -139,3 +139,34 @@ reports a potential EDR headroom of 1.0: HDR is off or unavailable there, and
 EDR output would change nothing on it. Not started; worth it only with an HDR
 display to judge it on (a MacBook Pro's XDR screen, or HDR enabled for the monitor).
 
+
+## Vehicle Detail (runs rr-*, rr2x-*, menu-x2; 19.10)
+
+Settings > Graphics > Vehicle Detail (`game/vehicle_detail.h`): the graphics
+manager (0x82923170) holds the distances at which a car takes a simpler model,
+copied from .rdata 0x8201BF88 (30, 60, 90 m) by `sub_82142C88`: +0x68..0x70 for
+race cars (`sub_820BD008`: within 30 m level 3, the full model; to 60 m 2; to
+90 m 1; beyond 0), +0x74..0x7C for traffic (`sub_82339020`). The setting writes
+them times 1, 2 or 4 where the race cars' level is chosen; the traffic's draw
+distance and its bounded lists (32 and 64 entries) are untouched. Found from
+Takedawn's Burnout 3 study (CB3GraphicsManagerBase::SetDefaultLODSwitchDistances).
+
+Same Road Rage route (Eternal City, data-matrix copy of the 100% save, virtual
+pad, 70 s), `BURNOUT_LOG_VEHICLE_DETAIL=1` (levels chosen per 5 s, race cars
+only):
+
+| Run | Internal | Factor | Levels 3/2/1/0 at 42.5 s | at 62.5 s | Draws per frame (driving) | GPU busy |
+| --- | --- | --- | --- | --- | --- | --- |
+| rr-x1 | 1x | 1 | 339 74 56 366 | 301 54 108 572 | 3205–3756 | 11.7–12.1 ms |
+| rr-x2 | 1x | 2 | 413 160 212 50 | 368 225 416 47 | 3246–3789 | 12.2–12.6 ms |
+| rr-x4 | 1x | 4 | 569 256 0 0 | 572 472 0 0 | 3373–3962 | 11.7–12.4 ms |
+| rr2x-x1 | 2x | 1 | 339 74 56 369 | 301 54 108 572 | 3048–3754 | 13.9–14.7 ms |
+| rr2x-x4 | 2x | 4 | 569 256 0 0 | 632 472 0 0 | 3394–3963 | 13.5–14.4 ms |
+
+60.0 fps (worst frame 16.8 ms) in every window of every run; no foreign write
+to the fields was logged, no hang or stub. Up to ~7% more draws with rivals in
+view; GPU time differs by less than its run-to-run spread. Frames: the race and
+the crash camera at x4 look as at x1 (rival ~20 m ahead at level 3 either way);
+a distant rival side by side at both levels was not captured. Default: Far
+(the user's choice, 19.10). Not measured:
+the traffic's levels (no counter), Crash mode, split screen, other Macs.
