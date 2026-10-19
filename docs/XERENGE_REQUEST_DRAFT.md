@@ -44,7 +44,10 @@ One thing we already found, in case it helps: on an M1 Pro (macOS 27), your 0.4.
 frames (`plume: video: … 0 distinct frames` from then on), sound and rendering carry on, and the
 race never begins — offline in a single race as well as online. Before that, online worked well
 against your server: login, search, a room, two copies on one Mac joining each other and
-connecting directly, the start. I can send both logs.
+connecting directly, the start. I can send both logs. On the same Mac we also saw: creating a
+profile doesn't work properly; half the screen is black along a diagonal (our port once had the
+same); some screens in
+between are missing; and right after launch the screen is black for a while.
 
 In return: we'll report what we find against your server, send fixes upstream as PRs where they
 fit Xerenge, and link back to your project from ours.
@@ -83,5 +86,7 @@ Xerenge — лучший источник исследований по игре
 загрузке трассы ролик перестаёт выдавать кадры, звук и рендер идут, гонка не начинается;
 офлайн так же, как онлайн. До этого онлайн с их сервером работал: вход, поиск, комната,
 две копии на одном Mac вошли друг к другу и соединились напрямую, старт. Можем прислать журналы.
+Ещё на том же Mac: профиль нормально не создаётся; половина экрана по диагонали чёрная;
+нет части промежуточных экранов; после запуска — чёрный экран.
 
 Взамен: сообщаем о найденном, присылаем исправления PR, ссылаемся на проект.
