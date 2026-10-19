@@ -28,6 +28,7 @@ if(BR_GAME STREQUAL "burnout")
     list(APPEND RUNTIME_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/game/music_skip.cpp)
     list(APPEND RUNTIME_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/game/vehicle_detail.cpp)
     list(APPEND RUNTIME_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/game/online_log.cpp)
+    list(APPEND RUNTIME_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/game/online_hooks.cpp)
     # Stubs are generated into this build's folder, never over the NW stubs.
     find_package(Python3 REQUIRED COMPONENTS Interpreter)
     file(GLOB_RECURSE IMPORT_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/kernel/*.cpp)

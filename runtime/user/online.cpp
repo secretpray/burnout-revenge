@@ -102,29 +102,44 @@ namespace online
 
     bool Enabled() { return Get().enabled; }
 
-    uint32_t LobbyServerAddress()
+    namespace
     {
-        static const uint32_t address = [] {
-            const char* name = std::getenv("BURNOUT_LOBBY_SERVER");
-            uint32_t found = htonl(INADDR_LOOPBACK);
-            if (name && *name)
-            {
-                addrinfo hints{};
-                hints.ai_family = AF_INET;
-                hints.ai_socktype = SOCK_STREAM;
-                addrinfo* result = nullptr;
-                if (getaddrinfo(name, nullptr, &hints, &result) == 0 && result)
-                    found = reinterpret_cast<sockaddr_in*>(result->ai_addr)->sin_addr.s_addr;
-                else
-                    fprintf(stderr, "[online] lobby server \"%s\" not found; using 127.0.0.1\n", name);
-                if (result)
-                    freeaddrinfo(result);
-            }
-            fprintf(stderr, "[online] lobby server at %s\n", Text(found).c_str());
-            return found;
-        }();
-        return address;
+        struct Lobby
+        {
+            uint32_t address = htonl(INADDR_LOOPBACK);
+            bool found = false;
+        };
+
+        const Lobby& GetLobby()
+        {
+            static const Lobby lobby = [] {
+                Lobby l;
+                const char* name = std::getenv("BURNOUT_LOBBY_SERVER");
+                if (name && *name)
+                {
+                    addrinfo hints{};
+                    hints.ai_family = AF_INET;
+                    hints.ai_socktype = SOCK_STREAM;
+                    addrinfo* result = nullptr;
+                    if (getaddrinfo(name, nullptr, &hints, &result) == 0 && result)
+                    {
+                        l.address = reinterpret_cast<sockaddr_in*>(result->ai_addr)->sin_addr.s_addr;
+                        l.found = true;
+                    }
+                    else
+                        fprintf(stderr, "[online] lobby server \"%s\" not found; using 127.0.0.1\n", name);
+                    if (result)
+                        freeaddrinfo(result);
+                }
+                fprintf(stderr, "[online] lobby server at %s%s\n", Text(l.address).c_str(), l.found ? "" : " (none set)");
+                return l;
+            }();
+            return lobby;
+        }
     }
+
+    bool HasLobbyServer() { return GetLobby().found; }
+    uint32_t LobbyServerAddress() { return GetLobby().address; }
 
     uint32_t BindAddress()
     {

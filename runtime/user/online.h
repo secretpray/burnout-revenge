@@ -35,6 +35,9 @@ namespace online
     // address it is given must be one: Xerenge's issue #24). 127.0.0.1 when
     // none is set or the name doesn't resolve.
     uint32_t LobbyServerAddress();
+    // BURNOUT_LOBBY_SERVER is set (and found): there is a server, and with it
+    // EA's Locker (Burnout Clips) on its port 31862.
+    bool HasLobbyServer();
     // This console's address as its peers see it (its XNADDR).
     uint32_t LocalAddress();
     // What a socket bound to "any address" is bound to: BURNOUT_ONLINE_ADDRESS
