@@ -415,7 +415,8 @@ namespace
             return XmpDispatch(message, buffer, length);
         if (app == 0xFB || app == 0xFC)
         {
-            fprintf(stderr, "[xmsg] app %02X message %08X not implemented (returning X_E_FAIL)\n", app, message);
+            fprintf(stderr, "[xmsg] app %02X message %08X (buffer %08X, %u) not implemented (returning X_E_FAIL)\n", app, message,
+                buffer, length);
             return X_E_FAIL;
         }
         return X_E_NOTFOUND;

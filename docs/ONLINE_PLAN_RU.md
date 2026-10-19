@@ -1,6 +1,6 @@
 # Онлайн: план по фазам
 
-**Статус: TODO, можно начинать** — кода нет. Идеи из Fukami (ACTIVE_WORK 11–15), которые шли
+**Статус: фаза 0 сделана (19.10), дальше фаза 1. Идеи из Fukami (ACTIVE_WORK 11–15), которые шли
 раньше, закрыты в v0.1.15 (кроме отложенного 14); автор Xerenge ответил (19.10, ниже) — онлайн
 следующий. Составлен 19.10.2026, обновлён ответами пользователя, исследованием (раздел
 «Исследование 19.10») и ответом автора.
@@ -217,6 +217,21 @@
   `online_stub.cpp`, ревизия с лицензией, сверка с нашим кодом).
 - Готово: прогон «Xbox Live» в меню показывает, на каком состоянии и каком сообщении вход
   встаёт; список сообщений XLiveBase, нужных игре.
+- **Сделано 19.10** (online-validation, прогоны o1, o2): `user/online.h` (`BURNOUT_ONLINE=1`,
+  `BURNOUT_GAMERTAG`), `user/online_identity.h` (XUID = `B13EBABE` + FNV-1a геймертега с верхним
+  битом, тест online_identity_test; офлайн XUID и «Player» прежние), импорты: SigninState 2 для
+  пользователя 0, XUID/имя из геймертега, привилегии разрешены, чтение настроек профиля отдаёт
+  запрошенный XUID; `game/online_log.cpp` — журнал состояний входа (`sub_82217590`, +0x140 —
+  проверено на USA), NetConnStatus (`sub_8240A8F0`), ShowNetworkError (`sub_82224DD0`). Тесты 74/74.
+  **Результат (o1)**: вход 0 → 1 → 2 → 5 (3–4 пропущены: пользователь уже вошёл), на 5
+  `NetConnStatus('onln') = 0`, `'conn' = '-ini'`, `'addr' = 0`, ошибка −1 (из 0x82204828) →
+  состояние 11; экран «Connection problem: …cannot connect to the EA servers», без зависания.
+  Сообщений XLiveBase (0xFC) не было: DirtySock не дошёл до XOnlineGetServiceInfo. XGI (0xFB):
+  `000B0006` XGIUserSetContextEx (раз в 10 с) и `000B0008` XGIUserWriteAchievements — бывают и
+  офлайн, сейчас X_E_FAIL. Без `BURNOUT_ONLINE` (o2) строк `[online]` нет, заглушек нет.
+  **Для фазы 1**: `onln` ждёт XNet — ссылку (XNetGetEthernetLinkStatus), свой адрес
+  (XNetGetTitleXnAddr, `'addr'`) и сокеты не на loopback; XGI 000B0006/000B0008 отвечать успехом,
+  как SDK.
 
 ### Фаза 1. SDK-половина: «Live подключён» (≈1 неделя)
 - XNet: ссылка есть, XNADDR с LAN-адресом (выбранный интерфейс или 127.0.0.x), XnAddr↔InAddr,

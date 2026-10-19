@@ -18,6 +18,7 @@
 #include <memory>
 #include "xam.h"
 #include "xdm.h"
+#include <user/online.h>
 
 #ifdef _WIN32
 #include <ntstatus.h>
@@ -29,9 +30,12 @@ uint32_t XGetGameRegion()
     return 0x03FF; // all regions
 }
 
+// 1: signed in locally. With BURNOUT_ONLINE user 0 is signed in to Xbox Live
+// (2, eXUserSigninState_SignedInToLive), as the game's Xbox Live menu needs
+// (user/online.h).
 uint32_t XamUserGetSigninState(uint32_t userIndex)
 {
-    return true;
+    return userIndex == 0 && online::Enabled() ? 2 : 1;
 }
 
 uint32_t XamGetSystemVersion()
@@ -60,9 +64,9 @@ uint32_t XamUserGetSigninInfo(uint32_t userIndex, uint32_t flags, XUSER_SIGNIN_I
     if (userIndex == 0)
     {
         memset(info, 0, sizeof(*info));
-        info->xuid = 0xB13EBABEBABEBABE;
-        info->SigninState = 1;
-        strcpy(info->Name, "Player");
+        info->xuid = online::Xuid();
+        info->SigninState = online::Enabled() ? 2 : 1;
+        snprintf(info->Name, sizeof(info->Name), "%s", online::Gamertag().c_str());
         return 0;
     }
 

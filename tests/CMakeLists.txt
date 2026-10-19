@@ -190,6 +190,8 @@ sb_test(suspend_count_test)
 sb_test(vehicle_detail_test)
 # Which controller is which player (hid/pad_slots.h, header only).
 sb_test(pad_slots_test)
+# Who this console is online: the gamertag and its XUID (user/online_identity.h, header only).
+sb_test(online_identity_test)
 # When the mouse cursor shows over the game (ui/cursor_idle.h, header only),
 # and how ui.cpp drives it.
 sb_test(cursor_idle_test ARGS ${RT}/ui/ui.cpp)

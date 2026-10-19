@@ -7,6 +7,7 @@
 #include <stdafx.h>
 #include <kernel/function.h>
 #include <kernel/overlapped.h>
+#include <user/online.h>
 #include <user/paths.h>
 
 #include <fstream>
@@ -198,7 +199,7 @@ uint32_t XamUserReadProfileSettings(uint32_t titleId, uint32_t userIndex, uint32
             memset(out, 0, sizeof(*out));
             out->settingId = id;
             if (xuids)
-                out->xuid = kXuid;
+                out->xuid = r < xuidCount ? uint64_t(xuids[r]) : kXuid;  // the XUID asked about (ours, online or not)
             else
                 out->userIndex = userIndex;
             uint32_t type = SettingType(id);
@@ -271,7 +272,7 @@ uint32_t XamUserGetXUID(uint32_t userIndex, uint32_t typeMask, be<uint64_t>* xui
 {
     if (userIndex != 0)
         return X_ERROR_NO_SUCH_USER;
-    *xuid = kXuid;
+    *xuid = online::Enabled() ? online::Xuid() : kXuid;
     return X_ERROR_SUCCESS;
 }
 
@@ -281,17 +282,21 @@ uint32_t XamUserGetName(uint32_t userIndex, char* buffer, uint32_t bufferLength)
         return X_ERROR_NO_SUCH_USER;
     if (!buffer || bufferLength == 0)
         return X_ERROR_INVALID_PARAMETER;
-    snprintf(buffer, bufferLength, "%s", "Player");
+    snprintf(buffer, bufferLength, "%s", online::Gamertag().c_str());
     return X_ERROR_SUCCESS;
 }
 
 // Offline: deny every privilege, as Xenia does (online play, voice,
-// purchases and user content are all gated behind them).
+// purchases and user content are all gated behind them). Signed in to Live
+// (BURNOUT_ONLINE, user/online.h): all allowed, as for an adult Gold
+// account - as Xerenge's SDK answers for --online.
 uint32_t XamUserCheckPrivilege(uint32_t userIndex, uint32_t privilege, be<uint32_t>* result)
 {
     if (userIndex != 0 && userIndex != 0xFF)
         return X_ERROR_NO_SUCH_USER;
-    *result = 0;
+    *result = online::Enabled() ? 1 : 0;
+    if (online::Enabled())
+        fprintf(stderr, "[online] privilege %u checked: allowed\n", privilege);
     return X_ERROR_SUCCESS;
 }
 
