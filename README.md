@@ -46,7 +46,7 @@
   </tr>
   <tr>
     <td width="50%"><img src="docs/screenshots/race-bloom-off-dualsense.jpg" alt="Traffic Attack with Bloom off: a blue sky, palms and buildings crisp against it, and PRESS cross TO BOOST with a DualSense"><br><sub>Bloom off, the sky kept; the game's prompts for a DualSense.</sub></td>
-    <td width="50%"><img src="docs/screenshots/setup-make-it-yours.jpg" alt="The first-run setup on its second page: the cover art on the left, the install folder and the add-on car packs on the right"><br><sub>First-run setup.</sub></td>
+    <td width="50%"><img src="docs/screenshots/race-split-screen.jpg" alt="Multiplayer Race in split screen at sunset: two white cars on a city road, player 2 below scraping a wall in a shower of sparks"><br><sub>Split screen for two, a controller each.</sub></td>
   </tr>
 </table>
 
@@ -83,6 +83,9 @@
   either (21:9, 32:9, 16:10, 4:3) the race HUD sits at the screen's corners and
   the menus' frame at its edges; menus and films stay 16:9 in the middle.
   Widescreen keeps the original 16:9 with bars.
+- Vehicle Detail: rivals and traffic keep their detailed models twice as far
+  away by default (Far), or four times (Farthest), so cars ahead stop
+  changing shape as you close in. Original is the console's 30 m.
 - Bloom and Motion Blur from 0 to 100%. Lower Bloom removes the game's haze
   and the glow round edges but keeps its bright blue sky: the glow is kept where
   it comes from rather than switched off. Lower Motion Blur shortens the streaks
@@ -188,7 +191,7 @@ Open with **F1**, **Cmd+,** or **Back + Start**. LB/RB (Q/E) switch pages.
 <table>
   <tr>
     <td width="50%"><img src="docs/screenshots/settings-display.jpg" alt="Settings, Display page: Fullscreen, V-Sync, Frame Rate, Aspect Ratio, Brightness, Xbox 360 Display Gamma"><br><sub>Display.</sub></td>
-    <td width="50%"><img src="docs/screenshots/settings-graphics.jpg" alt="Settings, Graphics page scrolled to Bloom, with its description"><br><sub>Graphics, Bloom.</sub></td>
+    <td width="50%"><img src="docs/screenshots/settings-graphics.jpg" alt="Settings, Graphics page scrolled to Vehicle Detail set to Far, with its description"><br><sub>Graphics, Vehicle Detail.</sub></td>
   </tr>
   <tr>
     <td width="50%"><img src="docs/screenshots/settings-audio-my-music.jpg" alt="Settings, Audio page: Music set to My Music, Music Folder with 2 files"><br><sub>Audio, with My Music.</sub></td>
@@ -234,10 +237,11 @@ Every key can be changed in Settings > Controls.
 - Tested on one M1 Pro with its own controllers; other Macs and accessories
   may behave differently. USB is the fallback for a Bluetooth pad.
 - Steering wheels are tested on a virtual Logitech G29 only, not yet on a
-  real wheel; reports are welcome.
+  real wheel; reports are welcome. Split screen for two is tested with two
+  virtual controllers (Multiplayer Race), not yet with two real ones.
 - A complete career playthrough isn't verified yet. Online play and Xbox Live
-  don't work yet: choosing Xbox Live returns to the main menu. Online play
-  compatible with Xerenge's lobby servers is planned ([plan](docs/ONLINE_PLAN_RU.md), in Russian).
+  don't work: choosing Xbox Live returns to the main menu. Online play is
+  not in the works for now.
 - 14 rarely used system functions (friends and gamer-card screens, Live
   sessions, exception unwinding) are still stubs; none was reached offline in
   any menu or mode tested.

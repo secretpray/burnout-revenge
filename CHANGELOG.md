@@ -1,14 +1,14 @@
 # Changelog
 
-## Unreleased
+## v0.1.15
 
 - Settings > Graphics > Vehicle Detail: how far away cars and traffic keep
   their detailed models. Original is the game's (the full model within 30 m,
   the simplest beyond 90 m); Far doubles the distances and Farthest makes
   them four times as long, so cars ahead stop changing shape as you close on
-  them. Far is the default. Applies from the next frame. Measured on an M1 Pro: 60 fps either
-  way, up to 7% more draws with every rival in view and no GPU time to
-  measure at 1x or 2x. The idea is Takedawn's and Fukami's.
+  them. Far is the default. Applies from the next frame. Measured on an M1
+  Pro: 60 fps either way, up to 7% more draws with every rival in view and
+  no GPU time to measure at 1x or 2x. The idea is Takedawn's and Fukami's.
 - Two controllers, two players: each controller is a player in the order
   they connect (up to four), so Multiplayer's split screen works with a
   second pad ("Player 2 please press START"), and each player's vibration
@@ -28,6 +28,9 @@
   folder cleared; the next start now removes it, wherever it was, with the
   folders made for it (a folder with anything of yours in it is kept). An
   add-on pack copy that fails, or that a crash stopped, is removed too.
+
+- The finished save (BurnoutRevenge-100-percent-save.zip) comes with this
+  release too.
 
 ## v0.1.14
 
