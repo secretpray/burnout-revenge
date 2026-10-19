@@ -59,7 +59,11 @@
   (сборка 4d4a46d из /Applications): машины в Car Select есть, на двух проехал гонку.
 - [x] v0.1.10 опубликован (1ec3e46): импорт сейвов, 100% сейв (только Player Files), пропуск
   трека в Crash, сохранение Burnout Clips.
-- [x] v0.1.14 опубликован (Latest, 0bdced3), скачанный DMG (sha256 731a8f19…6f5a, codesign ok)
+- [x] v0.1.15 опубликован (Latest, 22d31bd), скачанный DMG (sha256 b6233eaf…0fddf, codesign ok, check_app PASS)
+  установлен в Applications: Vehicle Detail (Far по умолчанию), разделённый экран на двоих, сейвы и
+  установка без мусора после сбоя, оформленный DMG (dmgbuild, фон из make_dmg_background.py); в
+  CREDITS/README — Xerenge, Fukami, Takedawn; 100% сейв приложен. Тесты 73/73.
+- [x] v0.1.14 опубликован (0bdced3), скачанный DMG (sha256 731a8f19…6f5a, codesign ok)
   установлен в Applications: USB-рули (SpeedBreaker PR #29, проверено на виртуальном G29),
   HUD гонки у краёв 16:10/4:3, рамка меню до верха/низа; 100% сейв приложен. Тесты 70/70.
 - [x] v0.1.13 опубликован (53fb13c), скачанный DMG (sha256 9f3f3166…91af, codesign ok)

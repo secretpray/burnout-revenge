@@ -38,10 +38,10 @@
 
 ## Состояние (19.10.2026)
 
-- v0.1.14 опубликован (Latest, 0bdced3), установлен в /Applications из скачанного DMG:
-  USB-рули (SpeedBreaker PR #29, проверено на виртуальном G29), HUD гонки у краёв и на 16:10/4:3
-  (game/hud_anchor.h). v0.1.13: HUD у краёв ultrawide. v0.1.12: нет зависания на старте
-  (cpu/suspend_count.h), Xbox Live офлайн без выхода из игры. Тесты 70/70.
+- v0.1.15 опубликован (Latest, 22d31bd), установлен в /Applications из скачанного DMG: Vehicle Detail
+  (game/vehicle_detail.h), игроки по падам и разделённый экран (hid/pad_slots.h), сейвы через копию
+  (user/save_commit.h), установка без мусора (журнал install-unfinished), оформленный DMG (нужен
+  DMG_PYTHON с dmgbuild 1.6.5). v0.1.14: рули, HUD у краёв 16:10/4:3. Тесты 73/73.
 - Проверено: камера Takedown (ручные прогоны пользователя), шесть аддон-машин, матрица меню
   и режимов (кроме Player File; Multiplayer Race на двух виртуальных падах — да). Заглушек осталось 14
   (друзья/gamer card/сессии Live/исключения), офлайн не встречены.
