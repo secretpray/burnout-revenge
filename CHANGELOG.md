@@ -29,6 +29,9 @@
   folders made for it (a folder with anything of yours in it is kept). An
   add-on pack copy that fails, or that a crash stopped, is removed too.
 
+- The download opens on a window in the game's look: hazard stripes, the
+  name in heavy italic capitals, and chevrons running from the game to
+  Applications. The mounted disk shows the game's icon.
 - The finished save (BurnoutRevenge-100-percent-save.zip) comes with this
   release too.
 
