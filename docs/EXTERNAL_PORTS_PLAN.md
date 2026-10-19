@@ -234,6 +234,25 @@ and our own Aries-compatible server (or interoperability with theirs, which woul
 let Mac and Linux/Windows players meet). Weeks of work; testable only with two
 copies (two Macs, or two loopback addresses on one Mac as Xerenge does).
 
+### Fukami (Ridge Racer V, PS2; GPL-3.0)
+
+[danisandoval/fukami](https://github.com/danisandoval/fukami/tree/2ecb281), `2ecb281`
+(2026-10-14, v1.1.0). Static recompilation of the PS2 game onto PCSX2's GS; macOS, Steam
+Deck, Windows. GPL-3.0, so code is license-compatible with ours (keep its notices); its
+PS2/PCSX2 paths and addresses don't apply. Reviewed 2026-10-19 from settings, docs and
+selected sources; not built or run.
+
+| Feature | Ours today | Decision (order set by the user; online after these) |
+| --- | --- | --- |
+| `car_lod`, `draw_distance`: LOD distances multiplied up to the game's cull distance; larger display lists, a car that doesn't fit drawn at stock detail that frame; cost measured | Stock LOD | 1st: find USA LOD/visibility code and buffer limits, measure |
+| Pad slots (`rrv_pad_slots.h`): P1/P2 by connection, failover, a pad seen twice (BT + USB) never stuck as P2 | User 0 only | 2nd: slots for users 0–3, offline Multiplayer on two pads |
+| Memory card writes: temp file, fsync, rename (power-loss safe) | Settings and install are atomic; game save path not checked | 3rd: check XContent/file writes, make them atomic if in place |
+| `refresh_rate = auto`: fullscreen switches the display to a multiple of 60 Hz and back | One-time notice for 144/165 Hz externals | 4th: switch mode on Mac (`CGDisplaySetDisplayMode`), never ProMotion |
+| `fast_unpack`: the game's unpacker run natively | Not measured | 5th: profile loads first; only if decompression dominates |
+| Present pacing, cursor idle, real widescreen | Done (present_schedule, ui/cursor_idle.h, hud_anchor/ultrawide) | Nothing to add |
+| AA1, mipmap emulation, VU AOT, split_gs/pacer_spin, D3D11/VRR, car_depth_fix | PS2/PCSX2/Deck/Windows specific | Not applicable |
+| Session pad record and replay with fast-forward | Scripted pad input only | Maybe later as a debug tool; exact replay unlikely (multithreaded game) |
+
 ### Takedawn (Burnout 3: Takedown, original Xbox; MIT)
 
 | Feature | Ours today | Decision |
