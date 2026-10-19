@@ -24,10 +24,13 @@ no public source snapshot was verified, so it is not treated as reusable code.
 
 ## Licensing and integration boundaries
 
-At the checked Xerenge main/fork revisions there is no top-level LICENSE/COPYING;
-only the vendored SMAA license was found in tracked paths. Do not infer a grant
-for the project's own Plume/game files from its public visibility. No such code
-has been copied. Its separate SDK input file explicitly retains the Xenia BSD
+Xerenge had no top-level LICENSE/COPYING at the revisions reviewed on
+2026-10-18 (`22dad21`). Since 2026-10-19 (`c023338`, after our request in
+shipa-2/Xerenge#28) its own code is GPL-3.0-or-later, and its author agreed to
+our adapting `rexglue/src/ealobby/` and the online notes in `online_stub.cpp`
+with copyright and credit kept. Take code only from licensed revisions (pin a
+SHA); nothing from the earlier snapshot has been copied. The xenophobentx fork
+is a separate repository: check its own licence before using anything from it. Its separate SDK input file explicitly retains the Xenia BSD
 notice; check that file's upstream license and notices before an actual port.
 Takedawn is MIT; its toolkit has component-specific notices (including LGPL audio),
 so select files by provenance rather than assigning the whole dependency one
@@ -221,9 +224,9 @@ src/ealobby/, tools/ealobby/; ~4,000 lines plus the SDK half):
    ("seamless multiplayer"). Burnout Clips sharing: EA Locker over HTTP on 31862
    (Top 20 / recent players), thumbnails still black.
 
-Licence: Xerenge has no licence, so the hooks and the server are reference only
-(ideas, addresses, protocol facts, re-implemented by us with attribution, as
-game/movies.cpp did). ReXGlue SDK is BSD-3 (Xenia-derived); the fork's SDK files
+Licence: Xerenge is GPL-3.0-or-later since `c023338` (2026-10-19), and its
+author agreed to our adapting `ealobby` and the `online_stub.cpp` notes, with
+copyright and credit kept (shipa-2/Xerenge#28; plan: docs/ONLINE_PLAN_RU.md). ReXGlue SDK is BSD-3 (Xenia-derived); the fork's SDK files
 can be adapted with the BSD notice kept, after checking each file's header.
 
 Fit for us: our network layer is now an honest offline console (v0.1.12). Online

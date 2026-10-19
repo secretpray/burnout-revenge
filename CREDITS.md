@@ -25,8 +25,10 @@
 - **Xerenge**, shipa-2: the Burnout Revenge research this port leans on most —
   the music-skip finding (`sub_8210F940`), boma's motion-blur patch as Xerenge
   applies it, the Takedown-camera and rendering notes, and the online protocol
-  facts studied for a possible online mode. No source is copied (Xerenge has no
-  licence file); the code here is our own, with attribution in its comments.
+  facts studied for the planned online mode. No source is copied so far; the
+  code here is our own, with attribution in its comments. Xerenge is
+  GPL-3.0-or-later since `c023338` (2026-10-19), and its author agreed to our
+  adapting its lobby server (`ealobby`) and online notes, with credit kept.
   https://github.com/shipa-2/Xerenge
 - **Fukami**, danisandoval (GPL-3.0; a Ridge Racer V port): the ideas behind
   Settings > Graphics > Vehicle Detail (its `car_lod`), players by controller
