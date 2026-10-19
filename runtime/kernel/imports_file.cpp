@@ -9,6 +9,8 @@
 #include <cerrno>
 #include <kernel/write_watch.h>
 #include <report/report.h>
+#include <user/paths.h>
+#include <user/save_commit.h>
 #include "dispatcher.h"
 #include "function.h"
 #include "vfs.h"
@@ -121,6 +123,11 @@ struct FileObject final : Waitable
     bool isDirectory = false;
     bool synchronous = true;
     uint64_t position = 0;
+    uint32_t writes = 0;        // NtWriteFile calls, and their bytes
+    uint64_t bytesWritten = 0;
+    // A save opened for writing (user/save_commit.h): `path` is its staging
+    // copy, which replaces this one when the handle closes.
+    std::filesystem::path commitTo;
     // Directory enumeration.
     std::vector<std::filesystem::path> entries;
     size_t nextEntry = 0;
@@ -128,6 +135,16 @@ struct FileObject final : Waitable
 
     ~FileObject() override
     {
+        if (writes)
+            fprintf(stderr, "[file] closed \"%s\": %u writes, %llu bytes\n", guestPath.c_str(), writes, (unsigned long long)bytesWritten);
+        if (!commitTo.empty() && fd >= 0)
+        {
+            if (std::string error = savecommit::Commit(fd, path, commitTo); error.empty())
+                fprintf(stderr, "[file] save \"%s\" written to the disk and put in place\n", guestPath.c_str());
+            else
+                fprintf(stderr, "[file] save \"%s\" NOT replaced (the previous one stays): %s\n", guestPath.c_str(), error.c_str());
+            fd = -1;
+        }
         if (fd >= 0)
             close(fd);
     }
@@ -281,7 +298,33 @@ uint32_t NtCreateFile(be<uint32_t>* handleOut, uint32_t desiredAccess, XOBJECT_A
             flags |= O_TRUNC | O_RDWR;
             action = disposition == FILE_SUPERSEDE ? FILE_SUPERSEDED : FILE_OVERWRITTEN;
         }
-        file->fd = open(resolved->host.c_str(), flags, 0644);
+        // A save written through a staging copy (user/save_commit.h), so
+        // the one on disk stays whole until the game closes the file.
+        std::optional<std::filesystem::path> staging;
+        if (wantsWrite)
+        {
+            static const bool cleaned = [] {
+                if (size_t n = savecommit::RemoveLeftovers(GetSavePath(true)))
+                    fprintf(stderr, "[file] %zu unfinished save write(s) of an earlier run thrown away (their saves were never replaced)\n", n);
+                return true;
+            }();
+            (void)cleaned;
+            staging = savecommit::StagingFor(resolved->host, GetSavePath(true));
+        }
+        if (staging)
+        {
+            std::string error;
+            file->fd = savecommit::Begin(*staging, resolved->host, !(flags & O_TRUNC), error);
+            if (file->fd >= 0)
+            {
+                file->path = *staging;
+                file->commitTo = resolved->host;
+            }
+            else
+                fprintf(stderr, "[file] %s\n", error.c_str());
+        }
+        else
+            file->fd = open(resolved->host.c_str(), flags, 0644);
         if (file->fd < 0)
         {
             DestroyKernelObject(file);
@@ -290,8 +333,11 @@ uint32_t NtCreateFile(be<uint32_t>* handleOut, uint32_t desiredAccess, XOBJECT_A
     }
 
     *handleOut = GetKernelHandle(file);
-    fprintf(stderr, "[file] open \"%s\" -> %s%s\n", guestPath->c_str(), resolved->host.c_str(),
+    fprintf(stderr, "[file] open \"%s\" -> %s%s", guestPath->c_str(), resolved->host.c_str(),
         action == FILE_CREATED ? " (created)" : "");
+    if (wantsWrite)
+        fprintf(stderr, " for writing (access %08X, disposition %u, share %u)", desiredAccess, disposition, shareAccess);
+    fprintf(stderr, "\n");
     Complete(iosb, STATUS_SUCCESS, action);
     return STATUS_SUCCESS;
 }
@@ -391,6 +437,18 @@ uint32_t NtWriteFile(uint32_t fileHandle, uint32_t eventHandle, uint32_t apcRout
         return STATUS_UNSUCCESSFUL;
     }
     file->position = pos + uint64_t(n);
+    file->writes++;
+    file->bytesWritten += uint64_t(n);
+    // BURNOUT_TEST_SAVE_CRASH=1: the process dies right after a save's first
+    // write, as in a crash or power cut mid-save (tests of user/save_commit.h).
+    static const bool crashMidSave = std::getenv("BURNOUT_TEST_SAVE_CRASH") != nullptr;
+    if (crashMidSave && !file->commitTo.empty())
+    {
+        fprintf(stderr, "[file] BURNOUT_TEST_SAVE_CRASH: stopping mid-save of \"%s\" after %llu bytes\n", file->guestPath.c_str(),
+            (unsigned long long)file->bytesWritten);
+        fflush(stderr);
+        _exit(77);
+    }
     Complete(iosb, STATUS_SUCCESS, uint32_t(n));
     SignalEvent(eventHandle);
     return file->synchronous ? STATUS_SUCCESS : STATUS_PENDING;

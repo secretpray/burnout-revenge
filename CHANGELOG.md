@@ -16,6 +16,11 @@
   player 1's controller goes and no other is waiting, the next one becomes
   player 1, so one controller seen twice (Bluetooth and USB at once) is
   never left as player 2. After Fukami's controller slots.
+- Saves survive a crash or power cut mid-save. The game empties its save
+  file and then writes it again; now it writes to a copy, which is flushed
+  to the disk and swapped in whole when the game closes the file, so the
+  previous save stays intact until then. A copy a crash left behind is
+  thrown away at the next start. After Fukami's memory card writes.
 
 ## v0.1.14
 

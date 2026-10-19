@@ -246,7 +246,7 @@ selected sources; not built or run.
 | --- | --- | --- |
 | `car_lod`, `draw_distance`: LOD distances multiplied up to the game's cull distance; larger display lists, a car that doesn't fit drawn at stock detail that frame; cost measured | Stock LOD | Done 2026-10-19: Settings > Graphics > Vehicle Detail (cars and traffic; scenery not) |
 | Pad slots (`rrv_pad_slots.h`): P1/P2 by connection, failover, a pad seen twice (BT + USB) never stuck as P2 | Done 2026-10-19: users 0–3 (`hid/pad_slots.h`), split-screen Multiplayer Race on two virtual pads | — |
-| Memory card writes: temp file, fsync, rename (power-loss safe) | Settings and install are atomic; game save path not checked | 3rd: check XContent/file writes, make them atomic if in place |
+| Memory card writes: temp file, fsync, rename (power-loss safe) | Done 2026-10-19: saves staged and swapped in on close (`user/save_commit.h`) | — |
 | `refresh_rate = auto`: fullscreen switches the display to a multiple of 60 Hz and back | One-time notice for 144/165 Hz externals | 4th: switch mode on Mac (`CGDisplaySetDisplayMode`), never ProMotion |
 | `fast_unpack`: the game's unpacker run natively | Not measured | 5th: profile loads first; only if decompression dominates |
 | Present pacing, cursor idle, real widescreen | Done (present_schedule, ui/cursor_idle.h, hud_anchor/ultrawide) | Nothing to add |

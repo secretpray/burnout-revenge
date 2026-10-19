@@ -132,6 +132,9 @@
   from your own disc plays while it installs.
 - Add-on car packs: choose a folder at setup, import later from Settings, or
   let the game find `XBOX360/454107DC/00000002` on a mounted drive.
+- Saves can't be half-written: a save is written to a copy and put in
+  place whole once the game finishes it, so a crash or power cut mid-save
+  leaves the previous save.
 - Save backups: each launch backs up your saves when they changed (the newest
   10 are kept). Settings > Advanced > Save Backups restores one.
 - Save import: Save Backups > Import Save File / Import Save Folder (or

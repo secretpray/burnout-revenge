@@ -217,7 +217,7 @@ Add-on `/Volumes/1Tb NVME/XBOX360/454107DC`. Сохранения/настрой
 
 ## 8. Идеи из Fukami (до онлайна)
 
-**Статус 19.10.2026: шаги 1–2 сделаны** (Vehicle Detail, слоты геймпадов). Источник — `danisandoval/fukami@2ecb281` (Ridge Racer V, PS2,
+**Статус 19.10.2026: шаги 1–3 сделаны** (Vehicle Detail, слоты геймпадов, атомарные сейвы). Источник — `danisandoval/fukami@2ecb281` (Ridge Racer V, PS2,
 v1.1.0, GPL-3.0). Порядок задал пользователь; онлайн ([ONLINE_PLAN_RU](ONLINE_PLAN_RU.md))
 начинается после этого этапа. Подробности и критерии — ACTIVE_WORK, пункты 11–15.
 

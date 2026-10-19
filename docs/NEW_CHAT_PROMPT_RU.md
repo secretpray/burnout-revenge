@@ -12,7 +12,7 @@
   ещё `git diff HEAD | git -C $B apply` (новые файлы сначала `git add -N`).
 - Сборка и тесты (в сборочной копии):
   `T=…/speedbreaker/tools; export PATH=$T/build-python/cmake/data/bin:$T/bin:$PATH`
-  `cmake --build build/burnout-mac -j6` и `ctest --test-dir build/burnout-mac` (сейчас 72/72).
+  `cmake --build build/burnout-mac -j6` и `ctest --test-dir build/burnout-mac` (сейчас 73/73).
   Если в сборочной копии остались новые файлы от прошлого `apply`, перед ним удали их.
 - Пакет: `MOLTENVK=$T/moltenvk/MoltenVK/MoltenVK/dylib/macOS/libMoltenVK.dylib MOLTENVK_VERSION=1.4.2
   python3 scripts/macos/make_app.py build/burnout-mac <out> --game=burnout [--dmg]`, затем
@@ -55,8 +55,7 @@
 
 1. [x] **Дальность LOD машин** — сделано (Settings > Graphics > Vehicle Detail, ACTIVE_WORK п. 11).
 2. [x] **Геймпады по слотам игроков** — сделано (ACTIVE_WORK п. 12; `BURNOUT_VIRTUAL_PAD2`, шаг `DETACH`).
-3. **Сохранения, устойчивые к сбою**: проверить путь записи сейвов; если на месте — копия,
-   F_FULLFSYNC и замена при закрытии; тест обрыва посреди записи.
+3. [x] **Сохранения, устойчивые к сбою** — сделано (ACTIVE_WORK п. 13; `BURNOUT_TEST_SAVE_CRASH`).
 4. **Частота внешнего экрана в fullscreen** (Fukami `refresh_rate = auto`): 144/165 Гц → 120
    на время fullscreen и возврат; ProMotion не трогать.
 5. **Быстрее загрузки** (Fukami `fast_unpack`): сначала профиль; нативная распаковка только если
@@ -75,7 +74,7 @@
   приватный backup в папке validation); после каждого релиза ставь скачанный релизный DMG
   (проверь SHA-256 и codesign).
 - Релиз: поднять версию в CMakeLists.txt, перенести CHANGELOG из Unreleased, обновить README,
-  сборка, 72+ тестов, пакет с `--dmg`, короткий запуск кандидата, `package_sources.py` для исходников
+  сборка, 73+ тестов, пакет с `--dmg`, короткий запуск кандидата, `package_sources.py` для исходников
   third-party, SHA256SUMS, черновик `gh release create --target <полный SHA> --draft`,
   сверка скачанных ассетов, затем публикация Latest. Существующие теги не передвигать.
 - В каждый релиз прикладывать `BurnoutRevenge-100-percent-save.zip` из

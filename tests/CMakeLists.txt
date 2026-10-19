@@ -32,6 +32,8 @@ sb_test(xma_mmio_test)
 sb_test(refresh_notice_test SOURCES ${RT}/video/refresh_fit.cpp ${RT}/user/settings.cpp
     ARGS ${CMAKE_CURRENT_BINARY_DIR}/refresh_notice_scratch)
 sb_test(save_backup_test SOURCES ${RT}/user/save_backup.cpp ARGS ${CMAKE_BINARY_DIR})
+# Saves written through a staging copy and put in place whole (user/save_commit.h).
+sb_test(save_commit_test SOURCES ${RT}/user/save_commit.cpp ARGS ${CMAKE_CURRENT_BINARY_DIR}/save_commit_scratch)
 # Save imports: console packages (STFS), Xenia's folders, applied by a restore
 # (user/save_import.h, user/stfs.h), in a scratch folder.
 sb_test(save_import_test SOURCES ${RT}/user/save_import.cpp ${RT}/user/save_backup.cpp ARGS ${CMAKE_BINARY_DIR})
