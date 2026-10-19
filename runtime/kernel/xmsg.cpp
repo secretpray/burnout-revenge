@@ -12,6 +12,10 @@
 // player's own files (user/my_music.h) play in the playlist's place. XGI (0xFB: achievements,
 // sessions, stats) and XLiveBase (0xFC) messages fail with X_E_FAIL and a log
 // line, as Xenia's unknown messages do; add them as the game needs them.
+// Online (BURNOUT_ONLINE, user/online.h) XLiveBase answers as a console
+// signed in to Live, and XOnlineGetServiceInfo names the lobby server; XGI's
+// presence and achievement writes succeed (XgiOnline, XLiveBaseOnline below,
+// after the ReXGlue SDK's xlivebase_app/xgi_app in Xerenge's fork, BSD).
 #include <stdafx.h>
 #include "function.h"
 #include "overlapped.h"
@@ -22,6 +26,7 @@
 #include <apu/music.h>
 #include <apu/xmp_playlist.h>
 #include <user/my_music.h>
+#include <user/online.h>
 
 #include <thread>
 
@@ -409,10 +414,71 @@ namespace
         return X_E_FAIL;
     }
 
+    // XLiveBase (0xFC) online. The arguments are the in-process call's two:
+    // for XOnlineGetServiceInfo the service id and the XONLINE_SERVICE_INFO to
+    // fill. X_E_NOTFOUND: not answered here.
+    uint32_t XLiveBaseOnline(uint32_t message, uint32_t buffer, uint32_t length)
+    {
+        switch (message)
+        {
+        case 0x00058004:  // XLiveBaseGetLogonId: a bool
+            if (buffer)
+                *Guest<be<uint32_t>>(buffer) = 1;
+            return X_E_SUCCESS;
+        case 0x00058006:  // XLiveBaseGetNatType
+            if (buffer)
+                *Guest<be<uint32_t>>(buffer) = 1;  // XONLINE_NAT_OPEN
+            return X_E_SUCCESS;
+        case 0x00058007:  // XOnlineGetServiceInfo(service id, XONLINE_SERVICE_INFO*)
+        {
+            if (!length)
+                return X_E_FAIL;
+            // { dwServiceID, IN_ADDR serviceIP, WORD wServicePort, WORD reserved }:
+            // EA's DirtySock reaches its lobby (0x45410004) through this, and
+            // won't go online while it fails. An address, never a name.
+            const uint32_t address = online::LobbyServerAddress();  // network order
+            const uint8_t* ip = reinterpret_cast<const uint8_t*>(&address);
+            *Guest<be<uint32_t>>(length) = buffer;
+            *Guest<be<uint32_t>>(length + 4) = uint32_t(ip[0]) << 24 | uint32_t(ip[1]) << 16 | uint32_t(ip[2]) << 8 | ip[3];
+            *Guest<be<uint16_t>>(length + 8) = 3074;
+            *Guest<be<uint16_t>>(length + 10) = 0;
+            fprintf(stderr, "[online] service %08X is at %u.%u.%u.%u\n", buffer, ip[0], ip[1], ip[2], ip[3]);
+            return X_E_SUCCESS;
+        }
+        case 0x00058037:  // XPresenceInitialize
+        case 0x00058046:  // needed to succeed for a signed-in profile to count
+        case 0x0005000B:  // XStringVerify: with no Live to ask, every string passes (or clip comments are "profane")
+            return X_E_SUCCESS;
+        default:
+            return X_E_NOTFOUND;
+        }
+    }
+
+    // XGI (0xFB) online: the presence context and properties, and achievement
+    // writes, accepted (the game sets its rich presence every 10 s).
+    uint32_t XgiOnline(uint32_t message)
+    {
+        switch (message)
+        {
+        case 0x000B0006:  // XGIUserSetContextEx
+        case 0x000B0007:  // XGIUserSetPropertyEx
+        case 0x000B0008:  // XGIUserWriteAchievements
+            return X_E_SUCCESS;
+        default:
+            return X_E_NOTFOUND;
+        }
+    }
+
     uint32_t Dispatch(uint32_t app, uint32_t message, uint32_t buffer, uint32_t length)
     {
         if (app == 0xFA)
             return XmpDispatch(message, buffer, length);
+        if (online::Enabled() && (app == 0xFB || app == 0xFC))
+        {
+            const uint32_t result = app == 0xFC ? XLiveBaseOnline(message, buffer, length) : XgiOnline(message);
+            if (result != X_E_NOTFOUND)
+                return result;
+        }
         if (app == 0xFB || app == 0xFC)
         {
             fprintf(stderr, "[xmsg] app %02X message %08X (buffer %08X, %u) not implemented (returning X_E_FAIL)\n", app, message,

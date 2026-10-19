@@ -287,7 +287,11 @@
    на всех). Слой SDK — BSD-3 (ReXGlue/Xenia). Оценка ≈4–6 недель.
    **Фаза 0 сделана** (19.10, online-validation o1/o2): `BURNOUT_ONLINE=1`/`BURNOUT_GAMERTAG`,
    XUID на геймертег, журнал входа; вход встаёт на шаге 5 (`onln` = 0, адрес XNet = 0) →
-   «Connection problem», без зависания. Дальше — фаза 1 (XNet «подключён», XLiveBase, XGI).
+   «Connection problem», без зависания.
+   **Фаза 1 сделана** (19.10, p1/p2): сеть «подключена» при `BURNOUT_ONLINE` (ссылка, XNADDR, настоящие
+   сокеты), XOnlineGetServiceInfo → IP лобби (`BURNOUT_LOBBY_SERVER`), XGI успех. На сервере автора
+   вход в лобби доходит до 11, затем пост-логин ждёт HTTP (:80, :443) на «Connecting to EA servers…».
+   Дальше — фаза 3 (пропуск Rivals/новостей/условий, Locker на :31862), до неё на сервер автора не ходим.
    **TODO, план по фазам 0–7** (19.10): [ONLINE_PLAN_RU](ONLINE_PLAN_RU.md). Решения: совместимость
    с Xerenge; тест — адреса lo0 127.0.0.2/3, позже два Mac; гонки + клипы; сервер на выбор
    (автора — с согласия, свой, LAN). Найден публичный сервер автора `94639.snk.wtf` (жив,

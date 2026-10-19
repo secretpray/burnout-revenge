@@ -8,8 +8,10 @@
 #include "function.h"
 #include <cpu/guest_thread.h>
 #include <kernel/xdm.h>
+#include <user/online.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <fcntl.h>
 #include <poll.h>
 #include <unistd.h>
@@ -164,15 +166,48 @@ PPC_FUNC(__imp__vswprintf)
 
 PPC_FUNC(__imp__NetDll_XNetStartup)
 {
-    // Initialise offline. Link status below explicitly reports no cable.
+    // Offline the link status below reports no cable. Online
+    // (BURNOUT_ONLINE, user/online.h) a console with a working connection.
     ctx.r3.u64 = 0;
 }
 
 PPC_FUNC(__imp__NetDll_XNetCleanup) { ctx.r3.u64 = 0; }
-PPC_FUNC(__imp__NetDll_XNetGetEthernetLinkStatus) { ctx.r3.u64 = 0; }
+// Online: XNET_ETHERNET_LINK_ACTIVE | 100MBPS | FULL_DUPLEX.
+PPC_FUNC(__imp__NetDll_XNetGetEthernetLinkStatus) { ctx.r3.u64 = online::Enabled() ? 0x01 | 0x02 | 0x08 : 0; }
+
+namespace
+{
+    // XNADDR: ina, inaOnline (network order), wPortOnline (big-endian),
+    // abEnet[6], abOnline[20] - 36 bytes. Online it is this console's address
+    // (user/online.h), and the two identities are made from it, so that two
+    // copies on one machine (127.0.0.2, 127.0.0.3) don't look like one and no
+    // real MAC address leaves the Mac. (As the ReXGlue SDK in Xerenge's fork
+    // fills it, shipa-2/rexglue-xerenge, BSD.)
+    void FillXnAddr(uint8_t* x, uint32_t address)
+    {
+        memset(x, 0, 36);
+        memcpy(x, &address, 4);
+        memcpy(x + 4, &address, 4);
+        x[8] = 3074 >> 8, x[9] = 3074 & 0xFF;
+        const uint8_t* ip = reinterpret_cast<const uint8_t*>(&address);
+        x[10] = 0x02, x[11] = 0x58;  // locally administered
+        memcpy(x + 12, ip, 4);
+        for (uint8_t i = 0; i < 20; i++)
+            x[16 + i] = uint8_t(0x5A + i) ^ ip[i % 4];
+    }
+}
 
 PPC_FUNC(__imp__NetDll_XNetGetTitleXnAddr)
 {
+    if (online::Enabled())
+    {
+        // A console with a static address behind a gateway, DNS set and
+        // online: EA's DirtySock reads less than that as a problem.
+        if (ctx.r4.u32)
+            FillXnAddr(base + ctx.r4.u32, online::LocalAddress());
+        ctx.r3.u64 = 0x02 | 0x04 | 0x20 | 0x40 | 0x80;  // ETHERNET STATIC GATEWAY DNS ONLINE
+        return;
+    }
     if (ctx.r4.u32)
         memset(base + ctx.r4.u32, 0, 36);  // XNADDR
     ctx.r3.u64 = 1;  // XNET_GET_XNADDR_NONE (offline, not pending).
@@ -265,9 +300,27 @@ PPC_FUNC(__imp__NetDll_bind)
     local.sin_len = sizeof(local);
     local.sin_family = AF_INET;
     memcpy(&local.sin_port, base + addr + 2, 2);
-    local.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    ctx.r3.u64 = bind(socket->fd, reinterpret_cast<sockaddr*>(&local), sizeof(local)) < 0
-        ? SocketFailure(errno == EADDRINUSE ? 10048 : 10022) : 0;
+    // Offline every socket is on loopback. Online where the game asks, and
+    // "any address" is this console's own when one is set, so two copies on
+    // one machine can both have the game's fixed ports.
+    if (online::Enabled())
+    {
+        memcpy(&local.sin_addr.s_addr, base + addr + 4, 4);
+        if (local.sin_addr.s_addr == 0)
+            local.sin_addr.s_addr = online::BindAddress();
+        const int on = 1;
+        setsockopt(socket->fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+    }
+    else
+        local.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    const bool ok = bind(socket->fd, reinterpret_cast<sockaddr*>(&local), sizeof(local)) == 0;
+    if (online::Enabled())
+    {
+        const uint8_t* ip = reinterpret_cast<const uint8_t*>(&local.sin_addr.s_addr);
+        fprintf(stderr, "[net] bind %08X to %u.%u.%u.%u:%u%s\n", ctx.r4.u32, ip[0], ip[1], ip[2], ip[3], ntohs(local.sin_port),
+            ok ? "" : " failed");
+    }
+    ctx.r3.u64 = ok ? 0 : SocketFailure(errno == EADDRINUSE ? 10048 : 10022);
 }
 
 PPC_FUNC(__imp__NetDll_WSAWaitForMultipleEvents)
@@ -330,6 +383,14 @@ namespace
         case ECONNRESET: return 10054;    // WSAECONNRESET
         case ECONNREFUSED: return 10061;  // WSAECONNREFUSED
         case EINTR: return 10004;         // WSAEINTR
+        case EINPROGRESS: return 10035;   // a non-blocking connect under way: WSAEWOULDBLOCK, as Winsock says
+        case EALREADY: return 10037;      // WSAEALREADY
+        case EISCONN: return 10056;       // WSAEISCONN
+        case ETIMEDOUT: return 10060;     // WSAETIMEDOUT
+        case ENETUNREACH: return 10051;   // WSAENETUNREACH
+        case EHOSTUNREACH: return 10065;  // WSAEHOSTUNREACH
+        case EADDRINUSE: return 10048;    // WSAEADDRINUSE
+        case EPIPE: return 10058;         // WSAESHUTDOWN
         default: return 10022;            // WSAEINVAL
         }
     }
@@ -481,6 +542,18 @@ static void Send(PPCContext& ctx, uint8_t* base, uint32_t to, uint32_t toLength)
         memcpy(address, base + to + 4, 4);
         NET_LOG("sendto %08X: %u bytes to %u.%u.%u.%u:%u\n", ctx.r4.u32, ctx.r6.u32, address[0], address[1], address[2], address[3],
             uint32_t(base[to + 2]) << 8 | base[to + 3]);
+        if (online::Enabled())
+        {
+            // Online: where the game sends it.
+            sockaddr_in target{};
+            target.sin_len = sizeof(target);
+            target.sin_family = AF_INET;
+            memcpy(&target.sin_port, base + to + 2, 2);
+            memcpy(&target.sin_addr.s_addr, address, 4);
+            n = sendto(socket->fd, base + ctx.r5.u32, ctx.r6.u32, 0, reinterpret_cast<sockaddr*>(&target), sizeof(target));
+            ctx.r3.u64 = n < 0 ? SocketFailure(ErrnoToWsa(errno)) : uint64_t(n);
+            return;
+        }
         if (address[0] != 127 && (address[0] | address[1] | address[2] | address[3]) != 0)
         {
             ctx.r3.u64 = ctx.r6.u32;  // elsewhere: dropped on the way
@@ -517,14 +590,132 @@ PPC_FUNC(__imp__NetDll_getsockname)
     }
 }
 
-// No connection is ever made.
-PPC_FUNC(__imp__NetDll_connect) { NET_LOG("connect %08X: unreachable\n", ctx.r4.u32); ctx.r3.u64 = SocketFailure(SocketFromHandle(ctx.r4.u32) ? 10051 : 10038); }  // WSAENETUNREACH
-PPC_FUNC(__imp__NetDll_getpeername) { ctx.r3.u64 = SocketFailure(SocketFromHandle(ctx.r4.u32) ? 10057 : 10038); }  // WSAENOTCONN
-PPC_FUNC(__imp__NetDll_accept) { ctx.r3.u64 = SocketFailure(SocketFromHandle(ctx.r4.u32) ? 10035 : 10038); }  // WSAEWOULDBLOCK
-PPC_FUNC(__imp__NetDll_listen) { ctx.r3.u64 = SocketFromHandle(ctx.r4.u32) ? 0 : SocketFailure(10038); }
-PPC_FUNC(__imp__NetDll_shutdown) { ctx.r3.u64 = SocketFromHandle(ctx.r4.u32) ? 0 : SocketFailure(10038); }
-// Options (broadcast, buffer sizes, non-blocking VDP) change nothing on loopback.
-PPC_FUNC(__imp__NetDll_setsockopt) { ctx.r3.u64 = SocketFromHandle(ctx.r4.u32) ? 0 : SocketFailure(10038); }
+// Offline no connection is ever made. Online (BURNOUT_ONLINE) the
+// connection is real: DirtySock connects to the lobby server non-blocking and
+// learns the outcome from select (writable) and getpeername.
+PPC_FUNC(__imp__NetDll_connect)
+{
+    auto* socket = SocketFromHandle(ctx.r4.u32);
+    const uint32_t to = ctx.r5.u32;
+    if (!online::Enabled() || !socket)
+    {
+        NET_LOG("connect %08X: unreachable\n", ctx.r4.u32);
+        ctx.r3.u64 = SocketFailure(socket ? 10051 : 10038);  // WSAENETUNREACH
+        return;
+    }
+    if (!to || ctx.r6.u32 < 16 || PPC_LOAD_U16(to) != 2)
+    {
+        ctx.r3.u64 = SocketFailure(10047);  // WSAEAFNOSUPPORT
+        return;
+    }
+    sockaddr_in target{};
+    target.sin_len = sizeof(target);
+    target.sin_family = AF_INET;
+    memcpy(&target.sin_port, base + to + 2, 2);
+    memcpy(&target.sin_addr.s_addr, base + to + 4, 4);
+    const int result = connect(socket->fd, reinterpret_cast<sockaddr*>(&target), sizeof(target));
+    const int error = result < 0 ? errno : 0;
+    const uint8_t* ip = reinterpret_cast<const uint8_t*>(&target.sin_addr.s_addr);
+    fprintf(stderr, "[net] connect %08X to %u.%u.%u.%u:%u -> %s\n", ctx.r4.u32, ip[0], ip[1], ip[2], ip[3], ntohs(target.sin_port),
+        result == 0 ? "connected" : error == EINPROGRESS ? "under way" : strerror(error));
+    ctx.r3.u64 = result == 0 ? 0 : SocketFailure(ErrnoToWsa(error));
+}
+
+PPC_FUNC(__imp__NetDll_getpeername)
+{
+    auto* socket = SocketFromHandle(ctx.r4.u32);
+    if (!socket || !online::Enabled())
+    {
+        ctx.r3.u64 = SocketFailure(socket ? 10057 : 10038);  // WSAENOTCONN
+        return;
+    }
+    sockaddr_in peer{};
+    socklen_t length = sizeof(peer);
+    if (getpeername(socket->fd, reinterpret_cast<sockaddr*>(&peer), &length) < 0)
+        ctx.r3.u64 = SocketFailure(ErrnoToWsa(errno));
+    else
+    {
+        StoreGuestAddress(base, ctx.r5.u32, ctx.r6.u32, peer);
+        ctx.r3.u64 = 0;
+    }
+}
+
+PPC_FUNC(__imp__NetDll_accept)
+{
+    auto* socket = SocketFromHandle(ctx.r4.u32);
+    if (!socket || !online::Enabled())
+    {
+        ctx.r3.u64 = SocketFailure(socket ? 10035 : 10038);  // WSAEWOULDBLOCK
+        return;
+    }
+    sockaddr_in peer{};
+    socklen_t length = sizeof(peer);
+    const int fd = accept(socket->fd, reinterpret_cast<sockaddr*>(&peer), &length);
+    if (fd < 0)
+    {
+        ctx.r3.u64 = SocketFailure(ErrnoToWsa(errno));
+        return;
+    }
+    fcntl(fd, F_SETFD, FD_CLOEXEC);
+    StoreGuestAddress(base, ctx.r5.u32, ctx.r6.u32, peer);
+    ctx.r3.u64 = GetKernelHandle(CreateKernelObject<OfflineSocket>(fd));
+}
+
+PPC_FUNC(__imp__NetDll_listen)
+{
+    auto* socket = SocketFromHandle(ctx.r4.u32);
+    if (!socket)
+        ctx.r3.u64 = SocketFailure(10038);
+    else if (!online::Enabled())
+        ctx.r3.u64 = 0;
+    else
+        ctx.r3.u64 = listen(socket->fd, std::max(1, int32_t(ctx.r5.u32))) < 0 ? SocketFailure(ErrnoToWsa(errno)) : 0;
+}
+
+PPC_FUNC(__imp__NetDll_shutdown)
+{
+    auto* socket = SocketFromHandle(ctx.r4.u32);
+    if (!socket)
+    {
+        ctx.r3.u64 = SocketFailure(10038);
+        return;
+    }
+    if (online::Enabled())
+        ::shutdown(socket->fd, std::clamp(int32_t(ctx.r5.u32), 0, 2));  // SD_RECEIVE/SEND/BOTH are SHUT_RD/WR/RDWR
+    ctx.r3.u64 = 0;
+}
+
+// Offline the options (broadcast, buffer sizes, non-blocking VDP) change
+// nothing on loopback. Online the ones that matter are set: SOL_SOCKET
+// (0xFFFF) SO_REUSEADDR 4, SO_BROADCAST 0x20, SO_SNDBUF 0x1001, SO_RCVBUF
+// 0x1002; IPPROTO_TCP TCP_NODELAY 1. Others (the Xbox's own) are accepted.
+PPC_FUNC(__imp__NetDll_setsockopt)
+{
+    auto* socket = SocketFromHandle(ctx.r4.u32);
+    if (!socket)
+    {
+        ctx.r3.u64 = SocketFailure(10038);
+        return;
+    }
+    ctx.r3.u64 = 0;
+    const uint32_t level = ctx.r5.u32, name = ctx.r6.u32, value = ctx.r7.u32;
+    if (!online::Enabled() || !value || ctx.r8.u32 < 4)
+        return;
+    const int v = int(PPC_LOAD_U32(value));
+    int hostLevel = 0, hostName = 0;
+    if (level == 0xFFFF && name == 4)
+        hostLevel = SOL_SOCKET, hostName = SO_REUSEADDR;
+    else if (level == 0xFFFF && name == 0x20)
+        hostLevel = SOL_SOCKET, hostName = SO_BROADCAST;
+    else if (level == 0xFFFF && name == 0x1001)
+        hostLevel = SOL_SOCKET, hostName = SO_SNDBUF;
+    else if (level == 0xFFFF && name == 0x1002)
+        hostLevel = SOL_SOCKET, hostName = SO_RCVBUF;
+    else if (level == 6 && name == 1)
+        hostLevel = IPPROTO_TCP, hostName = TCP_NODELAY;
+    if (hostName)
+        setsockopt(socket->fd, hostLevel, hostName, &v, sizeof(v));
+}
 
 // Overlapped receives: nothing ever arrives (as Xenia: an error, so the
 // title doesn't wait for it).
@@ -555,13 +746,29 @@ PPC_FUNC(__imp__NetDll_XNetRegisterKey) { ctx.r3.u64 = 0; }
 PPC_FUNC(__imp__NetDll_XNetUnregisterKey) { ctx.r3.u64 = 0; }
 PPC_FUNC(__imp__NetDll_XNetXnAddrToInAddr)
 {
-    // The address's own IP (0 offline).
+    // The address's own IP (0 offline). Online a peer's XNADDR carries its
+    // real IPv4 (FillXnAddr), the secure address is that one: ina, else
+    // inaOnline, else loopback.
+    uint32_t address = 0;
+    if (ctx.r4.u32)
+    {
+        memcpy(&address, base + ctx.r4.u32, 4);
+        if (!address && online::Enabled())
+            memcpy(&address, base + ctx.r4.u32 + 4, 4);
+    }
+    if (!address && online::Enabled())
+        address = htonl(INADDR_LOOPBACK);
     if (ctx.r6.u32)
-        memcpy(base + ctx.r6.u32, ctx.r4.u32 ? base + ctx.r4.u32 : (const uint8_t*)"\0\0\0\0", 4);
+        memcpy(base + ctx.r6.u32, &address, 4);
     ctx.r3.u64 = 0;
 }
 PPC_FUNC(__imp__NetDll_XNetConnect) { ctx.r3.u64 = 0; }
-PPC_FUNC(__imp__NetDll_XNetGetConnectStatus) { NET_LOG("XNetGetConnectStatus: lost\n"); ctx.r3.u64 = 3; }  // XNET_CONNECT_STATUS_LOST
+// XNET_CONNECT_STATUS_LOST offline, CONNECTED online.
+PPC_FUNC(__imp__NetDll_XNetGetConnectStatus)
+{
+    NET_LOG("XNetGetConnectStatus: %s\n", online::Enabled() ? "connected" : "lost");
+    ctx.r3.u64 = online::Enabled() ? 2 : 3;
+}
 
 // Lookups complete at once and find nothing: an XNDNS with an error status
 // (WSAHOST_NOT_FOUND), an XNQOS with no entries; the event is set.
@@ -573,10 +780,14 @@ static uint32_t AllocZeroed(uint32_t size)
     return g_memory.MapVirtual(p);
 }
 
+// Online too: the game would look up EA's own servers, which are gone, and
+// nothing is ever asked of the outside on its behalf (the lobby server comes
+// from XOnlineGetServiceInfo, kernel/xmsg.cpp).
 PPC_FUNC(__imp__NetDll_XNetDnsLookup)
 {
     if (s_dnsLookups++ < 4)
-        fprintf(stderr, "[net] offline: DNS lookup of \"%s\" finds nothing\n", ctx.r4.u32 ? reinterpret_cast<const char*>(base + ctx.r4.u32) : "");
+        fprintf(stderr, "[net] %s: DNS lookup of \"%s\" finds nothing\n", online::Enabled() ? "online" : "offline",
+            ctx.r4.u32 ? reinterpret_cast<const char*>(base + ctx.r4.u32) : "");
     if (const uint32_t out = ctx.r6.u32)
     {
         const uint32_t dns = AllocZeroed(40);
