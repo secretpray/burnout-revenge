@@ -39,6 +39,13 @@ macOS build. Before we write anything, three questions:
    there a way you'd like us to report server-side problems — for example the 2-minute connect
    in #24, if we see it too?
 
+One thing we already found, in case it helps: on an M1 Pro (macOS 27), your 0.4.7 macOS build
+(`burnout_us`, plume) never starts a race. As the track loads, the loading movie stops producing
+frames (`plume: video: … 0 distinct frames` from then on), sound and rendering carry on, and the
+race never begins — offline in a single race as well as online. Before that, online worked well
+against your server: login, search, a room, two copies on one Mac joining each other and
+connecting directly, the start. I can send both logs.
+
 In return: we'll report what we find against your server, send fixes upstream as PRs where they
 fit Xerenge, and link back to your project from ours.
 
@@ -71,5 +78,10 @@ Xerenge — лучший источник исследований по игре
 3. **Совместимость.** Протокол на сервере — как в 0.4.7? Будут ли изменения (поле версии,
    исправления из #19)? Как сообщать о проблемах сервера (например, 2-минутное подключение
    из #24)?
+
+Уже найденное (как вклад): на M1 Pro их macOS-сборка 0.4.7 не запускает гонку — при
+загрузке трассы ролик перестаёт выдавать кадры, звук и рендер идут, гонка не начинается;
+офлайн так же, как онлайн. До этого онлайн с их сервером работал: вход, поиск, комната,
+две копии на одном Mac вошли друг к другу и соединились напрямую, старт. Можем прислать журналы.
 
 Взамен: сообщаем о найденном, присылаем исправления PR, ссылаемся на проект.
