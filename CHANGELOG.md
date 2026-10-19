@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.1.14
 
 - USB steering wheels (the Logitech G29 and its family; other wheels SDL
   sees follow): the wheel steers, the pedals are gas and brake, the face
@@ -10,14 +10,16 @@
   learns the wheel's ends, each pedal and every button. Force feedback
   (the game's knocks and a centring force) goes through SDL's haptics where
   the system drives the wheel's motors; where it can't, the page says so
-  and everything else works. Adapted from SpeedBreaker's wheel support (PR #29); tested on a virtual
-  G29, not yet on a real wheel.
+  and everything else works. Adapted from SpeedBreaker's wheel support
+  (PR #29); tested on a virtual G29, not yet on a real wheel.
 - Screens narrower than 16:9 (16:10, 4:3): the race HUD goes to the top and
   bottom edges as it goes to an ultrawide's sides - the title, clock and
   TAKEDOWNS at the top, the rating and speed at the bottom, the crash
   camera's strips and CRASHBREAKER at the edges - while the event's messages
   stay in the middle (Settings > Display > HUD at Screen Edges). The menus'
   frame reaches the top and bottom too.
+- The finished save (BurnoutRevenge-100-percent-save.zip) comes with this
+  release too.
 
 ## v0.1.13
 

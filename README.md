@@ -195,6 +195,7 @@ Open with **F1**, **Cmd+,** or **Back + Start**. LB/RB (Q/E) switch pages.
 | Graphics | Anti-Aliasing and its type (SMAA, FXAA), Upscaling (Bicubic, Bilinear, FSR 1, MetalFX Spatial), Sharpening, Anisotropic Filtering, Mipmaps, Internal Resolution, Bloom, Motion Blur |
 | Audio | Master Volume, Mute, Mute in Background, Music (EA Trax or My Music), Music Folder |
 | Input | Stick and trigger deadzones, Vibration, Button Prompts (Auto, Xbox, PlayStation, Keyboard), DualSense raw HID driver |
+| Wheel | Shown while a steering wheel is plugged in: Steering Wheel, Steering Range, Invert Steering, Steering Deadzone, Steering Response, Force Feedback, Centering Force, Calibrate |
 | Controls | Two keys for each Xbox 360 control |
 | Advanced | Asynchronous Shaders, Performance Overlay, Auto-import Add-ons, Skip Intro Movies, Save Bug Report, Check for Updates, Add-ons, Save Backups, About |
 
@@ -225,8 +226,11 @@ Every key can be changed in Settings > Controls.
 
 - Tested on one M1 Pro with its own controllers; other Macs and accessories
   may behave differently. USB is the fallback for a Bluetooth pad.
+- Steering wheels are tested on a virtual Logitech G29 only, not yet on a
+  real wheel; reports are welcome.
 - A complete career playthrough isn't verified yet. Online play and Xbox Live
-  don't work: choosing Xbox Live returns to the main menu.
+  don't work yet: choosing Xbox Live returns to the main menu. Online play
+  compatible with Xerenge's lobby servers is planned ([plan](docs/ONLINE_PLAN_RU.md), in Russian).
 - 14 rarely used system functions (friends and gamer-card screens, Live
   sessions, exception unwinding) are still stubs; none was reached offline in
   any menu or mode tested.
