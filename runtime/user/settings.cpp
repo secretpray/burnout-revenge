@@ -262,7 +262,7 @@ namespace settings
               .env = "BURNOUT_ASPECT", .defaultValue = kAspectDefault, .entries = kAspectEntries },
             { .id = Id::HudAtEdges, .category = Category::Display, .type = Type::Bool, .apply = Apply::Live,
               .table = "video", .key = "hud_at_edges", .label = "HUD at Screen Edges",
-              .description = "On a screen wider than 16:9: the race HUD's corners at the screen's corners, each part keeping its size and shape. Off: the whole HUD in a 16:9 block in the middle. Menus and films stay 16:9 either way.",
+              .description = "On a screen of another shape than 16:9 (ultrawide, 16:10, 4:3): the race HUD's corners at the screen's corners, each part keeping its size and shape. Off: the whole HUD in a 16:9 block in the middle. Menus and films stay 16:9 either way.",
               .env = "BURNOUT_HUD_EDGES", .defaultValue = 1 },
             // Brightness: a power curve on the game's picture, -5..+5 (video/display_tone.h).
             { .id = Id::Brightness, .category = Category::Display, .type = Type::Int, .apply = Apply::Live,

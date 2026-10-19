@@ -79,9 +79,9 @@
 - Up to 16x anisotropic filtering, mipmaps, a brightness control and the Xbox
   360's own display gamma ramp.
 - Any window shape: a wider window shows more at the sides (Hor+), a taller one
-  (16:10, 4:3) more above and below (Vert+), with the HUD kept in shape. On an
-  ultrawide (21:9, 32:9) the race HUD sits at the screen's corners and the
-  menus' frame at its edges; menus and films stay 16:9 in the middle.
+  (16:10, 4:3) more above and below (Vert+), with the HUD kept in shape. On
+  either (21:9, 32:9, 16:10, 4:3) the race HUD sits at the screen's corners and
+  the menus' frame at its edges; menus and films stay 16:9 in the middle.
   Widescreen keeps the original 16:9 with bars.
 - Bloom and Motion Blur from 0 to 100%. Lower Bloom removes the game's haze
   and the glow round edges but keeps its bright blue sky: the glow is kept where
@@ -191,7 +191,7 @@ Open with **F1**, **Cmd+,** or **Back + Start**. LB/RB (Q/E) switch pages.
 
 | Page | What's there |
 |---|---|
-| Display | Fullscreen, V-Sync, Frame Rate, Aspect Ratio (fill any window, or 16:9), HUD at Screen Edges (ultrawide), Brightness, Xbox 360 Display Gamma |
+| Display | Fullscreen, V-Sync, Frame Rate, Aspect Ratio (fill any window, or 16:9), HUD at Screen Edges (not 16:9), Brightness, Xbox 360 Display Gamma |
 | Graphics | Anti-Aliasing and its type (SMAA, FXAA), Upscaling (Bicubic, Bilinear, FSR 1, MetalFX Spatial), Sharpening, Anisotropic Filtering, Mipmaps, Internal Resolution, Bloom, Motion Blur |
 | Audio | Master Volume, Mute, Mute in Background, Music (EA Trax or My Music), Music Folder |
 | Input | Stick and trigger deadzones, Vibration, Button Prompts (Auto, Xbox, PlayStation, Keyboard), DualSense raw HID driver |

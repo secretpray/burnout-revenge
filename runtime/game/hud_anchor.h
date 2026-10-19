@@ -18,6 +18,14 @@
 // that together span the frame's width (the crash camera's tyre-track
 // strips, five tiles of 256) is widened to the screen's edges like the full-
 // width layers. Pieces of rows and full-width layers join no element.
+//
+// Vert+ (a screen narrower than 16:9: 16:10, 4:3) is the same turned on its
+// side: the 2D is a 16:9 band across the middle, and an element in the top
+// or bottom part of the frame (the title and clock, TAKEDOWNS, the rating,
+// the speed, the crash camera's strips) moves by (360 / s - 360) pixels to
+// the screen's top or bottom; one reaching nearer the middle (TIME EXTEND IN
+// 3 TAKEDOWNS, a banner) stays. The menus' frame stretches to the top and
+// bottom as it does to an ultrawide's sides.
 #pragma once
 
 #include <algorithm>
@@ -41,11 +49,39 @@ namespace game::hud
         Row,  // part of a row across the frame: widened to the screen's edges
     };
 
+    // Vert+: where an element sits up and down the frame.
+    enum class Band
+    {
+        Middle,  // stays in the 16:9 band
+        Top,
+        Bottom,
+    };
+
     // The shift in 16:9 frame pixels (before the narrowing by s) that keeps an
     // element's margin to its edge.
     inline float EdgeShift(float s)
     {
         return s > 0.0f && s < 1.0f ? 640.0f * (1.0f - s) / s : 0.0f;
+    }
+
+    // The same for Vert+, up and down: s the view's y scale.
+    inline float EdgeShiftY(float s)
+    {
+        return s > 0.0f && s < 1.0f ? 360.0f * (1.0f - s) / s : 0.0f;
+    }
+
+    // An element's band: its middle above y 220 or below 500 of the 720, or
+    // neither. Not halves: the event's messages (TIME EXTEND IN 3 TAKEDOWNS
+    // at y 271-297) belong in the middle of a taller screen too; the rating
+    // (467-577, its middle at 522) belongs with the speed below it.
+    inline Band BandOf(const Box& e)
+    {
+        const float middle = 0.5f * (e.y0 + e.y1);
+        if (middle <= 220.0f)
+            return Band::Top;
+        if (middle >= 500.0f)
+            return Band::Bottom;
+        return Band::Middle;
     }
 
     // The front end's grimy frame (the menus' border, 18.10): twelve tiles 128
@@ -75,9 +111,30 @@ namespace game::hud
         return (1025.0f + 2.0f * EdgeShift(s)) / 1025.0f;
     }
 
+    // Vert+: how a frame tile is placed. The top row (and the corners in
+    // it) moves up by EdgeShiftY(s), the bottom one down, and the sides'
+    // tiles between them stretch about the frame's middle by `stretch`, so
+    // that their ends (127 and 593) meet the moved rows.
+    struct FramePlace
+    {
+        float shift = 0.0f, stretch = 1.0f;
+    };
+    inline FramePlace MenuFrameTall(const Box& b, float s)
+    {
+        if (b.y1 <= 128.0f)
+            return { -EdgeShiftY(s), 1.0f };
+        if (b.y0 >= 592.0f)
+            return { EdgeShiftY(s), 1.0f };
+        return { 0.0f, (466.0f + 2.0f * EdgeShiftY(s)) / 466.0f };
+    }
+
     class Anchor
     {
     public:
+        // The element the last Decide placed (the piece itself for a row),
+        // for its Band under Vert+.
+        const Box& Element() const { return m_element; }
+
         // `now` in seconds (any steady clock). A piece of the race HUD with
         // its box in 1280x720 frame pixels.
         Place Decide(const Box& box, double now)
@@ -89,6 +146,7 @@ namespace game::hud
                 std::erase_if(m_pieces, [&](const Piece& p) {
                     return std::lround(p.box.y0) == std::lround(box.y0) && std::lround(p.box.y1) == std::lround(box.y1);
                 });
+                m_element = box;
                 return Place::Row;
             }
             // A piece drawn again where it was (the static HUD, frame after
@@ -118,6 +176,7 @@ namespace game::hud
                     grew = true;
                 }
             }
+            m_element = e;
             if (e.x0 <= 640.0f && e.x1 >= 640.0f)
                 return Place::Middle;
             return e.x1 < 640.0f ? Place::Left : Place::Right;
@@ -144,6 +203,7 @@ namespace game::hud
         };
         std::vector<Piece> m_pieces;
         std::vector<Row> m_rows;
+        Box m_element{};
 
         void Expire(double now)
         {

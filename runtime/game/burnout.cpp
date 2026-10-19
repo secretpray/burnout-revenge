@@ -128,13 +128,27 @@ namespace
     // scene's loop (0x82353340) or the rating widget (0x8235DD34). The menus,
     // the pause menu and the results come from the front end's scene
     // (0x8235C..., 0x8235F..., 0x8246BD88); the markers over the cars from
-    // 0x820BE07C (BURNOUT_LOG_2D-style survey, 18.10).
+    // 0x820BE07C (BURNOUT_LOG_2D-style survey, 18.10). Not the EA Trax
+    // popup's plate (0x8215BE88 under the scene's loop, 19.10): its text is
+    // drawn by another path (0x8215C18C) that stays put, so the plate does
+    // too - under Vert+ it fell into the bottom band without its words. Nor
+    // the HUD code's text helpers when a menu called them (ELITE beside the
+    // World Tour's rank star: 0x8219074C, called from 0x8235CE28), which the
+    // front end's scene, one frame further up, gives away.
     bool IsRaceHud(PPCContext& ctx, uint8_t* base)
     {
         const uint32_t frame1 = PPC_LOAD_U32(ctx.r1.u32), lr2 = PPC_LOAD_U32(frame1 - 8);
         const uint32_t frame2 = PPC_LOAD_U32(frame1), lr3 = PPC_LOAD_U32(frame2 - 8);
         auto hudCode = [](uint32_t a) { return a >= 0x82180000 && a < 0x821A0000; };
-        return hudCode(lr2) || hudCode(lr3) || lr3 == 0x82353340 || lr3 == 0x8235DD34;
+        if (lr2 >= 0x82150000 && lr2 < 0x82160000)
+            return false;
+        if (!(hudCode(lr2) || hudCode(lr3) || lr3 == 0x82353340 || lr3 == 0x8235DD34))
+            return false;
+        auto frontEnd = [](uint32_t a) {
+            return (a >= 0x8235C000 && a < 0x8235D000) || (a >= 0x8235F000 && a < 0x82360000) || a == 0x8246BD88;
+        };
+        const uint32_t frame3 = PPC_LOAD_U32(frame2), lr4 = frame3 ? PPC_LOAD_U32(frame3 - 8) : 0;
+        return !frontEnd(lr3) && !frontEnd(lr4);
     }
 }
 
@@ -184,6 +198,7 @@ PPC_FUNC(sub_82355FD0)
     // gets its 16:9 width back from c1.x (and so, as any 2D not narrowed, is
     // left whole by the renderer).
     float shift = 0.0f, widen = 1.0f;
+    float shiftY = 0.0f, widenY = 1.0f;  // the same up and down, for Vert+
     game::hud::Box box{ 1e30f, 1e30f, -1e30f, -1e30f };
     for (uint32_t i = 0; i < count; i++)
     {
@@ -192,25 +207,53 @@ PPC_FUNC(sub_82355FD0)
     }
     // The menus' grimy frame, stretched to an ultrawide's edges: its columns
     // moved, the rows between them widened (game/hud_anchor.h).
-    if (scale.x < 1.0f && count && w == 1280.0f && game::hud::IsMenuFrameTile(box))
+    // Under Vert+ (scale.y < 1), the top and bottom rows to the screen's top
+    // and bottom, the sides stretched between them.
+    const bool wide = scale.x < 1.0f, tall = scale.y < 1.0f;
+    if ((wide || tall) && count && w == 1280.0f && game::hud::IsMenuFrameTile(box))
     {
-        if (box.x1 <= 128.0f || box.x0 >= 1151.0f)
+        if (!wide)
+        {
+            const game::hud::FramePlace f = game::hud::MenuFrameTall(box, scale.y);
+            shiftY = f.shift;
+            widenY = f.stretch;
+        }
+        else if (box.x1 <= 128.0f || box.x0 >= 1151.0f)
             shift = box.x1 <= 128.0f ? -game::hud::EdgeShift(scale.x) : game::hud::EdgeShift(scale.x);
         else
             widen = game::hud::MenuFrameStretch(scale.x);
     }
-    else if (scale.x < 1.0f && count && settings::GetBool(settings::Id::HudAtEdges) && IsRaceHud(ctx, base))
+    else if ((wide || tall) && count && settings::GetBool(settings::Id::HudAtEdges) && IsRaceHud(ctx, base))
     {
+        // Under Vert+ a piece across the frame's width (a strip of the
+        // crash camera's) still has a place up or down it, by its own box: in
+        // an element it would join the top of the HUD to the bottom, and a
+        // full-screen layer reaches the middle and stays.
         const bool spans = box.x0 <= 0.01f * w && box.x1 >= 0.99f * w;
-        if (!spans && w == 1280.0f)
+        if (tall && spans && w == 1280.0f)
+        {
+            const game::hud::Band band = game::hud::BandOf(box);
+            shiftY = band == game::hud::Band::Top ? -game::hud::EdgeShiftY(scale.y)
+                : band == game::hud::Band::Bottom ? game::hud::EdgeShiftY(scale.y) : 0.0f;
+        }
+        else if (!spans && w == 1280.0f)
         {
             static std::mutex mutex;
             static game::hud::Anchor anchor;
             const double now = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
             std::lock_guard lock(mutex);
             const game::hud::Place place = anchor.Decide(box, now);
-            widen = place == game::hud::Place::Row ? 1.0f / scale.x : 1.0f;
-            shift = place == game::hud::Place::Left ? -game::hud::EdgeShift(scale.x) : place == game::hud::Place::Right ? game::hud::EdgeShift(scale.x) : 0.0f;
+            if (wide)
+            {
+                widen = place == game::hud::Place::Row ? 1.0f / scale.x : 1.0f;
+                shift = place == game::hud::Place::Left ? -game::hud::EdgeShift(scale.x) : place == game::hud::Place::Right ? game::hud::EdgeShift(scale.x) : 0.0f;
+            }
+            else
+            {
+                const game::hud::Band band = game::hud::BandOf(anchor.Element());
+                shiftY = band == game::hud::Band::Top ? -game::hud::EdgeShiftY(scale.y)
+                    : band == game::hud::Band::Bottom ? game::hud::EdgeShiftY(scale.y) : 0.0f;
+            }
         }
     }
     for (uint32_t first = 0; first + per <= count && per; first += per)
@@ -244,11 +287,11 @@ PPC_FUNC(sub_82355FD0)
     const float originX = loadF(kOrigin), originY = loadF(kOrigin + 4);
     // The shift in clip space: a pixel's x * c1.x * s (+-(1 - s)), which
     // gpu/renderer.cpp tells by c0.x and leaves unclipped; widen scales x
-    // about the frame's middle.
+    // about the frame's middle. Vert+ alike in y: c0.y becomes 1 or 2s - 1.
     storeF(kOrigin, originX * scale.x * widen + shift * c1x * scale.x);
-    storeF(kOrigin + 4, originY * scale.y);
+    storeF(kOrigin + 4, originY * scale.y * widenY + shiftY * c1y * scale.y);
     storeF(kScale, c1x * scale.x * widen);
-    storeF(kScale + 4, c1y * scale.y);
+    storeF(kScale + 4, c1y * scale.y * widenY);
     __imp__sub_82355FD0(ctx, base);
     storeF(kOrigin, originX);
     storeF(kOrigin + 4, originY);

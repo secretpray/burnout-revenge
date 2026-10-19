@@ -72,5 +72,53 @@ int main()
         assert(std::fabs(639.5f + (127.0f - 639.5f) * k - (127.0f - shift)) < 1e-2f);
         assert(std::fabs(639.5f + (1152.0f - 639.5f) * k - (1152.0f + shift)) < 1e-2f);
     }
-    puts("hud_anchor_test: the race HUD's elements, middle and rows, at an ultrawide's edges");
+    // Vert+: the shift keeps the margin up and down as it does across.
+    {
+        const float s = 0.75f, shift = EdgeShiftY(s);
+        const float y = 40.0f, landed = 360.0f + (y - shift - 360.0f) * s;
+        assert(std::fabs(landed - y * s) < 1e-3f);
+        assert(EdgeShiftY(1.0f) == 0.0f);
+    }
+    // Which elements go up or down: the top and bottom parts only.
+    {
+        Anchor tall;
+        double now = 0.0;
+        for (int frame = 0; frame < 2; frame++, now += 1.0 / 60.0)
+        {
+            for (const Box& b : left)
+            {
+                tall.Decide(b, now);
+                assert(BandOf(tall.Element()) == Band::Top);  // TAKEDOWNS
+            }
+            for (const Box& b : middle)
+            {
+                tall.Decide(b, now);
+                // The title and clock go up; TIME EXTEND IN 3 TAKEDOWNS (y 271-297) stays.
+                assert(BandOf(tall.Element()) == (b.y0 > 200.0f ? Band::Middle : Band::Top) || frame == 0);
+            }
+            for (const Box& b : crashbreaker)
+            {
+                tall.Decide(b, now);
+                assert(BandOf(tall.Element()) == Band::Bottom || frame == 0);
+            }
+        }
+        tall.Decide({ 1072, 547, 1229, 559 }, now);  // the rating's bar
+        assert(BandOf(tall.Element()) == Band::Bottom);
+        assert(BandOf({ 1024, 467, 1282, 577 }) == Band::Bottom);  // the rating's whole plate
+        for (int i = 0; i < 5; i++)
+            tall.Decide(strip[i], now);
+        assert(BandOf(tall.Element()) == Band::Bottom);  // the strip, as a row
+    }
+    // The menus' frame on a taller screen: the rows move to the screen's top
+    // and bottom, the sides between them stretch to meet them.
+    {
+        const float s = 0.75f, shift = EdgeShiftY(s);
+        assert(MenuFrameTall({ 127, -1, 639, 127 }, s).shift == -shift);
+        assert(MenuFrameTall({ -1, 593, 127, 722 }, s).shift == shift);
+        const FramePlace side = MenuFrameTall({ -1, 127, 127, 384 }, s);
+        assert(side.shift == 0.0f);
+        assert(std::fabs(360.0f + (127.0f - 360.0f) * side.stretch - (127.0f - shift)) < 1e-2f);
+        assert(std::fabs(360.0f + (593.0f - 360.0f) * side.stretch - (593.0f + shift)) < 1e-2f);
+    }
+    puts("hud_anchor_test: the race HUD's elements, middle and rows, at an ultrawide's edges and a taller screen's");
 }

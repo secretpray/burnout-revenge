@@ -12,6 +12,12 @@
   the system drives the wheel's motors; where it can't, the page says so
   and everything else works. Adapted from SpeedBreaker's wheel support (PR #29); tested on a virtual
   G29, not yet on a real wheel.
+- Screens narrower than 16:9 (16:10, 4:3): the race HUD goes to the top and
+  bottom edges as it goes to an ultrawide's sides - the title, clock and
+  TAKEDOWNS at the top, the rating and speed at the bottom, the crash
+  camera's strips and CRASHBREAKER at the edges - while the event's messages
+  stay in the middle (Settings > Display > HUD at Screen Edges). The menus'
+  frame reaches the top and bottom too.
 
 ## v0.1.13
 

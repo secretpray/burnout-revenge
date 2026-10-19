@@ -8108,15 +8108,21 @@ void main()
                 // c0.x is -s, or -s -+ (1 - s) for a piece of the race HUD moved
                 // to the screen's left or right edge (game/hud_anchor.h): that
                 // one is placed already and is left unclipped.
-                const float ax = 640.0f * c[4], ay = c[1];
+                // Vert+ alike: c0.y is s, or 1 or 2s - 1 for a piece moved to
+                // the screen's top or bottom (s from c1.y = -2s/720).
+                const float ax = 640.0f * c[4], ay = c[1], sy = -360.0f * c[5];
                 const bool atEdge = ax > 0.0f && ax < 0.999f &&
                     (std::fabs(c[0] + 1.0f) < 1e-4f || std::fabs(c[0] - (1.0f - 2.0f * ax)) < 1e-4f);
+                const bool atEdgeY = sy > 0.0f && sy < 0.999f &&
+                    (std::fabs(c[1] - 1.0f) < 1e-4f || std::fabs(c[1] - (2.0f * sy - 1.0f)) < 1e-4f);
                 const bool pixels = c[3] == 1.0f && c[6] == 0.0f && c[7] == 0.0f && c[4] != 0.0f && c[5] != 0.0f &&
-                    (std::fabs(c[0] + ax) < 0.5f * std::fabs(c[4]) || atEdge) && std::fabs(-2.0f * c[1] / c[5] - 720.0f) < 1.0f;
-                if (pixels && atEdge)
+                    (std::fabs(c[0] + ax) < 0.5f * std::fabs(c[4]) || atEdge) &&
+                    (std::fabs(-2.0f * c[1] / c[5] - 720.0f) < 1.0f || atEdgeY);
+                if (pixels && (atEdge || atEdgeY))
                 {
                     if (s_logDrawsNow)
-                        fprintf(stderr, "[draws]   2d x%.4f: the HUD at the screen's %s edge\n", ax, c[0] < -ax ? "left" : "right");
+                        fprintf(stderr, "[draws]   2d x%.4f y%.4f: the HUD at the screen's %s edge\n", ax, sy,
+                            atEdgeY ? (c[1] > 0.999f ? "top" : "bottom") : c[0] < -ax ? "left" : "right");
                 }
                 else if (pixels && (ax < 0.999f || ay < 0.999f))
                 {
