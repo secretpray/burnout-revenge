@@ -455,8 +455,15 @@ namespace
     }
 
     // XGI (0xFB) online: the presence context and properties, and achievement
-    // writes, accepted (the game sets its rich presence every 10 s).
-    uint32_t XgiOnline(uint32_t message)
+    // writes, accepted (the game sets its rich presence every 10 s); and the
+    // Xbox Live session a game of the lobby's runs in. Its creation, as host
+    // (XSESSION_CREATE_HOST), makes the session's XSESSION_INFO - this
+    // console's XNADDR, a new XNKID and XNKEY - which the host's lobby game
+    // record carries to the others (SESS); a joiner passes the host's in.
+    // Join, leave, start, end, modify and delete are accepted. Session search
+    // (0x000B0016, Ranked's TrueSkill matchmaking) isn't answered: there is no
+    // Xbox Live to search.
+    uint32_t XgiOnline(uint32_t message, uint32_t buffer)
     {
         switch (message)
         {
@@ -464,6 +471,29 @@ namespace
         case 0x000B0007:  // XGIUserSetPropertyEx
         case 0x000B0008:  // XGIUserWriteAchievements
             return X_E_SUCCESS;
+        case 0x000B0010:  // XGISessionCreateImpl(session, flags, public, private, xuid, info*, nonce*)
+        {
+            if (!buffer)
+                return X_E_FAIL;
+            const uint32_t flags = *Guest<be<uint32_t>>(buffer + 4);
+            const uint32_t info = *Guest<be<uint32_t>>(buffer + 20), nonce = *Guest<be<uint32_t>>(buffer + 24);
+            if (flags & 1)
+                online::FillHostSessionInfo(info ? Guest<uint8_t>(info) : nullptr, nonce ? Guest<uint8_t>(nonce) : nullptr);
+            fprintf(stderr, "[online] XGI session create (flags %08X, %u public slots)%s\n", flags,
+                uint32_t(*Guest<be<uint32_t>>(buffer + 8)), (flags & 1) ? ": host" : ": joining");
+            return X_E_SUCCESS;
+        }
+        case 0x000B0011:  // XGISessionDelete
+        case 0x000B0012:  // XGISessionJoinLocal/Remote
+        case 0x000B0013:  // XGISessionLeaveLocal/Remote
+        case 0x000B0014:  // XSessionStart
+        case 0x000B0015:  // XSessionEnd
+        case 0x000B0018:  // XSessionModify
+        {
+            static const char* const names[] = { "delete", "join", "leave", "start", "end", "?", "?", "modify" };
+            fprintf(stderr, "[online] XGI session %s\n", names[(message - 0x000B0011) & 7]);
+            return X_E_SUCCESS;
+        }
         default:
             return X_E_NOTFOUND;
         }
@@ -475,7 +505,7 @@ namespace
             return XmpDispatch(message, buffer, length);
         if (online::Enabled() && (app == 0xFB || app == 0xFC))
         {
-            const uint32_t result = app == 0xFC ? XLiveBaseOnline(message, buffer, length) : XgiOnline(message);
+            const uint32_t result = app == 0xFC ? XLiveBaseOnline(message, buffer, length) : XgiOnline(message, buffer);
             if (result != X_E_NOTFOUND)
                 return result;
         }

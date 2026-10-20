@@ -13,6 +13,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <mutex>
+#include <random>
 
 namespace online
 {
@@ -158,4 +160,36 @@ namespace online
     }
     const std::string& Gamertag() { return Get().gamertag; }
     uint64_t Xuid() { return Get().xuid; }
+
+    void FillXnAddr(uint8_t* x, uint32_t address)
+    {
+        memset(x, 0, 36);
+        memcpy(x, &address, 4);
+        memcpy(x + 4, &address, 4);
+        x[8] = 3074 >> 8, x[9] = 3074 & 0xFF;
+        const uint8_t* ip = reinterpret_cast<const uint8_t*>(&address);
+        x[10] = 0x02, x[11] = 0x58;  // locally administered
+        memcpy(x + 12, ip, 4);
+        for (uint8_t i = 0; i < 20; i++)
+            x[16 + i] = uint8_t(0x5A + i) ^ ip[i % 4];
+    }
+
+    void FillHostSessionInfo(uint8_t* info, uint8_t* nonce)
+    {
+        static std::mutex mutex;
+        static std::mt19937_64 random{ std::random_device{}() };
+        std::lock_guard lock(mutex);
+        if (info)
+        {
+            for (int i = 0; i < 8; i++)
+                info[i] = uint8_t(random());
+            info[0] = uint8_t((info[0] & 0x0F) | 0x80);  // XNKID: an online peer-to-peer session
+            FillXnAddr(info + 8, LocalAddress());
+            for (int i = 0; i < 16; i++)
+                info[44 + i] = uint8_t(random());
+        }
+        if (nonce)
+            for (int i = 0; i < 8; i++)
+                nonce[i] = uint8_t(random());
+    }
 }

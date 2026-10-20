@@ -569,7 +569,49 @@ GUEST_FUNCTION_HOOK(__imp__XamContentCreateEnumerator, XamContentCreateEnumerato
 GUEST_FUNCTION_HOOK(__imp__XamContentGetDeviceState, XamContentGetDeviceState);
 GUEST_FUNCTION_HOOK(__imp__XamContentGetDeviceData, XamContentGetDeviceData);
 GUEST_FUNCTION_HOOK(__imp__XamEnumerate, XamEnumerate);
+// Xbox Live sessions (online, BURNOUT_ONLINE): the game makes a handle,
+// asks for the object behind it, passes that to XGI's session messages
+// (kernel/xmsg.cpp: create, join, start, end, delete) and closes the handle.
+// Nothing reads the object but those messages, so it is plain zeroed guest
+// memory. As Xenia's XamSessionCreateHandle/XamSessionRefObjByHandle.
+namespace
+{
+    struct XamSession : KernelObject
+    {
+        uint32_t guest = 0;
+        ~XamSession() override
+        {
+            if (guest)
+                g_userHeap.Free(g_memory.Translate(guest));
+        }
+    };
+}
+
+uint32_t XamSessionCreateHandle(be<uint32_t>* handle)
+{
+    auto* session = CreateKernelObject<XamSession>();
+    if (void* p = g_userHeap.Alloc(0x100))
+    {
+        memset(p, 0, 0x100);
+        session->guest = g_memory.MapVirtual(p);
+    }
+    *handle = GetKernelHandle(session);
+    fprintf(stderr, "[online] session handle %08X (object %08X)\n", uint32_t(*handle), session->guest);
+    return 0;
+}
+
+uint32_t XamSessionRefObjByHandle(uint32_t handle, be<uint32_t>* object)
+{
+    auto* session = IsKernelObject(handle) ? dynamic_cast<XamSession*>(GetKernelObject(handle)) : nullptr;
+    if (!session)
+        return 0xC0000008;  // STATUS_INVALID_HANDLE
+    *object = session->guest;
+    return 0;
+}
+
 GUEST_FUNCTION_HOOK(__imp__XamNotifyCreateListener, XamNotifyCreateListener);
+GUEST_FUNCTION_HOOK(__imp__XamSessionCreateHandle, XamSessionCreateHandle);
+GUEST_FUNCTION_HOOK(__imp__XamSessionRefObjByHandle, XamSessionRefObjByHandle);
 GUEST_FUNCTION_HOOK(__imp__XamUserGetSigninInfo, XamUserGetSigninInfo);
 GUEST_FUNCTION_HOOK(__imp__XamShowDeviceSelectorUI, XamShowDeviceSelectorUI);
 GUEST_FUNCTION_HOOK(__imp__XamShowMessageBoxUI, XamShowMessageBoxUI);

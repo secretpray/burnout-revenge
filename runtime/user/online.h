@@ -44,4 +44,15 @@ namespace online
     // when set (two copies on one machine each keep the game's fixed ports),
     // otherwise 0 (any).
     uint32_t BindAddress();
+
+    // An XNADDR (36 bytes: ina, inaOnline, wPortOnline, abEnet[6],
+    // abOnline[20]) for `address`: both addresses that one, and the two
+    // identities made from it - so two copies on one machine (127.0.0.2,
+    // 127.0.0.3) don't look like one, and no real MAC leaves the Mac. (As the
+    // ReXGlue SDK in Xerenge's fork fills it, shipa-2/rexglue-xerenge, BSD.)
+    void FillXnAddr(uint8_t* xnaddr, uint32_t address);
+    // XSESSION_INFO for a session this console hosts (60 bytes at `info`: a
+    // fresh XNKID, this console's XNADDR, a fresh XNKEY) and a nonce (8 bytes
+    // at `nonce`); either may be null.
+    void FillHostSessionInfo(uint8_t* info, uint8_t* nonce);
 }

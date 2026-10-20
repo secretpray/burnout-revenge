@@ -14,6 +14,8 @@
 #include <netinet/tcp.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <mutex>
+#include <thread>
 #include <unistd.h>
 #include <cerrno>
 
@@ -22,6 +24,7 @@ uint32_t NtWaitForMultipleObjectsEx(uint32_t count, be<uint32_t>* handles, uint3
     uint32_t waitMode, uint32_t alertable, be<int64_t>* timeout);
 uint32_t NtCreateEvent(be<uint32_t>* handle, XOBJECT_ATTRIBUTES* attributes, uint32_t eventType, uint32_t initialState);
 uint32_t NtSetEvent(uint32_t handle, be<uint32_t>* previousState);
+uint32_t NtWaitForSingleObjectEx(uint32_t handle, uint32_t waitMode, uint32_t alertable, be<int64_t>* timeout);
 uint32_t NtClearEvent(uint32_t handle);
 uint32_t NtClose(uint32_t handle);
 
@@ -175,28 +178,6 @@ PPC_FUNC(__imp__NetDll_XNetCleanup) { ctx.r3.u64 = 0; }
 // Online: XNET_ETHERNET_LINK_ACTIVE | 100MBPS | FULL_DUPLEX.
 PPC_FUNC(__imp__NetDll_XNetGetEthernetLinkStatus) { ctx.r3.u64 = online::Enabled() ? 0x01 | 0x02 | 0x08 : 0; }
 
-namespace
-{
-    // XNADDR: ina, inaOnline (network order), wPortOnline (big-endian),
-    // abEnet[6], abOnline[20] - 36 bytes. Online it is this console's address
-    // (user/online.h), and the two identities are made from it, so that two
-    // copies on one machine (127.0.0.2, 127.0.0.3) don't look like one and no
-    // real MAC address leaves the Mac. (As the ReXGlue SDK in Xerenge's fork
-    // fills it, shipa-2/rexglue-xerenge, BSD.)
-    void FillXnAddr(uint8_t* x, uint32_t address)
-    {
-        memset(x, 0, 36);
-        memcpy(x, &address, 4);
-        memcpy(x + 4, &address, 4);
-        x[8] = 3074 >> 8, x[9] = 3074 & 0xFF;
-        const uint8_t* ip = reinterpret_cast<const uint8_t*>(&address);
-        x[10] = 0x02, x[11] = 0x58;  // locally administered
-        memcpy(x + 12, ip, 4);
-        for (uint8_t i = 0; i < 20; i++)
-            x[16 + i] = uint8_t(0x5A + i) ^ ip[i % 4];
-    }
-}
-
 PPC_FUNC(__imp__NetDll_XNetGetTitleXnAddr)
 {
     if (online::Enabled())
@@ -204,7 +185,7 @@ PPC_FUNC(__imp__NetDll_XNetGetTitleXnAddr)
         // A console with a static address behind a gateway, DNS set and
         // online: EA's DirtySock reads less than that as a problem.
         if (ctx.r4.u32)
-            FillXnAddr(base + ctx.r4.u32, online::LocalAddress());
+            online::FillXnAddr(base + ctx.r4.u32, online::LocalAddress());
         ctx.r3.u64 = 0x02 | 0x04 | 0x20 | 0x40 | 0x80;  // ETHERNET STATIC GATEWAY DNS ONLINE
         return;
     }
@@ -287,6 +268,8 @@ PPC_FUNC(__imp__NetDll_ioctlsocket)
     }
 }
 
+namespace { uint16_t HostPort(uint16_t guestPortNetwork); }
+
 PPC_FUNC(__imp__NetDll_bind)
 {
     auto* socket = dynamic_cast<OfflineSocket*>(GetKernelObject(ctx.r4.u32));
@@ -300,6 +283,7 @@ PPC_FUNC(__imp__NetDll_bind)
     local.sin_len = sizeof(local);
     local.sin_family = AF_INET;
     memcpy(&local.sin_port, base + addr + 2, 2);
+    local.sin_port = HostPort(local.sin_port);
     // Offline every socket is on loopback. Online where the game asks, and
     // "any address" is this console's own when one is set, so two copies on
     // one machine can both have the game's fixed ports.
@@ -338,6 +322,8 @@ PPC_FUNC(__imp__NetDll_WSAWaitForMultipleEvents)
     ctx.r3.u64 = (status & 0x80000000) ? SocketFailure(10022) : status;
 }
 
+namespace { void DropPendingReceives(uint32_t handle); }
+
 PPC_FUNC(__imp__NetDll_closesocket)
 {
     const uint32_t handle = ctx.r4.u32;
@@ -351,6 +337,7 @@ PPC_FUNC(__imp__NetDll_closesocket)
         ctx.r3.u64 = SocketFailure(10038);
     else
     {
+        DropPendingReceives(handle);
         ReleaseKernelObject(socket);
         ctx.r3.u64 = 0;
     }
@@ -395,6 +382,27 @@ namespace
         }
     }
 
+    // Two copies on one Mac (BURNOUT_ONLINE_ADDRESS, 127.0.0.2 and .3): macOS
+    // lets a program without root bind a port below 1024 to "any address"
+    // only, not to one address (EACCES), and the game's peer-to-peer
+    // handshake uses port 1000. There, ports below 1024 are 30000 higher on
+    // the Mac (1000 -> 31000) - bound, sent to and connected to - and turned
+    // back in every address the game is told. Between two Macs (no address
+    // set) nothing is moved.
+    bool PortsMoved() { return online::Enabled() && online::BindAddress() != 0; }
+
+    uint16_t HostPort(uint16_t guestPortNetwork)
+    {
+        const uint16_t port = ntohs(guestPortNetwork);
+        return PortsMoved() && port > 0 && port < 1024 ? htons(uint16_t(port + 30000)) : guestPortNetwork;
+    }
+
+    uint16_t GuestPort(uint16_t hostPortNetwork)
+    {
+        const uint16_t port = ntohs(hostPortNetwork);
+        return PortsMoved() && port >= 30001 && port < 31024 ? htons(uint16_t(port - 30000)) : hostPortNetwork;
+    }
+
     // Guest sockaddr_in: family (big-endian 16 bits), port and address in
     // network order.
     void StoreGuestAddress(uint8_t* base, uint32_t address, uint32_t lengthAddress, const sockaddr_in& from)
@@ -403,7 +411,8 @@ namespace
         {
             memset(base + address, 0, 16);
             PPC_STORE_U16(address, 2);
-            memcpy(base + address + 2, &from.sin_port, 2);
+            const uint16_t port = GuestPort(from.sin_port);
+            memcpy(base + address + 2, &port, 2);
             memcpy(base + address + 4, &from.sin_addr.s_addr, 4);
         }
         if (lengthAddress)
@@ -549,6 +558,7 @@ static void Send(PPCContext& ctx, uint8_t* base, uint32_t to, uint32_t toLength)
             target.sin_len = sizeof(target);
             target.sin_family = AF_INET;
             memcpy(&target.sin_port, base + to + 2, 2);
+            target.sin_port = HostPort(target.sin_port);
             memcpy(&target.sin_addr.s_addr, address, 4);
             n = sendto(socket->fd, base + ctx.r5.u32, ctx.r6.u32, 0, reinterpret_cast<sockaddr*>(&target), sizeof(target));
             ctx.r3.u64 = n < 0 ? SocketFailure(ErrnoToWsa(errno)) : uint64_t(n);
@@ -612,6 +622,7 @@ PPC_FUNC(__imp__NetDll_connect)
     target.sin_len = sizeof(target);
     target.sin_family = AF_INET;
     memcpy(&target.sin_port, base + to + 2, 2);
+    target.sin_port = HostPort(target.sin_port);
     memcpy(&target.sin_addr.s_addr, base + to + 4, 4);
     const int result = connect(socket->fd, reinterpret_cast<sockaddr*>(&target), sizeof(target));
     const int error = result < 0 ? errno : 0;
@@ -717,11 +728,231 @@ PPC_FUNC(__imp__NetDll_setsockopt)
         setsockopt(socket->fd, hostLevel, hostName, &v, sizeof(v));
 }
 
-// Overlapped receives: nothing ever arrives (as Xenia: an error, so the
-// title doesn't wait for it).
-PPC_FUNC(__imp__NetDll_WSARecv) { ctx.r3.u64 = SocketFailure(10050); }  // WSAENETDOWN
-PPC_FUNC(__imp__NetDll_WSARecvFrom) { ctx.r3.u64 = SocketFailure(10050); }
-PPC_FUNC(__imp__NetDll_WSAGetOverlappedResult) { GuestThread::SetLastError(10050); ctx.r3.u64 = 0; }
+// Overlapped receives. Offline nothing ever arrives (as Xenia: an error, so
+// the title doesn't wait for it). Online (BURNOUT_ONLINE) they are real: the
+// game's peer link (CommUDP, port 8192) waits on them with WSA events. What
+// is there already is taken at once; otherwise the receive is left pending,
+// a thread of ours waits for the socket (poll), takes the datagram into the
+// game's buffers and completes the WSAOVERLAPPED (Internal: status,
+// InternalHigh: bytes) and sets its event.
+//
+// Guest WSABUF { len, buf }; WSAOVERLAPPED { Internal, InternalHigh, Offset,
+// OffsetHigh, hEvent }.
+namespace
+{
+    constexpr uint32_t kStatusPending = 0x103;
+
+    // The game's WSABUF array is its own stack, gone once WSARecvFrom
+    // returns (Winsock takes the buffers in the call): what it says is kept
+    // here. Read later, it was another function's stack, and a datagram went
+    // to wherever that pointed - DirtySock's socket list, which its thread
+    // then walked into address 0x100 (both two-copy runs crashed so).
+    struct GuestBuffers
+    {
+        uint32_t count = 0;
+        uint32_t length[4]{}, address[4]{};
+    };
+
+    struct PendingReceive
+    {
+        uint32_t handle;
+        GuestBuffers buffers;
+        uint32_t from, fromLength, overlapped;
+        int fd;
+    };
+
+    std::mutex s_receiveMutex;
+    std::vector<PendingReceive> s_pendingReceives;
+    int s_receiveWake[2] = { -1, -1 };
+
+    GuestBuffers LoadBuffers(uint8_t* base, uint32_t buffers, uint32_t count)
+    {
+        GuestBuffers b;
+        b.count = buffers ? std::min(count, 4u) : 0;
+        for (uint32_t i = 0; i < b.count; i++)
+        {
+            b.length[i] = PPC_LOAD_U32(buffers + i * 8);
+            b.address[i] = PPC_LOAD_U32(buffers + i * 8 + 4);
+        }
+        return b;
+    }
+
+    // Into the game's buffers; the bytes taken, or -1 with errno.
+    ssize_t ReceiveInto(uint8_t* base, int fd, const GuestBuffers& buffers, uint32_t from, uint32_t fromLength, int flags)
+    {
+        uint8_t data[2048];
+        sockaddr_in source{};
+        socklen_t sourceLength = sizeof(source);
+        const ssize_t n = recvfrom(fd, data, sizeof(data), flags, reinterpret_cast<sockaddr*>(&source), &sourceLength);
+        if (n < 0)
+            return n;
+        size_t done = 0;
+        for (uint32_t i = 0; i < buffers.count && done < size_t(n); i++)
+        {
+            const size_t part = std::min<size_t>(buffers.length[i], size_t(n) - done);
+            if (buffers.address[i])
+                memcpy(base + buffers.address[i], data + done, part);
+            done += part;
+        }
+        if (from || fromLength)
+            StoreGuestAddress(base, from, fromLength, source);
+        return ssize_t(done);
+    }
+
+    void CompleteReceive(uint8_t* base, uint32_t overlapped, uint32_t status, uint32_t bytes)
+    {
+        PPC_STORE_U32(overlapped + 4, bytes);
+        PPC_STORE_U32(overlapped, status);
+        if (const uint32_t event = PPC_LOAD_U32(overlapped + 16))
+            NtSetEvent(event, nullptr);
+    }
+
+    void ReceiveThread(uint8_t* base)
+    {
+        for (;;)
+        {
+            std::vector<pollfd> fds{ { s_receiveWake[0], POLLIN, 0 } };
+            {
+                std::lock_guard lock(s_receiveMutex);
+                for (const auto& p : s_pendingReceives)
+                    fds.push_back({ p.fd, POLLIN, 0 });
+            }
+            if (poll(fds.data(), nfds_t(fds.size()), 500) <= 0)
+                continue;
+            if (fds[0].revents & POLLIN)
+            {
+                char drain[64];
+                while (read(s_receiveWake[0], drain, sizeof(drain)) > 0)
+                {
+                }
+            }
+            std::lock_guard lock(s_receiveMutex);
+            for (size_t i = 1; i < fds.size(); i++)
+            {
+                if (!(fds[i].revents & (POLLIN | POLLERR | POLLHUP)))
+                    continue;
+                auto it = std::find_if(s_pendingReceives.begin(), s_pendingReceives.end(), [&](const PendingReceive& p) { return p.fd == fds[i].fd; });
+                if (it == s_pendingReceives.end())
+                    continue;
+                const ssize_t n = ReceiveInto(base, it->fd, it->buffers, it->from, it->fromLength, MSG_DONTWAIT);
+                if (n < 0 && errno == EWOULDBLOCK)
+                    continue;
+                CompleteReceive(base, it->overlapped, n < 0 ? 0xC000020C /* STATUS_CONNECTION_DISCONNECTED */ : 0, n < 0 ? 0 : uint32_t(n));
+                s_pendingReceives.erase(it);
+            }
+        }
+    }
+
+    void Wake()
+    {
+        if (s_receiveWake[1] >= 0)
+            (void)write(s_receiveWake[1], "w", 1);
+    }
+
+    // A pending receive on a socket being closed is dropped (Winsock aborts it).
+    void DropPendingReceives(uint32_t handle)
+    {
+        std::lock_guard lock(s_receiveMutex);
+        std::erase_if(s_pendingReceives, [&](const PendingReceive& p) { return p.handle == handle; });
+        Wake();
+    }
+
+    // (caller, socket, buffers, count, bytes*, flags*, from, fromLength*) in
+    // r3-r10, the overlapped and the completion routine on the stack.
+    void OverlappedReceive(PPCContext& ctx, uint8_t* base, uint32_t from, uint32_t fromLength, uint32_t overlapped)
+    {
+        auto* socket = SocketFromHandle(ctx.r4.u32);
+        if (!online::Enabled())
+        {
+            ctx.r3.u64 = SocketFailure(10050);  // WSAENETDOWN
+            return;
+        }
+        if (!socket)
+        {
+            ctx.r3.u64 = SocketFailure(10038);
+            return;
+        }
+        const GuestBuffers buffers = LoadBuffers(base, ctx.r5.u32, ctx.r6.u32);
+        const uint32_t bytes = ctx.r7.u32, flags = ctx.r8.u32;
+        const ssize_t n = ReceiveInto(base, socket->fd, buffers, from, fromLength, MSG_DONTWAIT);
+        if (n >= 0)
+        {
+            if (bytes)
+                PPC_STORE_U32(bytes, uint32_t(n));
+            if (flags)
+                PPC_STORE_U32(flags, 0);
+            if (overlapped)
+                CompleteReceive(base, overlapped, 0, uint32_t(n));
+            ctx.r3.u64 = 0;
+            return;
+        }
+        if (errno != EWOULDBLOCK || !overlapped)
+        {
+            ctx.r3.u64 = SocketFailure(ErrnoToWsa(errno));
+            return;
+        }
+        static std::once_flag started;
+        std::call_once(started, [base] {
+            if (pipe(s_receiveWake) == 0)
+            {
+                fcntl(s_receiveWake[0], F_SETFL, O_NONBLOCK);
+                fcntl(s_receiveWake[1], F_SETFL, O_NONBLOCK);
+            }
+            std::thread(ReceiveThread, base).detach();
+        });
+        PPC_STORE_U32(overlapped, kStatusPending);
+        PPC_STORE_U32(overlapped + 4, 0);
+        if (const uint32_t event = PPC_LOAD_U32(overlapped + 16))
+            NtClearEvent(event);
+        {
+            // The same overlapped asked again: this receive replaces the one before.
+            std::lock_guard lock(s_receiveMutex);
+            std::erase_if(s_pendingReceives, [&](const PendingReceive& p) { return p.overlapped == overlapped; });
+            s_pendingReceives.push_back({ ctx.r4.u32, buffers, from, fromLength, overlapped, socket->fd });
+        }
+        Wake();
+        ctx.r3.u64 = SocketFailure(997);  // WSA_IO_PENDING
+    }
+}
+
+PPC_FUNC(__imp__NetDll_WSARecv) { OverlappedReceive(ctx, base, 0, 0, ctx.r9.u32); }
+PPC_FUNC(__imp__NetDll_WSARecvFrom) { OverlappedReceive(ctx, base, ctx.r9.u32, ctx.r10.u32, PPC_LOAD_U32(ctx.r1.u32 + 0x54)); }
+
+// (caller, socket, overlapped, bytes*, wait, flags*): TRUE once complete.
+PPC_FUNC(__imp__NetDll_WSAGetOverlappedResult)
+{
+    const uint32_t overlapped = ctx.r5.u32;
+    if (!online::Enabled() || !overlapped)
+    {
+        GuestThread::SetLastError(10050);
+        ctx.r3.u64 = 0;
+        return;
+    }
+    uint32_t status = PPC_LOAD_U32(overlapped);
+    if (status == kStatusPending && ctx.r7.u32)
+    {
+        if (const uint32_t event = PPC_LOAD_U32(overlapped + 16))
+            NtWaitForSingleObjectEx(event, 1, 0, nullptr);
+        status = PPC_LOAD_U32(overlapped);
+    }
+    if (status == kStatusPending)
+    {
+        GuestThread::SetLastError(996);  // WSA_IO_INCOMPLETE
+        ctx.r3.u64 = 0;
+        return;
+    }
+    if (ctx.r6.u32)
+        PPC_STORE_U32(ctx.r6.u32, PPC_LOAD_U32(overlapped + 4));
+    if (ctx.r8.u32)
+        PPC_STORE_U32(ctx.r8.u32, 0);
+    if (status != 0)
+    {
+        GuestThread::SetLastError(10054);  // WSAECONNRESET
+        ctx.r3.u64 = 0;
+        return;
+    }
+    ctx.r3.u64 = 1;
+}
 
 // WSA events are kernel events (manual reset), as WSAWaitForMultipleEvents
 // above waits on them.

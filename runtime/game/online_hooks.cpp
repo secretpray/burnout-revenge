@@ -141,6 +141,74 @@ PPC_FUNC(sub_8211F448)
     __imp__sub_8211F448(ctx, base);
 }
 
+// The socket layer's address remap (out, sockaddr): every destination
+// matching the game's table (0x82D39330: net, mask, to) is redirected - with a
+// lobby server that is a 0/0 entry, everything to the lobby host. Traffic
+// between the players has to reach the player: only the lobby's own ports
+// (31859-31861) keep the redirect.
+extern "C" PPC_FUNC(__imp__sub_82415E48);
+PPC_FUNC(sub_82415E48)
+{
+    if (online::Enabled())
+    {
+        const uint32_t to = ctx.r4.u32;
+        const uint32_t port = uint32_t(PPC_LOAD_U8(to + 2)) << 8 | PPC_LOAD_U8(to + 3);
+        if (port < 31859 || port > 31861)
+        {
+            ctx.r3.u64 = to;
+            return;
+        }
+    }
+    __imp__sub_82415E48(ctx, base);
+}
+
+// The session creation behind ProtoMangleControl 'sess' (ref, value,
+// session): the host when the host's XUID (ref+0x70) is this console's
+// (ref+0x80); otherwise a joiner copying the host's session from the pointer -
+// given none, it read address 0 and brought the game down. Refused instead.
+extern "C" PPC_FUNC(__imp__sub_8240C908);
+PPC_FUNC(sub_8240C908)
+{
+    if (online::Enabled())
+    {
+        const uint32_t ref = ctx.r3.u32;
+        const uint64_t host = PPC_LOAD_U64(ref + 0x70), self = PPC_LOAD_U64(ref + 0x80);
+        fprintf(stderr, "[online] session: host XUID %016llX, ours %016llX, %s\n", (unsigned long long)host,
+            (unsigned long long)self, host == self ? "hosting" : "joining");
+        if (host != self && ctx.r5.u32 == 0)
+        {
+            fprintf(stderr, "[online] joining a session with none given: refused\n");
+            ctx.r3.u64 = uint64_t(-1);
+            return;
+        }
+    }
+    __imp__sub_8240C908(ctx, base);
+}
+
+// strncpy(dst, src, n) with a null source: "" (n zero bytes). When a host
+// starts an online race, CB4NetworkManager::Update (0x82228800) copies the
+// lobby's name out of the rankings table, which has none - on the console the
+// field was always filled from EA's servers. The game crashed reading
+// address 0. Null is never a valid source, online or not. (Xerenge's finding,
+// online_stub.cpp at c023338.)
+extern "C" PPC_FUNC(__imp__sub_8259D2A0);
+PPC_FUNC(sub_8259D2A0)
+{
+    if (ctx.r4.u32 == 0)
+    {
+        static bool logged = false;
+        if (!logged)
+        {
+            logged = true;
+            fprintf(stderr, "[online] string copy from null (from %08X): left empty\n", uint32_t(ctx.lr));
+        }
+        if (ctx.r3.u32 && ctx.r5.u32)
+            memset(base + ctx.r3.u32, 0, ctx.r5.u32);
+        return;  // r3 stays the destination, as strncpy returns it
+    }
+    __imp__sub_8259D2A0(ctx, base);
+}
+
 // DirtySock's Voip calls with no voice module (VoipGetRef null): nothing, 0.
 // CGtVoIPManagerXenon::Prepare calls VoipControl(null, 'port', ...) when the
 // module didn't start, which would read 0x68 off null.
