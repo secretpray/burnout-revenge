@@ -34,5 +34,7 @@ the gamertag; here a client's `auth` names its persona, and anyone can log in
 as anyone (and so reach that persona's Burnout Clips in the Locker). Run a
 server for people you know.
 
-Built by `runtime/CMakeLists.txt`: the `ealobby-core` library and the
-standalone server `burnout-lobby` (docs/ONLINE_PLAN_RU.md, phase 2).
+Built by `runtime/CMakeLists.txt`: the `ealobby-core` library, the
+standalone server `burnout-lobby` (docs/ONLINE_PLAN_RU.md, phase 2), and the
+game's own lobby for a LAN with no server (`BURNOUT_LOBBY_SERVER=lan`,
+`runtime/user/online.cpp`, phase 5).

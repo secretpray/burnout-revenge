@@ -8,7 +8,8 @@
 //   BURNOUT_ONLINE=1               signed in to Live as user 0 (off by default)
 //   BURNOUT_GAMERTAG=<name>        the gamertag (user/online_identity.h), "Player"
 //   BURNOUT_LOBBY_SERVER=<host>    the lobby server (EA's, stood in for: Xerenge's
-//                                  ealobby or ours), by name or IPv4; none: 127.0.0.1
+//                                  ealobby or ours), by name or IPv4; none: 127.0.0.1;
+//                                  "lan": the game's own (below)
 //   BURNOUT_ONLINE_ADDRESS=<ipv4>  this console's address for its peers, and the
 //                                  one its sockets bind to (127.0.0.2 and 127.0.0.3
 //                                  for two copies on one Mac); none: the LAN's
@@ -16,6 +17,12 @@
 // Phase 1: with BURNOUT_ONLINE the network is a console's with a working
 // connection (kernel/burnout_imports.cpp: link up, an XNADDR, real sockets) and
 // XOnlineGetServiceInfo names the lobby server (kernel/xmsg.cpp).
+//
+// Phase 5, a LAN with no server (BURNOUT_LOBBY_SERVER=lan): each console runs
+// a lobby of its own (Xerenge's ealobby, its "seamless multiplayer") at its
+// address, announces the games it hosts on UDP 31859 and joins its player to
+// the games the others announce, through a link to their lobby. No Locker:
+// Burnout Clips need a server. (Xerenge's design, its rexglue/src/ealobby.)
 //
 // Read once, at first use; any thread.
 #pragma once
@@ -36,8 +43,11 @@ namespace online
     // none is set or the name doesn't resolve.
     uint32_t LobbyServerAddress();
     // BURNOUT_LOBBY_SERVER is set (and found): there is a server, and with it
-    // EA's Locker (Burnout Clips) on its port 31862.
+    // EA's Locker (Burnout Clips) on its port 31862. Not for the game's own lobby.
     bool HasLobbyServer();
+    // BURNOUT_LOBBY_SERVER=lan: the lobby is the game's own, at LocalAddress()
+    // (started by the first LobbyServerAddress()).
+    bool OwnLobby();
     // This console's address as its peers see it (its XNADDR).
     uint32_t LocalAddress();
     // What a socket bound to "any address" is bound to: BURNOUT_ONLINE_ADDRESS

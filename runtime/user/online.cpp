@@ -15,6 +15,11 @@
 #include <cstring>
 #include <mutex>
 #include <random>
+#include <strings.h>
+
+#ifdef BR_LAN_LOBBY
+#include <ealobby/server.h>
+#endif
 
 namespace online
 {
@@ -110,13 +115,49 @@ namespace online
         {
             uint32_t address = htonl(INADDR_LOOPBACK);
             bool found = false;
+            bool own = false;
         };
+
+        // The game's own lobby (online.h, phase 5): on this console's address
+        // (any, on a LAN; the one given, for copies on one Mac), linked with
+        // the others'. It runs until the game exits. Its log: what concerns
+        // the LAN always, every message with BURNOUT_LOG_NET.
+        bool StartOwnLobby(uint32_t address)
+        {
+#ifdef BR_LAN_LOBBY
+            const char* net = std::getenv("BURNOUT_LOG_NET");
+            const bool verbose = net && *net && std::strcmp(net, "0") != 0;
+            ealobby::Options options;
+            options.host = BindAddress() ? Text(BindAddress()) : "0.0.0.0";
+            options.self_address = Text(address);
+            options.locker_port = 0;
+            auto* server = new ealobby::Server(options, [verbose](const std::string& line) {
+                if (verbose || line.rfind("ealobby:", 0) == 0 || line.rfind("federation:", 0) == 0)
+                    fprintf(stderr, "[lan-lobby] %s\n", line.c_str());
+            });
+            if (server->Start())
+                return true;  // never stopped: it serves until the process ends
+            delete server;
+#else
+            (void)address;
+#endif
+            fprintf(stderr, "[online] the game's own lobby could not start\n");
+            return false;
+        }
 
         const Lobby& GetLobby()
         {
             static const Lobby lobby = [] {
                 Lobby l;
                 const char* name = std::getenv("BURNOUT_LOBBY_SERVER");
+                if (name && strcasecmp(name, "lan") == 0)
+                {
+                    l.address = LocalAddress();
+                    l.own = StartOwnLobby(l.address);
+                    fprintf(stderr, "[online] lobby: the game's own, at %s (LAN, no server)\n",
+                        Text(l.address).c_str());
+                    return l;
+                }
                 if (name && *name)
                 {
                     addrinfo hints{};
@@ -141,6 +182,7 @@ namespace online
     }
 
     bool HasLobbyServer() { return GetLobby().found; }
+    bool OwnLobby() { return GetLobby().own; }
     uint32_t LobbyServerAddress() { return GetLobby().address; }
 
     uint32_t BindAddress()

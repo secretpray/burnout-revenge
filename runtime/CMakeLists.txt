@@ -91,6 +91,12 @@ target_include_directories(${BR_RUNTIME_TARGET} PRIVATE ${CMAKE_CURRENT_SOURCE_D
 if(BR_GAME STREQUAL "burnout")
     target_compile_definitions(${BR_RUNTIME_TARGET} PRIVATE BR_GAME_BURNOUT=1 BR_MANIFEST_FILE="burnout_manifest.inc")
 endif()
+# Online on a LAN with no server (BURNOUT_LOBBY_SERVER=lan, user/online.cpp):
+# the game runs the lobby itself. Not on iOS, like the library.
+if(NOT IOS)
+    target_link_libraries(${BR_RUNTIME_TARGET} PRIVATE ealobby-core)
+    target_compile_definitions(${BR_RUNTIME_TARGET} PRIVATE BR_LAN_LOBBY=1)
+endif()
 find_package(SDL3 REQUIRED CONFIG)
 if(IOS)
     # iOS has no Vulkan loader: the app links MoltenVK statically, and the
