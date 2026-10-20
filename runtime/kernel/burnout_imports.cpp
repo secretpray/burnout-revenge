@@ -215,11 +215,27 @@ PPC_FUNC(__imp__NetDll_WSACleanup) { ctx.r3.u64 = 0; }
 namespace
 {
     thread_local uint32_t s_socketError = 0;
+    void DropPendingReceives(uint32_t handle);
+
+    // A socket. closesocket closes it (the host socket, its pending
+    // receives) but leaves the object: the game also hands the handle to
+    // CloseHandle afterwards (its peer link's socket, at a race's start),
+    // which Xenia refuses and our NtClose would have freed a second time - the
+    // heap went (both copies crashed in NtClose, 20.10). Now that NtClose frees
+    // it, once; a handle closesocket closed is no socket any more.
     struct OfflineSocket : KernelObject
     {
         int fd;
         explicit OfflineSocket(int fd) : fd(fd) {}
-        ~OfflineSocket() override { close(fd); }
+        void Close()
+        {
+            if (fd < 0)
+                return;
+            DropPendingReceives(GetKernelHandle(this));
+            ::close(fd);
+            fd = -1;
+        }
+        ~OfflineSocket() override { Close(); }
     };
 
     uint32_t SocketFailure(uint32_t error)
@@ -322,8 +338,6 @@ PPC_FUNC(__imp__NetDll_WSAWaitForMultipleEvents)
     ctx.r3.u64 = (status & 0x80000000) ? SocketFailure(10022) : status;
 }
 
-namespace { void DropPendingReceives(uint32_t handle); }
-
 PPC_FUNC(__imp__NetDll_closesocket)
 {
     const uint32_t handle = ctx.r4.u32;
@@ -333,12 +347,11 @@ PPC_FUNC(__imp__NetDll_closesocket)
         return;
     }
     auto* socket = dynamic_cast<OfflineSocket*>(GetKernelObject(handle));
-    if (!socket)
+    if (!socket || socket->fd < 0)
         ctx.r3.u64 = SocketFailure(10038);
     else
     {
-        DropPendingReceives(handle);
-        ReleaseKernelObject(socket);
+        socket->Close();
         ctx.r3.u64 = 0;
     }
 }
@@ -357,7 +370,8 @@ namespace
     {
         if (handle == 0xFFFFFFFF || !IsKernelObject(handle))
             return nullptr;
-        return dynamic_cast<OfflineSocket*>(GetKernelObject(handle));
+        auto* socket = dynamic_cast<OfflineSocket*>(GetKernelObject(handle));
+        return socket && socket->fd >= 0 ? socket : nullptr;  // closed: no socket
     }
 
     uint32_t ErrnoToWsa(int error)
