@@ -43,6 +43,7 @@ bool ImportTraceEnabled() { return false; }
 void ImportTraceCall(const char*, const PPCContext&) {}
 void ImportTraceReturn(const char*, const PPCContext&) {}
 void GuestThread::SetLastError(uint32_t) {}
+namespace hid { void ScriptEvent(const char*) {} }
 void CompleteOverlapped(XXOVERLAPPED*, uint32_t, uint32_t, uint32_t) { assert(false); }
 namespace vfs
 {

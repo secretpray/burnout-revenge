@@ -14,7 +14,8 @@
   `git -C $B pull --ff-only` (stash оставляй; `checkout -- .` в копии не используй).
 - Сборка и тесты (в сборочной копии):
   `T=…/speedbreaker/tools; export PATH=$T/build-python/cmake/data/bin:$T/bin:$PATH`
-  `cmake --build build/burnout-mac -j6` и `ctest --test-dir build/burnout-mac` (сейчас 73/73).
+  `cmake --build build/burnout-mac -j6` и `ctest --test-dir build/burnout-mac` (сейчас 75/75;
+  `swapchain_use_test` и `guest_time_test` иногда падают под нагрузкой — повтори отдельно).
   Если в сборочной копии остались новые файлы от прошлого `apply`, перед ним удали их.
 - Пакет: `MOLTENVK=$T/moltenvk/MoltenVK/MoltenVK/dylib/macOS/libMoltenVK.dylib MOLTENVK_VERSION=1.4.2
   python3 scripts/macos/make_app.py build/burnout-mac <out> --game=burnout [--dmg]`, для `--dmg` ещё
@@ -49,38 +50,45 @@
   исходные инструкции); константы .rdata — образ default.xex через XenonUtils
   (`…/speedbreaker/tools/XenonRecomp`, `Image::ParseImage`). Профиль процесса: `sample <pid> <сек>`.
 - Игра: ~/Library/Application Support/BurnoutRevenge/game; ISO: /Volumes/1Tb NVME/XBOX360.
+- **Онлайн-проверки** — папка `…/speedbreaker/build/online-validation` (вне репозитория):
+  - Свой сервер лобби: `$B/build/burnout-mac/runtime/burnout-lobby --host 127.0.0.1 --locker-dir <tmp>`
+    (запускать в фоне, журнал — во временную папку; после работы остановить). Сервер автора
+    Xerenge: `BURNOUT_LOBBY_SERVER=94639.snk.wtf` (разрешён, issue #28).
+  - Боты: `python3 bots.py <имя> [копий 2–4] [сек] [сервер=127.0.0.1]` — хозяин + боты на
+    127.0.0.2–5, данные `data-onA…D`, сами входят в Live, создают/находят Player Match, стартуют
+    и едут (газ); в конце отчёт по журналам. Гонка ~5–7 мин; 4 копии × 2 гонки ≈ 17 мин — запускать
+    в фоне. Адреса lo0 127.0.0.2–5 живут до перезагрузки; добавляет пользователь:
+    `sudo ifconfig lo0 alias 127.0.0.N up` (пароль — только в его Терминале).
+  - `two.sh` — две копии через сервер автора для ручной игры пользователем.
+  - Онлайн-env: `BURNOUT_ONLINE=1`, `BURNOUT_GAMERTAG`, `BURNOUT_LOBBY_SERVER`,
+    `BURNOUT_ONLINE_ADDRESS`, `BURNOUT_LOG_NET=1` (журнал большой — после прогонов удалять
+    папки прогонов и `data-on*/logs/*`: диск у пользователя почти полон).
 
-## Состояние (19.10.2026)
+## Состояние (20.10.2026)
 
-- v0.1.15 опубликован (Latest, 22d31bd), установлен в /Applications из скачанного DMG: Vehicle Detail
-  (game/vehicle_detail.h, Far по умолчанию), игроки по падам и разделённый экран (hid/pad_slots.h),
-  сейвы через копию (user/save_commit.h), установка без мусора (журнал install-unfinished),
-  оформленный DMG (scripts/macos/styled_dmg.py, фон make_dmg_background.py). README: скриншоты
-  разделённого экрана, Graphics с Vehicle Detail и окна DMG (снят пользователем); в CREDITS/README
-  — Xerenge, Fukami, Takedawn. v0.1.14: рули, HUD у краёв 16:10/4:3. Тесты 73/73.
-- Проверено: камера Takedown (ручные прогоны пользователя), шесть аддон-машин, матрица меню
-  и режимов (кроме Player File; Multiplayer Race на двух виртуальных падах — да). Заглушек осталось 14
-  (друзья/gamer card/сессии Live/исключения), офлайн не встречены.
-- Сначала прочитай docs/ACTIVE_WORK.md (раздел «Очередь», пункты 11–16) и при нужде
-  docs/EXTERNAL_PORTS_PLAN.md (последние разделы: Xerenge online, Fukami, Takedawn); остальные
-  документы — только по ссылкам. PROGRESS.md целиком не читать.
+- v0.1.15 опубликован (Latest) и установлен. После него в main — онлайн (всё под
+  `BURNOUT_ONLINE`, по умолчанию выключен; в релиз не выходил).
+- Онлайн по плану [ONLINE_PLAN_RU](ONLINE_PLAN_RU.md) (читать раздел нужной фазы и «Ход фазы»):
+  фазы 0–1 (консоль «в Live»), 3 (хуки входа), 2 (свой сервер: `runtime/thirdparty/ealobby` —
+  Xerenge `cfe047e` без изменений + наши правки безопасности, утилита `burnout-lobby`, тест
+  `ealobby_test`; вход и 30 мин простоя), 4 (гонка на двоих) — сделаны; 5 — боты и гонка
+  вчетвером на одном Mac работают (общий UDP-порт 8192 с сокетом на игрока, SO_NOSIGPIPE).
+- Заглушек офлайн не встречено; Ranked не работает (нужен XSessionSearch).
+- Сначала прочитай docs/ACTIVE_WORK.md (п. 16 — онлайн, «Очередь»); PROGRESS.md целиком не читать.
 
 ## Оставшиеся пункты плана (по порядку)
 
-Идеи из Fukami закрыты (ACTIVE_WORK п. 11–15а): Vehicle Detail, слоты падов, сейвы через копию,
-установка без мусора — сделаны; загрузка — закрыта по замеру (docs/LOADING.md); частота внешнего
-экрана (п. 14) — отложена, нет монитора 144/165 Гц.
-
-1. **Сохранение Burnout Clip через копию** (быстрая регрессия): клип 4 МБ, GENERIC_ALL — теперь
-   пишется через user/save_commit.h; проверить сохранение и просмотр в My Clips (как прогоны 188–197).
-2. **Первый кадр гонки 117 мс** (docs/LOADING.md): 56 мс — write-watch guard stalls, 22 мс —
-   109 текстур; разобрать, если окупится.
-3. **Полная карьера** и оставшиеся 14 заглушек — по находкам.
-4. **Онлайн** — автор Xerenge ответил (https://github.com/shipa-2/Xerenge/issues/28): сервер
-   `94639.snk.wtf` разрешён, Xerenge теперь GPL-3.0-or-later, `ealobby` и заметки хуков можно
-   адаптировать. План с фазами: [ONLINE_PLAN_RU](ONLINE_PLAN_RU.md); начинать с фазы 0.
-5. **HDR/EDR** — отложено до HDR-экрана; **апскейл 2D** — отложен по замеру (вернуться на 1440p/4K).
-6. Родной APT-экран клавиатуры — только ограниченный эксперимент; пока оставить нашу.
+1. **Онлайн, фаза 5 дальше**: LAN без сервера (сервер внутри игры: `ealobby` с `self_address`,
+   анонсы UDP 31859; у федерации ещё нет проверки соседей — см. README ealobby), Crash Party/
+   Crash Battle ботами; затем один-два ручных прогона пользователя на двух Mac (LAN и интернет).
+2. **Фаза 6**: Burnout Clips через Locker (`burnout-lobby` уже отдаёт `dir`), проверить сохранение
+   клипа через копию (user/save_commit.h, 4 МБ).
+3. **Фаза 7**: Настройки > Онлайн — выбор сервера (автора / свой / LAN), повторное подключение с
+   паузами; затем релиз с онлайном.
+4. Отправить автору Xerenge issue с журналами (текст готов: burnout-revenge/private/xerenge-report)
+   и, по желанию пользователя, наши правки безопасности ealobby.
+5. Первый кадр гонки 117 мс (docs/LOADING.md), полная карьера — по находкам.
+6. HDR/EDR и апскейл 2D — отложены; APT-клавиатура — ограниченный эксперимент.
 
 Ждут ручной проверки пользователем: два настоящих пада и пад по BT+USB одновременно, настоящий
 руль, кнопка CANCEL INSTALL и выход во время установки в окне первого запуска.
@@ -93,7 +101,7 @@
   приватный backup в папке validation); после каждого релиза ставь скачанный релизный DMG
   (проверь SHA-256 и codesign).
 - Релиз: поднять версию в CMakeLists.txt, перенести CHANGELOG из Unreleased (его раздел — окно
-  What's new в игре), обновить README, сборка, 73+ тестов, пакет с `--dmg` (DMG_PYTHON), короткий
+  What's new в игре), обновить README, сборка, 75+ тестов, пакет с `--dmg` (DMG_PYTHON), короткий
   запуск кандидата, `package_sources.py <assets>/BurnoutRevenge-<v>-third-party-source.tar.xz
   --ffmpeg-archive …/speedbreaker/tools/ffmpeg-src/ffmpeg-7.1.1.tar.xz`, .sha256 и SHA256SUMS,
   заметки `release-<v>/notes.md`, черновик `gh release create --target <полный SHA> --draft`,

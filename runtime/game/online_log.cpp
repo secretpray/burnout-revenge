@@ -16,7 +16,7 @@
 // writes +320 (0x140) there.
 #include <stdafx.h>
 #include <user/online.h>
-#include <hid/input.h>
+#include <hid/script_event.h>
 
 #include <cstdio>
 #include <string>

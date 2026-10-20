@@ -53,6 +53,7 @@
 //     after the last one goes; one connecting takes it down.
 #pragma once
 #include <SDL3/SDL_events.h>
+#include "script_event.h"
 
 namespace hid
 {
@@ -68,9 +69,6 @@ namespace hid
     // While set (a menu is open), the game sees an idle controller, and
     // after it is cleared until every control has been released.
     void SetBlocked(bool blocked);
-    // Any thread: `name` happened (see BURNOUT_INPUT_SCRIPT above). Script
-    // inputs given as "@name+5:A" count from its latest time.
-    void ScriptEvent(const char* name);
     // Main thread: seconds since any control was last pressed or moved (a
     // controller, the keyboard's controls, NFSMW_INPUT_SCRIPT), as of the
     // last Update; from the first Update on.

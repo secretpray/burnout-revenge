@@ -27,7 +27,7 @@
 #include <apu/xmp_playlist.h>
 #include <user/my_music.h>
 #include <user/online.h>
-#include <hid/input.h>
+#include <hid/script_event.h>
 
 #include <thread>
 
