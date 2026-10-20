@@ -18,7 +18,9 @@
 #include <user/online.h>
 #include <hid/script_event.h>
 
+#include <algorithm>
 #include <cstdio>
+#include <iterator>
 #include <string>
 
 namespace
@@ -109,4 +111,77 @@ PPC_FUNC(sub_82224DD0)
     if (online::Enabled())
         fprintf(stderr, "[online] network error %d shown, from %08X\n", int32_t(ctx.r4.u32), uint32_t(ctx.lr));
     __imp__sub_82224DD0(ctx, base);
+}
+
+// CommUDP, DirtySock's peer link on port 8192 (one per other player):
+// its connect ("address:port:port") and listen, with the object, the result
+// and who called. Which player's link a console never starts shows here (the fourth player of a Crash Party,
+// 20.10). The functions and offsets are Xerenge's (online_stub.cpp at
+// c023338), checked against our build.
+namespace
+{
+    std::string GuestText(uint8_t* base, uint32_t address)
+    {
+        std::string s;
+        for (uint32_t i = 0; address && i < 64; i++)
+        {
+            const char c = char(base[address + i]);
+            if (!c)
+                break;
+            s += (c >= 0x20 && c < 0x7F) ? c : '?';
+        }
+        return s;
+    }
+}
+
+extern "C" PPC_FUNC(__imp__sub_825BF2B8);
+PPC_FUNC(sub_825BF2B8)
+{
+    const uint32_t self = ctx.r3.u32, lr = uint32_t(ctx.lr);
+    const std::string text = GuestText(base, ctx.r4.u32);
+    __imp__sub_825BF2B8(ctx, base);
+    if (online::Enabled())
+        fprintf(stderr, "[online] CommUDP %08X connect \"%s\" -> %d (from %08X)\n", self, text.c_str(), int32_t(ctx.r3.u32), lr);
+}
+
+extern "C" PPC_FUNC(__imp__sub_825BF3E8);
+PPC_FUNC(sub_825BF3E8)
+{
+    const uint32_t self = ctx.r3.u32, lr = uint32_t(ctx.lr);
+    const std::string text = GuestText(base, ctx.r4.u32);
+    __imp__sub_825BF3E8(ctx, base);
+    if (online::Enabled())
+        fprintf(stderr, "[online] CommUDP %08X listen \"%s\" -> %d (from %08X)\n", self, text.c_str(), int32_t(ctx.r3.u32), lr);
+}
+
+// CommUDP's update, all links each frame (the list at 0x82D3E6E8, next at
+// +0x7C): each link's state (+0x94; 3 waits to be called), DirtySock socket
+// (+0x80) and connection id (+0x98), logged when they change. A waiting link
+// takes a call only from its own socket, with its id.
+extern "C" PPC_FUNC(__imp__sub_825BE2F0);
+PPC_FUNC(sub_825BE2F0)
+{
+    __imp__sub_825BE2F0(ctx, base);
+    if (!online::Enabled())
+        return;
+    struct Seen
+    {
+        uint32_t link, state, socket, id;
+    };
+    static Seen seen[16] = {};
+    uint32_t link = PPC_LOAD_U32(0x82D3E6E8);
+    for (int n = 0; link && n < 16; n++, link = PPC_LOAD_U32(link + 0x7C))
+    {
+        const uint32_t state = PPC_LOAD_U32(link + 0x94), socket = PPC_LOAD_U32(link + 0x80), id = PPC_LOAD_U32(link + 0x98);
+        Seen* slot = std::find_if(std::begin(seen), std::end(seen), [&](const Seen& s) { return s.link == link; });
+        if (slot == std::end(seen))
+            slot = std::find_if(std::begin(seen), std::end(seen), [](const Seen& s) { return s.link == 0; });
+        if (slot == std::end(seen))
+            break;
+        if (slot->link != link || slot->state != state || slot->socket != socket || slot->id != id)
+        {
+            *slot = { link, state, socket, id };
+            fprintf(stderr, "[online] CommUDP %08X state %d, socket %08X, id %08X\n", link, int32_t(state), socket, id);
+        }
+    }
 }

@@ -1220,6 +1220,7 @@ namespace
             std::lock_guard lock(s_receiveMutex);
             std::erase_if(s_pendingReceives, [&](const PendingReceive& p) { return p.overlapped == overlapped; });
             s_pendingReceives.push_back({ ctx.r4.u32, buffers, from, fromLength, overlapped, socket->fd });
+            NET_LOG("waiting %08X: overlapped %08X, fd %d, %zu bytes\n", ctx.r4.u32, overlapped, socket->fd, BufferSpace(buffers));
             // A datagram another of the port's sockets took for this one
             // since TakeFor above: the port shows nothing more, so it is
             // handed over here, or the receive would wait for the next.
@@ -1237,9 +1238,15 @@ PPC_FUNC(__imp__NetDll_WSARecvFrom) { OverlappedReceive(ctx, base, ctx.r9.u32, c
 PPC_FUNC(__imp__NetDll_WSAGetOverlappedResult)
 {
     const uint32_t overlapped = ctx.r5.u32;
+    // A failure's code is WSAGetLastError's (SocketFailure), not only the
+    // thread's: DirtySock asks WSAGetLastError whether a receive is merely
+    // incomplete (996) and was told the 997 of the WSARecvFrom before it, took
+    // the receive for failed and never received on that socket again - a
+    // player's link on port 8192 went deaf after its first datagrams, and a
+    // late reply left a fourth player out of the game (20.10).
     if (!online::Enabled() || !overlapped)
     {
-        GuestThread::SetLastError(10050);
+        SocketFailure(10050);
         ctx.r3.u64 = 0;
         return;
     }
@@ -1252,7 +1259,7 @@ PPC_FUNC(__imp__NetDll_WSAGetOverlappedResult)
     }
     if (status == kStatusPending)
     {
-        GuestThread::SetLastError(996);  // WSA_IO_INCOMPLETE
+        SocketFailure(996);  // WSA_IO_INCOMPLETE
         ctx.r3.u64 = 0;
         return;
     }
@@ -1262,7 +1269,7 @@ PPC_FUNC(__imp__NetDll_WSAGetOverlappedResult)
         PPC_STORE_U32(ctx.r8.u32, 0);
     if (status != 0)
     {
-        GuestThread::SetLastError(10054);  // WSAECONNRESET
+        SocketFailure(10054);  // WSAECONNRESET
         ctx.r3.u64 = 0;
         return;
     }
