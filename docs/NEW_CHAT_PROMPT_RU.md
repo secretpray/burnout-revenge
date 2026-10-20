@@ -54,13 +54,20 @@
   - Свой сервер лобби: `$B/build/burnout-mac/runtime/burnout-lobby --host 127.0.0.1 --locker-dir <tmp>`
     (запускать в фоне, журнал — во временную папку; после работы остановить). Сервер автора
     Xerenge: `BURNOUT_LOBBY_SERVER=94639.snk.wtf` (разрешён, issue #28).
-  - Боты: `python3 bots.py <имя> [копий 2–4] [сек] [сервер=127.0.0.1]` — хозяин + боты на
+  - Боты: `python3 bots.py <имя> [копий 2–4] [сек] [сервер=127.0.0.1|lan]` — хозяин + боты на
     127.0.0.2–5, данные `data-onA…D`, сами входят в Live, создают/находят Player Match, стартуют
-    и едут (газ); в конце отчёт по журналам. Гонка ~5–7 мин; 4 копии × 2 гонки ≈ 17 мин — запускать
-    в фоне. Адреса lo0 127.0.0.2–5 живут до перезагрузки; добавляет пользователь:
+    и едут (газ); в конце отчёт по журналам. `BOTS_MODE=1..4` — режим хозяина (Road Rage, Crash
+    Party, Crash Tour, Crash Battle), `BOTS_SHOTS` — кадры хозяина. Гонка ~5–7 мин; 4 копии × 2
+    гонки ≈ 17 мин — запускать в фоне. Серии: сценарий в scratchpad не хранится — проще цикл
+    bots.py с проверкой `event "race"` в `<run><a-d>/session.log`. Адреса lo0 127.0.0.2–5 живут до перезагрузки; добавляет пользователь:
     `sudo ifconfig lo0 alias 127.0.0.N up` (пароль — только в его Терминале).
   - `two.sh` — две копии через сервер автора для ручной игры пользователем.
-  - Онлайн-env: `BURNOUT_ONLINE=1`, `BURNOUT_GAMERTAG`, `BURNOUT_LOBBY_SERVER`,
+  - Клипы: `data-clipA` (ранняя карьера с клипом), `data-clipOn` (100%-сейв с клипом; в его
+    settings.toml есть `[online]` own/127.0.0.1/MacSet), env-clipA/-clipOn/-clipB/-set.json.
+  - Наши ImGui-окна (настройки, имя клипа, What's new) виртуальный пад не видит — только
+    `BURNOUT_UI_KEYS` (F1, q/e — страницы, Down/Return).
+  - Настройки онлайна — Settings > Online (`[online]` в settings.toml); env главнее:
+    `BURNOUT_ONLINE=1`, `BURNOUT_GAMERTAG`, `BURNOUT_LOBBY_SERVER`,
     `BURNOUT_ONLINE_ADDRESS`, `BURNOUT_LOG_NET=1` (журнал большой — после прогонов удалять
     папки прогонов и `data-on*/logs/*`: диск у пользователя почти полон).
 
@@ -80,13 +87,36 @@
 
 ## Оставшиеся пункты плана (по порядку)
 
-1. Ручной прогон пользователя на двух Mac (LAN и интернет/сервер автора) — по находкам править.
-2. Ranked: XSessionSearch (XGI 000B0016) — по желанию пользователя.
+1. **Ranked (следующая задача).** Сейчас Xbox Live > Quick Match > Ranked → «Connection
+   problem»: игра шлёт XGI `0x000B0016` (XSessionSearch — поиск сессий Xbox Live по правилу
+   matchmaking, TrueSkill), мы отвечаем X_E_FAIL (`runtime/kernel/xmsg.cpp`, XgiOnline).
+   Custom Match с Ranked: Yes и Scoreboards тоже не проверены. Известно: при входе игра сама
+   создаёт комнату Ranked в лобби (`gcre`, экран «Ranked game», «Not enough players»), шлёт
+   `cate VIEW=XBOX.en` (`R=RANKED,1,ALL,1,DEFAULT,0,0`); XSessionArbitrationRegister и
+   XSessionWriteStats мы принимаем «успехом» без данных. У Xerenge Ranked тоже не работает.
+   План:
+   - Разведка: пройти Ranked (Quick Match и Create Match → Ranked: Yes) с `BURNOUT_LOG_NET=1`;
+     разобрать аргументы 0x000B0016 (индекс процедуры, свойства/контексты поиска, буфер
+     XSESSION_SEARCHRESULT_HEADER, overlapped) по generated PPC вызывающего кода; что игра делает
+     с пустым результатом и с найденной сессией (ждёт XSESSION_INFO хоста → XGISessionCreate join).
+   - Ответ на поиск: самое простое, совместимое с сервером Xerenge — пустой успешный результат
+     (игра становится хостом ranked-сессии) и поиск ranked-игр через лобби (`gsea`/`gqwk` с
+     флагами Ranked; SESS хоста уже ходит в записи игры). Если игре нужна сессия из поиска —
+     заполнять XSESSION_SEARCHRESULT из записей лобби (адрес/XNADDR, XNKID/XNKEY из SESS).
+   - Проверка ботами: `bots.py` с Ranked: Yes у хозяина и Quick Match → Ranked у ботов (нужна
+     правка сценария), 2 и 4 копии; затем Scoreboards (XUserReadStats/CreateStatsEnumerator —
+     что просит игра; хранить ли очки на нашем сервере — решить с пользователем: сервер автора
+     такого не умеет, а совместимость с ним — решение пользователя от 19.10).
+   - Готово: ranked-гонка на двоих и вчетвером доезжает до результатов на своём сервере и по
+     LAN; на сервере автора — не хуже, чем там умеет Xerenge.
+2. Ручной прогон пользователя на двух Mac (LAN и интернет/сервер автора) — по находкам править.
 3. Отправить автору Xerenge issue с журналами (текст готов: burnout-revenge/private/xerenge-report)
    и, по желанию пользователя, наши правки безопасности ealobby и находку про
    `WSAGetOverlappedResult`/`WSAGetLastError` (у них может быть тот же сбой на 8192).
 4. Первый кадр гонки 117 мс (docs/LOADING.md), полная карьера — по находкам.
 5. HDR/EDR и апскейл 2D — отложены; APT-клавиатура — ограниченный эксперимент.
+
+Ranked — в `main`, релиз — когда ranked-гонка проверена ботами (v0.1.17 по правилам релиза).
 
 Ждут ручной проверки пользователем: два настоящих пада и пад по BT+USB одновременно, настоящий
 руль, кнопка CANCEL INSTALL и выход во время установки в окне первого запуска.
