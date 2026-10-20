@@ -360,6 +360,12 @@ namespace
                 fprintf(stderr, "[xmp] CreateTitlePlaylist %08X: %zu songs (%u found), first %s\n", storage,
                     playlist.songs.size(), found, playlist.songs.empty() ? "-" : xmp::ToUtf8(playlist.songs[0].path).c_str());
             }
+            // The game's music is made once the profile is loaded (its "Load
+            // Successful", before the main menu): where an automated run's
+            // script goes on from.
+            static bool menu = false;
+            if (!std::exchange(menu, true))
+                hid::ScriptEvent("menu");
             return X_E_SUCCESS;
         }
         case 0x0007000E: // XMPGetInfo(client, unknown, info*)

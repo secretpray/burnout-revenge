@@ -32,7 +32,7 @@
 //     range, or inputs held over a range; RT/LT (triggers) and LL/LR/LU/LD
 //     (left stick) besides the buttons. For automated runs; works headless.
 //     "@event+5:A", "@event+2-20/3:A", "@event+0~60:RT": counted from the
-//     latest time the game reached `event` (ScriptEvent: "online", "session",
+//     latest time the game reached `event` (ScriptEvent: "menu", "online", "session",
 //     "race", "raceend"; game/online_log.cpp, kernel/xmsg.cpp), and nothing
 //     until it has - an online bot's script, whatever the copy's loading took.
 //     "...:START!race": no more once `race` has come after it. A tap lasts
