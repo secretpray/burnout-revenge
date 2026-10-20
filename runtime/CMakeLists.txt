@@ -66,6 +66,19 @@ if(IOS)
     list(APPEND RUNTIME_SOURCES ${IOS_SOURCES})
 endif()
 add_library(o1heap STATIC ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/o1heap/o1heap.c)
+# Xerenge's lobby server (thirdparty/ealobby, GPL-3.0-or-later, see its
+# README): a library, and burnout-lobby, a server of your own standing in for
+# EA's (docs/ONLINE_PLAN_RU.md, phase 2). Not on iOS.
+if(NOT IOS)
+    find_package(Threads REQUIRED)
+    set(EALOBBY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/ealobby)
+    add_library(ealobby-core STATIC ${EALOBBY}/src/ealobby/aries.cpp ${EALOBBY}/src/ealobby/locker.cpp
+        ${EALOBBY}/src/ealobby/server.cpp)
+    target_include_directories(ealobby-core PUBLIC ${EALOBBY}/src)
+    target_link_libraries(ealobby-core PUBLIC Threads::Threads)
+    add_executable(burnout-lobby ${EALOBBY}/cli/main.cpp)
+    target_link_libraries(burnout-lobby PRIVATE ealobby-core)
+endif()
 target_include_directories(o1heap PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/o1heap)
 if(IOS)
     # On iOS the app is linked and signed by Xcode (scripts/ios): the runtime
