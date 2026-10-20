@@ -20,7 +20,9 @@ Changes of ours go in separate commits on top, each listed here:
 
 - `server.cpp`: a peer link (`xhlo`) only on a server with seamless
   multiplayer on (`self_address`), and `xfwd` answers only to a client joined
-  through that link; login keys (`LKEY`) from the system's random source.
+  through that link; login keys (`LKEY`) from the system's random source;
+  `gset` changes the game and kicks only from its host (any player still sets
+  its own `USERPARAMS`).
 
 What it cannot do: tell who a player is. EA's servers trusted Xbox Live for
 the gamertag; here a client's `auth` names its persona, and anyone can log in

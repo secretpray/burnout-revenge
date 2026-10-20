@@ -939,8 +939,15 @@ void Server::HandleLobby(Connection& connection, const Message& message) {
     // The host's "kick player": KICK names the player. The game finds it was kicked when its own name is
     // missing from the game's player list (CGtLobbyDirtySock::CheckForPlayerKicked), and shows "kicked" instead
     // of "removed" if a message with flag bit 29 ("2") came first.
+    // Only the host changes the game or kicks; every player sets its own
+    // USERPARAMS.
+    const bool host = game.host == connection.user;
     const std::string kick = field("KICK", "");
-    if (!kick.empty()) {
+    if (!host && (!kick.empty() || asked.size() != asked.count("USERPARAMS"))) {
+      Log("lobby: gset from " + connection.user + ", not the host of game " + std::to_string(game.id) +
+          ": only its USERPARAMS taken");
+    }
+    if (!kick.empty() && host) {
       Connection* target = nullptr;
       for (SocketHandle fd : game.players) {
         Connection* player = ConnectionFor(fd);
@@ -965,13 +972,15 @@ void Server::HandleLobby(Connection& connection, const Message& message) {
       reply_with(GameRecord(game, connection));
       return;
     }
-    game.name = field("NAME", game.name);
-    game.params = field("PARAMS", game.params);
-    game.custflags = field("CUSTFLAGS", game.custflags);
-    game.sysflags = field("SYSFLAGS", game.sysflags);
-    game.minsize = field("MINSIZE", game.minsize);
-    game.maxsize = field("MAXSIZE", game.maxsize);
-    game.session = field("SESS", game.session);
+    if (host) {
+      game.name = field("NAME", game.name);
+      game.params = field("PARAMS", game.params);
+      game.custflags = field("CUSTFLAGS", game.custflags);
+      game.sysflags = field("SYSFLAGS", game.sysflags);
+      game.minsize = field("MINSIZE", game.minsize);
+      game.maxsize = field("MAXSIZE", game.maxsize);
+      game.session = field("SESS", game.session);
+    }
     connection.user_params = field("USERPARAMS", connection.user_params);
     reply_with(GameRecord(game, connection));
     SendGameToPlayers(game);

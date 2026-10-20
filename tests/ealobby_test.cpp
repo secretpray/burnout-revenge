@@ -149,6 +149,13 @@ int main()
     const Fields found = ParseFields(b.Wait("+gam").body);
     assert(found.at("IDENT") == mine.at("IDENT") && found.at("HOST") == "MacA");
 
+    // MacB joins; it may set its own USERPARAMS but not change the game or
+    // kick its host.
+    b.Send("gjoi", { { "IDENT", mine.at("IDENT") }, { "USERPARAMS", "1" } });
+    b.Wait("gjoi");
+    const Fields set = b.Ask("gset", { { "MAXSIZE", "2" }, { "KICK", "MacA" }, { "USERPARAMS", "7" } });
+    assert(set.at("MAXSIZE") == "8" && set.at("COUNT") == "2" && set.at("OPPARAM1") == "7");
+
     // A client can't make itself a server's peer link where there is no
     // seamless multiplayer (ours, README): xhlo is ignored, and the
     // connection stays a player's.
