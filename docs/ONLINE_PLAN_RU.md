@@ -458,6 +458,30 @@
 - README/CHANGELOG, атрибуция Xerenge (сервер, заметки хуков, протокол; GPL-3.0-or-later) и
   ReXGlue/Xenia (если возьмём файлы SDK), `docs/` с портами и запуском сервера.
 
+- **Ход фазы 7 (20.10) — сделано, кроме релиза**:
+  - Settings > Online (`user/settings.h`, таблица `[online]`): Online Play, Server (Xerenge
+    Community = `94639.snk.wtf` / My Server / LAN), Gamertag и Server Address — **текстовые**
+    опции (новое в settings: `TextId`, GetText/SetText, в `settings.toml` рядом с опциями; тест в
+    settings_keys_test), Check Server (`online::CheckServer`: `@dir` на 31860 с таймаутом 5 с,
+    проверка Locker 31862; на сервере автора — «lobby 144.31.123.141:31861, Burnout Clips: yes»).
+    Всё — при следующем запуске; переменные окружения главнее. Геймертег по умолчанию —
+    `Player` + 4 цифры из FNV имени учётной записи (само имя не уходит на сервер). Вход только по
+    настройкам проверен (MacSet на своём сервере).
+  - Пауза повторов: игра сама не переподключается (одна попытка → «Connection problem»); после
+    неудачного входа повторное соединение с каталогом лобби (31860) отклоняется 5→10→20→40→60 с
+    от показа ошибки (`online::LobbyConnectAllowed`, `NoteNetworkError`, `NoteLobbyLogin`).
+    Проверено: повтор через 5 с — «not asked again», сервер не тронут.
+  - Найдено по пути: OK на «Connection problem» ронял игру — `NtClose(0)` упирался в assert;
+    теперь `STATUS_INVALID_HANDLE`, как у консоли.
+  - `burnout-lobby` в пакете (`Contents/MacOS`, подписан), `check_app` PASS. `docs/ONLINE.md`
+    (для игроков: настройки, свой сервер, порты, брандмауэр — у пользователя он включён, macOS
+    спросит про входящие соединения; ad-hoc подпись может спрашивать после обновлений), README
+    (страница Online, ограничения), CHANGELOG Unreleased.
+  - Осталось: релиз (версия, DMG, заметки) — после ручного прогона пользователя на двух Mac
+    или с пометкой, что между Mac не проверено. Порты P2P с игроками Xerenge совпадают: у них
+    `MapWirePort` (rexglue `include/rex/system/xsocket.h`) — порты ниже 1024 +30000, как наш
+    `HostPort` (1000 → 31000).
+
 Итого ≈4–6 недель работы сессиями (меньше прежних 5–8: сервер не пишем с нуля); фазы 0–3
 дают «онлайн-меню без игр», 4 — первую игру на двоих.
 
