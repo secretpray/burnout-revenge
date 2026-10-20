@@ -494,6 +494,9 @@ namespace
             fprintf(stderr, "[online] XGI session %s\n", names[(message - 0x000B0011) & 7]);
             return X_E_SUCCESS;
         }
+        case 0x000B001A:  // XSessionArbitrationRegister: at a race's start
+        case 0x000B0025:  // XSessionWriteStats: at its end
+            return X_E_SUCCESS;
         default:
             return X_E_NOTFOUND;
         }
