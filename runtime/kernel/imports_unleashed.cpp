@@ -123,11 +123,14 @@ uint32_t NtClose(uint32_t handle)
         ReleaseKernelObject(GetKernelObject(handle));
         return 0;
     }
-    else
-    {
-        assert(false && "Unrecognized kernel object.");
-        return 0xFFFFFFFF;
-    }
+    // A handle that is no object of ours: the console's kernel answers
+    // STATUS_INVALID_HANDLE and goes on. After "Connection problem" online,
+    // OK closes a handle the game never opened (0): this asserted and ended
+    // the game (20.10).
+    static std::atomic<int> logged{ 0 };
+    if (logged.fetch_add(1) < 8)
+        fprintf(stderr, "[kernel] NtClose: %08X is no handle of ours; invalid handle\n", handle);
+    return 0xC0000008;  // STATUS_INVALID_HANDLE
 }
 
 uint32_t FscSetCacheElementCount()
