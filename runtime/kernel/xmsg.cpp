@@ -27,6 +27,7 @@
 #include <apu/xmp_playlist.h>
 #include <user/my_music.h>
 #include <user/online.h>
+#include <hid/input.h>
 
 #include <thread>
 
@@ -481,6 +482,7 @@ namespace
                 online::FillHostSessionInfo(info ? Guest<uint8_t>(info) : nullptr, nonce ? Guest<uint8_t>(nonce) : nullptr);
             fprintf(stderr, "[online] XGI session create (flags %08X, %u public slots)%s\n", flags,
                 uint32_t(*Guest<be<uint32_t>>(buffer + 8)), (flags & 1) ? ": host" : ": joining");
+            hid::ScriptEvent("session");  // in a game's lobby: an online bot's script goes on
             return X_E_SUCCESS;
         }
         case 0x000B0011:  // XGISessionDelete
@@ -492,6 +494,10 @@ namespace
         {
             static const char* const names[] = { "delete", "join", "leave", "start", "end", "?", "?", "modify" };
             fprintf(stderr, "[online] XGI session %s\n", names[(message - 0x000B0011) & 7]);
+            if (message == 0x000B0014)
+                hid::ScriptEvent("race");
+            else if (message == 0x000B0015)
+                hid::ScriptEvent("raceend");
             return X_E_SUCCESS;
         }
         case 0x000B001A:  // XSessionArbitrationRegister: at a race's start

@@ -156,8 +156,21 @@ namespace
 
     // A scripted input: buttons (or analog: RT/LT triggers, LL/LR/LU/LD left
     // stick) held over [time, time + duration).
-    struct ScriptTap { double time; uint16_t buttons; int16_t lx, ly; double duration = 0.15; uint8_t lt = 0, rt = 0; };
+    // `anchor`: an event's index in s_anchors (the time counts from its
+    // latest ScriptEvent, and the input waits for it), or -1 (from launch).
+    // `until`: an event that, once it comes after the anchor's, cancels the
+    // input ("!race"), or -1.
+    // `polls`: how many of the game's reads have seen it - a tap lasts until
+    // three have, however long a frame takes (with several copies running
+    // one can take a second, and a tap would fall between two reads).
+    struct ScriptTap { double time; uint16_t buttons; int16_t lx, ly; double duration = 0.15; uint8_t lt = 0, rt = 0; int anchor = -1; int polls = 0; double base = 0.0; int until = -1; };
     std::vector<ScriptTap> s_script;
+    // The events the script names ("@online+3:B") and when each last came
+    // (seconds since launch, -1 not yet). Names are fixed once parsed; the
+    // times are set from any thread.
+    std::vector<std::string> s_anchors;
+    std::vector<double> s_anchorTimes;
+    std::mutex s_anchorMutex;
     // Guest ns at launch: the script and the virtual pad run on guest time,
     // so a press due while the game is suspended comes after it instead of
     // being lost.
@@ -229,7 +242,32 @@ namespace
             // "from~to:BUTTON" (held).
             std::string when = item.substr(0, colon);
             std::string name = item.substr(colon + 1);
+            const auto anchorIndex = [](const std::string& event) {
+                auto it = std::find(s_anchors.begin(), s_anchors.end(), event);
+                if (it == s_anchors.end())
+                {
+                    s_anchors.push_back(event);
+                    s_anchorTimes.push_back(-1.0);
+                    it = s_anchors.end() - 1;
+                }
+                return int(it - s_anchors.begin());
+            };
+            int until = -1;
+            if (const size_t bang = name.find('!'); bang != std::string::npos)
+            {
+                until = anchorIndex(name.substr(bang + 1));
+                name.resize(bang);
+            }
             ScriptTap proto{ 0, ButtonByName(name), 0, 0 };
+            proto.until = until;
+            // "@event+when": counted from the event (ScriptEvent), not launch.
+            if (when.size() > 1 && when[0] == '@')
+            {
+                const size_t plus = when.find('+');
+                const std::string event = when.substr(1, plus == std::string::npos ? std::string::npos : plus - 1);
+                when = plus == std::string::npos ? "0" : when.substr(plus + 1);
+                proto.anchor = anchorIndex(event);
+            }
             if (name == "RT") proto.rt = 255;
             else if (name == "LT") proto.lt = 255;
             else if (name == "LL") proto.lx = -32767;
@@ -274,20 +312,43 @@ namespace
     }
 
     // Apply the scripted inputs active now on top of the device state.
-    void ApplyScript(Pad& p)
+    // `game`: the game's own read (counts toward a tap's polls).
+    void ApplyScript(Pad& p, bool game = false)
     {
         if (s_script.empty())
             return;
-        double t = SecondsSinceLaunch();
-        for (const auto& tap : s_script)
-            if (t >= tap.time && t < tap.time + tap.duration)
+        const double now = SecondsSinceLaunch();
+        std::vector<double> anchors;
+        {
+            std::lock_guard lock(s_anchorMutex);
+            anchors = s_anchorTimes;
+        }
+        for (auto& tap : s_script)
+        {
+            if (tap.anchor >= 0 && anchors[tap.anchor] < 0.0)
+                continue;
+            const double base = tap.anchor >= 0 ? anchors[tap.anchor] : 0.0;
+            if (tap.until >= 0 && anchors[tap.until] >= base)
+                continue;
+            if (base != tap.base)
             {
+                tap.base = base;  // the event again: its taps again
+                tap.polls = 0;
+            }
+            const double t = now - base;
+            constexpr int kTapPolls = 3;
+            const bool held = tap.duration > 0.15;
+            if (t >= tap.time && (t < tap.time + tap.duration || (!held && tap.polls < kTapPolls)))
+            {
+                if (game && !held)
+                    tap.polls++;
                 p.buttons |= tap.buttons;
                 p.leftTrigger = std::max(p.leftTrigger, tap.lt);
                 p.rightTrigger = std::max(p.rightTrigger, tap.rt);
                 if (tap.lx) p.lx = tap.lx;
                 if (tap.ly) p.ly = tap.ly;
             }
+        }
     }
 
     const bool s_scriptParsed = (ParseScript(), true);
@@ -835,6 +896,19 @@ namespace hid
         return std::chrono::duration<double>(std::chrono::steady_clock::now() - s_lastInput).count();
     }
 
+    void ScriptEvent(const char* name)
+    {
+        const auto it = std::find(s_anchors.begin(), s_anchors.end(), name);
+        if (it == s_anchors.end())
+            return;
+        const double now = SecondsSinceLaunch();
+        {
+            std::lock_guard lock(s_anchorMutex);
+            s_anchorTimes[it - s_anchors.begin()] = now;
+        }
+        fprintf(stderr, "[input] script: event \"%s\" at %.1f s\n", name, now);
+    }
+
     void SetBlocked(bool blocked)
     {
         s_blocked.store(blocked, std::memory_order_relaxed);
@@ -1056,7 +1130,7 @@ namespace
     {
         Pad p = s_pads[user];
         if (user == 0 && !s_scriptSuppressed)
-            ApplyScript(p);
+            ApplyScript(p, true);
         return p;
     }
 

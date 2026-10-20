@@ -31,6 +31,12 @@
 //     (150 ms) at seconds since launch, taps every `step` seconds over a
 //     range, or inputs held over a range; RT/LT (triggers) and LL/LR/LU/LD
 //     (left stick) besides the buttons. For automated runs; works headless.
+//     "@event+5:A", "@event+2-20/3:A", "@event+0~60:RT": counted from the
+//     latest time the game reached `event` (ScriptEvent: "online", "session",
+//     "race", "raceend"; game/online_log.cpp, kernel/xmsg.cpp), and nothing
+//     until it has - an online bot's script, whatever the copy's loading took.
+//     "...:START!race": no more once `race` has come after it. A tap lasts
+//     until the game has read it three times, however slow its frames.
 //     It feeds the game after the deadzones.
 //   - BURNOUT_VIRTUAL_PAD="2:LX=0.05,4:RT=0.06": an SDL virtual controller whose
 //     axes take those values at those seconds, through the deadzones, and
@@ -62,6 +68,9 @@ namespace hid
     // While set (a menu is open), the game sees an idle controller, and
     // after it is cleared until every control has been released.
     void SetBlocked(bool blocked);
+    // Any thread: `name` happened (see BURNOUT_INPUT_SCRIPT above). Script
+    // inputs given as "@name+5:A" count from its latest time.
+    void ScriptEvent(const char* name);
     // Main thread: seconds since any control was last pressed or moved (a
     // controller, the keyboard's controls, NFSMW_INPUT_SCRIPT), as of the
     // last Update; from the first Update on.

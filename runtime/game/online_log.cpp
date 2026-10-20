@@ -16,6 +16,7 @@
 // writes +320 (0x140) there.
 #include <stdafx.h>
 #include <user/online.h>
+#include <hid/input.h>
 
 #include <cstdio>
 #include <string>
@@ -67,7 +68,11 @@ PPC_FUNC(sub_82217590)
     __imp__sub_82217590(ctx, base);
     const uint32_t after = PPC_LOAD_U32(self + 0x140);
     if (after != before)
+    {
         fprintf(stderr, "[online] login state %u (%s) -> %u (%s)\n", before, LoginStateName(before), after, LoginStateName(after));
+        if (after == 11)
+            hid::ScriptEvent("online");  // at Xbox Live's main menu: an online bot's script goes on
+    }
 }
 
 // NetConnStatus(selector, ...): DirtySock's view of the connection ('conn',
