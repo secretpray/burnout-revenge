@@ -5,6 +5,8 @@
 # BurnoutRevenge.app for macOS (Apple silicon) from a build (default
 # build/main), in build/app:
 #   Contents/MacOS/BurnoutRevenge      the game
+#   Contents/MacOS/burnout-lobby       a lobby server of your own (online play,
+#                                    docs/ONLINE.md), when the build has it
 #   Contents/Frameworks/             the libraries it links (SDL3, the Vulkan
 #                                    loader, glslang, SPIRV-Tools, and what
 #                                    they link), named @rpath/<file>, and
@@ -587,6 +589,12 @@ def main():
     shutil.rmtree(dsym, ignore_errors=True)
     subprocess.run(['dsymutil', BIN, '-o', dsym], check=True, capture_output=True)
     run('strip', '-S', exe)
+    # burnout-lobby links the system only: copied as it is, stripped.
+    lobby_bin = os.path.join(os.path.dirname(BIN), 'burnout-lobby')
+    lobby = os.path.join(macos, 'burnout-lobby')
+    if os.path.exists(lobby_bin):
+        shutil.copy2(lobby_bin, lobby)
+        run('strip', '-S', lobby)
 
     # The closure of non-system libraries, each copied once by the name it is
     # linked as (libSDL3.0.dylib), from the file behind it. The originals are
@@ -722,6 +730,8 @@ def main():
     # Ad hoc signatures, the libraries before the app that seals them.
     for n in sorted(os.listdir(frameworks)):
         run('codesign', '--force', '--sign', '-', os.path.join(frameworks, n))
+    if os.path.exists(lobby):
+        run('codesign', '--force', '--sign', '-', lobby)
     run('codesign', '--force', '--sign', '-', app)
     run('codesign', '--verify', '--deep', '--strict', app)
 

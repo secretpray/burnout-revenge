@@ -213,6 +213,7 @@ Open with **F1**, **Cmd+,** or **Back + Start**. LB/RB (Q/E) switch pages.
 | Input | Stick and trigger deadzones, Vibration, Button Prompts (Auto, Xbox, PlayStation, Keyboard), DualSense raw HID driver |
 | Wheel | Shown while a steering wheel is plugged in: Steering Wheel, Steering Range, Invert Steering, Steering Deadzone, Steering Response, Force Feedback, Centering Force, Calibrate |
 | Controls | Two keys for each Xbox 360 control |
+| Online | Online Play, Server (Xerenge Community, My Server, LAN), Gamertag, Server Address, Check Server ([online play](docs/ONLINE.md)) |
 | Advanced | Asynchronous Shaders, Performance Overlay, Auto-import Add-ons, Skip Intro Movies, Save Bug Report, Check for Updates, Add-ons, Save Backups, About |
 
 A good start on an M1 Pro: 1.5x internal resolution (1080p), SMAA, Bicubic,
@@ -245,9 +246,10 @@ Every key can be changed in Settings > Controls.
 - Steering wheels are tested on a virtual Logitech G29 only, not yet on a
   real wheel; reports are welcome. Split screen for two is tested with two
   virtual controllers (Multiplayer Race), not yet with two real ones.
-- A complete career playthrough isn't verified yet. Online play and Xbox Live
-  don't work: choosing Xbox Live returns to the main menu. Online play is
-  not in the works for now.
+- A complete career playthrough isn't verified yet.
+- Online play (Settings > Online, off by default) is tested with up to four
+  copies on one Mac and over the community server, not yet between Macs on
+  different networks; Ranked matches don't work. See [docs/ONLINE.md](docs/ONLINE.md).
 - 14 rarely used system functions (friends and gamer-card screens, Live
   sessions, exception unwinding) are still stubs; none was reached offline in
   any menu or mode tested.
