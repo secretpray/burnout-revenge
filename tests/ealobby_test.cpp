@@ -3,7 +3,8 @@
 // it: the Aries codec, then a server on 127.0.0.1 taking a login the way the
 // game's DirtySock makes it (@dir, then addr, skey, auth and pers on the
 // lobby), a game made and found by two players, and no peer links from
-// clients.
+// clients; then seamless multiplayer (the game's own lobby on a LAN): peers
+// and announced games only from LAN addresses.
 #include <ealobby/aries.h>
 #include <ealobby/server.h>
 
@@ -16,6 +17,7 @@
 #include <cassert>
 #include <chrono>
 #include <cstdio>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -166,6 +168,66 @@ int main()
     close(b.fd);
     server.Stop();
     assert(lines > 0);
+
+    // Seamless multiplayer, as a game's own lobby runs it (user/online.cpp).
+    Options lan = options;
+    lan.self_address = "127.0.0.1";
+    lan.beacon_port = uint16_t(options.directory_port + 2);
+    std::mutex logMutex;
+    std::vector<std::string> log;
+    Server own(lan, [&](const std::string& line) {
+        std::lock_guard lock(logMutex);
+        log.push_back(line);
+    });
+    const bool ownStarted = own.Start();
+    assert(ownStarted);
+    const auto logged = [&](const std::string& text) {
+        std::lock_guard lock(logMutex);
+        for (const std::string& line : log)
+            if (line.find(text) != std::string::npos)
+                return true;
+        return false;
+    };
+
+    // A beacon names the server hosting the game; one off the LAN is ignored
+    // (it would send this lobby's players there), one on it is listed.
+    const int udp = socket(AF_INET, SOCK_DGRAM, 0);
+    sockaddr_in beacon{};
+    beacon.sin_family = AF_INET;
+    beacon.sin_port = htons(lan.beacon_port);
+    beacon.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    const auto announce = [&](const std::string& server, int id) {
+        const std::string record = "IDENT=" + std::to_string(id) + "\nNAME=Far\nHOST=Far\nCOUNT=1\nMAXSIZE=8\n";
+        std::string hex;
+        for (unsigned char c : record)
+        {
+            char pair[3];
+            snprintf(pair, sizeof(pair), "%02X", c);
+            hex += pair;
+        }
+        const std::string datagram = "XERENGE-GAME 1 " + server + " " + std::to_string(id) + " " + hex;
+        sendto(udp, datagram.data(), datagram.size(), 0, reinterpret_cast<sockaddr*>(&beacon), sizeof(beacon));
+    };
+    announce("8.8.8.8", 501);
+    announce("127.0.0.5", 502);
+    usleep(300 * 1000);
+    close(udp);
+    assert(!logged("game 501") && logged("game 502 on the server 127.0.0.5"));
+
+    // A peer link only from a LAN server naming itself.
+    Client far{ Connect(lan.lobby_port) };
+    far.Send("xhlo", { { "NODE", "8.8.8.8" } });
+    pollfd p{ far.fd, POLLIN, 0 };
+    uint8_t byte;
+    const bool closed = poll(&p, 1, 2000) > 0 && read(far.fd, &byte, 1) == 0;
+    assert(closed && logged("as 8.8.8.8 refused"));
+    close(far.fd);
+    Client near{ Connect(lan.lobby_port) };
+    near.Send("xhlo", { { "NODE", "127.0.0.3" } });
+    usleep(300 * 1000);
+    assert(logged("link from the server 127.0.0.3"));
+    close(near.fd);
+    own.Stop();
     printf("ealobby_test: ok\n");
     return 0;
 }

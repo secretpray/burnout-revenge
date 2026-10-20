@@ -179,6 +179,23 @@ std::string AddressString(const sockaddr_in& address) {
   return text;
 }
 
+// Seamless multiplayer is for a LAN: the other servers are on loopback (copies
+// on one machine), a private range or link-local. Anything else is no peer.
+bool IsLanAddress(const std::string& text) {
+  in_addr parsed = {};
+  if (inet_pton(AF_INET, text.c_str(), &parsed) != 1) {
+    return false;
+  }
+  const uint32_t host = ntohl(parsed.s_addr);
+  return (host >> 24) == 127 || (host >> 24) == 10 || (host >> 20) == 0xAC1 || (host >> 16) == 0xC0A8 ||
+         (host >> 16) == 0xA9FE;
+}
+
+bool IsLoopback(const std::string& text) {
+  in_addr parsed = {};
+  return inet_pton(AF_INET, text.c_str(), &parsed) == 1 && (ntohl(parsed.s_addr) >> 24) == 127;
+}
+
 std::string RandomHex(size_t bytes) {
   // The system's random source, not a seeded generator: a login key (LKEY)
   // opens its persona's Locker files, and must not be guessable.
@@ -538,6 +555,19 @@ void Server::Handle(Connection& connection, const Message& message) {
     // for other servers' players.
     if (options_.self_address.empty()) {
       Log("lobby: xhlo from " + connection.peer + " refused (no seamless multiplayer here)");
+      return;
+    }
+    // A peer is a server on the LAN, and names itself by the address it
+    // connected from (a copy on this machine may come from any loopback one).
+    const std::string from = connection.peer.substr(0, connection.peer.rfind(':'));
+    const Fields hello = ParseFields(message.body);
+    const auto node = hello.find("NODE");
+    const std::string named = node != hello.end() ? node->second : std::string();
+    if (!IsLanAddress(from) || !IsLanAddress(named) ||
+        (named != from && !(IsLoopback(from) && IsLoopback(named)))) {
+      Log("federation: xhlo from " + connection.peer + " as " + Printable(named) + " refused (not a LAN peer)");
+      connection.close_when_sent = true;
+      Flush(connection);
       return;
     }
     connection.role = Role::kPeer;
@@ -1352,6 +1382,14 @@ void Server::ReceiveBeacon() {
       continue;
     }
     if (options_.self_address == server) {
+      continue;
+    }
+    // Only a server on the LAN, announcing itself: a beacon naming another
+    // address would send this server's players there (LinkTo). From this
+    // machine the source is any of its addresses, so loopback names any.
+    const std::string source = AddressString(from);
+    if (!IsLanAddress(server) || !IsLanAddress(source) ||
+        (source != server && !IsLoopback(server) && !IsLoopback(source))) {
       continue;
     }
     const std::vector<uint8_t> bytes = Unhex(blob);

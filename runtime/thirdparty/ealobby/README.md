@@ -23,6 +23,11 @@ Changes of ours go in separate commits on top, each listed here:
   through that link; login keys (`LKEY`) from the system's random source;
   `gset` changes the game and kicks only from its host (any player still sets
   its own `USERPARAMS`).
+- `server.cpp`: seamless multiplayer is for a LAN - a peer link (`xhlo`)
+  only from a loopback, private or link-local address that the link names
+  as its `NODE`, and a game beacon only for a LAN server and from it (a
+  beacon naming another address would send this server's players there);
+  copies on one machine may use any loopback address.
 
 What it cannot do: tell who a player is. EA's servers trusted Xbox Live for
 the gamertag; here a client's `auth` names its persona, and anyone can log in
