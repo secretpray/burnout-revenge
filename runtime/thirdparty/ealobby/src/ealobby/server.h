@@ -87,6 +87,9 @@ class Server {
     std::chrono::steady_clock::time_point last_sent = std::chrono::steady_clock::now();
     std::vector<uint8_t> in;
     std::vector<uint8_t> out;
+    // What a remote player's join told this client, held back a moment (see hold_local_).
+    std::vector<uint8_t> held;
+    std::chrono::steady_clock::time_point held_until;
     bool close_when_sent = false;  // kHttp: one request, one answer
   };
 
@@ -116,6 +119,12 @@ class Server {
   void DropRemote(Connection& client, bool tell_host);
   void OnLinkClosed(SocketHandle link);
   Connection* RemotePlayer(SocketHandle link, uint32_t id) const;
+  // While a player of another server joins a game hosted here: what that tells this server's own clients
+  // waits a moment (Send). The joiner's answer goes the longer way, through its own server; a host told
+  // first calls the joiner's console at once, before it knows the game, and gives up on it - the fourth
+  // player of a game never connected (20.10).
+  bool hold_local_ = false;
+  void ReleaseHeld();
   std::map<uint32_t, RemoteGame> remote_games_;
   std::map<std::string, SocketHandle> links_;  // by the host server's address
   SocketHandle beacon_ = -1;

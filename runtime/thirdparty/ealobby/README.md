@@ -28,6 +28,11 @@ Changes of ours go in separate commits on top, each listed here:
   as its `NODE`, and a game beacon only for a LAN server and from it (a
   beacon naming another address would send this server's players there);
   copies on one machine may use any loopback address.
+- `server.cpp`: while a player of another server joins a game hosted here,
+  what that tells this server's own clients is held back 250 ms - the
+  joiner's answer goes the longer way, through its own server, and a host
+  told first called the joiner before it knew the game (the fourth player of
+  a Crash Party never connected). EA's servers answered the joiner first too.
 
 What it cannot do: tell who a player is. EA's servers trusted Xbox Live for
 the gamertag; here a client's `auth` names its persona, and anyone can log in

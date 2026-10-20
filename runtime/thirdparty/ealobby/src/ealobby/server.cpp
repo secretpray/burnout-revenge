@@ -244,6 +244,8 @@ std::vector<uint8_t> Unhex(const std::string& text) {
 constexpr char kGameBeacon[] = "XERENGE-GAME 1 ";
 constexpr uint32_t kBeaconGroup = 0xEFFF4D4Du;  // 239.255.77.77
 constexpr auto kRemoteGameLifetime = std::chrono::seconds(4);
+// How long a join's news waits for this server's own clients (Server::hold_local_).
+constexpr auto kJoinHold = std::chrono::milliseconds(250);
 
 }  // namespace
 
@@ -377,7 +379,11 @@ void Server::Run() {
       }
       fds.push_back(MakePollFd(fd, short(POLLIN | (connection->out.empty() ? 0 : POLLOUT))));
     }
-    if (PollWait(fds, 1000) < 0) {
+    bool holding = false;
+    for (const auto& [fd, connection] : connections_) {
+      holding = holding || !connection->held.empty();
+    }
+    if (PollWait(fds, holding ? 20 : 1000) < 0) {
       const int code = LastSocketError();
       if (Interrupted(code)) {
         continue;
@@ -429,6 +435,7 @@ void Server::Run() {
       }
       connections_.erase(fd);
     }
+    ReleaseHeld();
     if (std::chrono::steady_clock::now() >= next_announce_) {
       next_announce_ = std::chrono::steady_clock::now() + std::chrono::seconds(1);
       Announce();
@@ -543,9 +550,28 @@ void Server::Send(Connection& connection, const std::vector<uint8_t>& bytes) {
     }
     return;
   }
+  if ((hold_local_ && connection.role == Role::kLobby) || !connection.held.empty()) {
+    if (connection.held.empty()) {
+      connection.held_until = std::chrono::steady_clock::now() + kJoinHold;
+    }
+    connection.held.insert(connection.held.end(), bytes.begin(), bytes.end());
+    return;
+  }
   connection.last_sent = std::chrono::steady_clock::now();
   connection.out.insert(connection.out.end(), bytes.begin(), bytes.end());
   Flush(connection);
+}
+
+void Server::ReleaseHeld() {
+  const auto now = std::chrono::steady_clock::now();
+  for (auto& [fd, connection] : connections_) {
+    if (connection->held.empty() || now < connection->held_until || connection->fd < 0) {
+      continue;
+    }
+    std::vector<uint8_t> bytes = std::move(connection->held);
+    connection->held.clear();
+    Send(*connection, bytes);
+  }
 }
 
 void Server::Handle(Connection& connection, const Message& message) {
@@ -1545,7 +1571,9 @@ void Server::HandlePeer(Connection& link, const Message& message) {
     while (TakeMessage(&buffer, &inner)) {
       Log("lobby <- (" + player.user + " via " + link.node + ") " + Printable(inner.command) + " " +
           Printable(inner.body));
+      hold_local_ = inner.command == "gjoi" || inner.command == "gqwk";
       HandleLobby(player, inner);
+      hold_local_ = false;
       if (inner.command == "glea" || inner.command == "gdel") {
         const SocketHandle left = player.fd;
         connections_.erase(left);
