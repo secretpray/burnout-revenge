@@ -73,7 +73,10 @@ PPC_FUNC(sub_82217590)
     {
         fprintf(stderr, "[online] login state %u (%s) -> %u (%s)\n", before, LoginStateName(before), after, LoginStateName(after));
         if (after == 11)
+        {
+            online::NoteLobbyLogin();
             hid::ScriptEvent("online");  // at Xbox Live's main menu: an online bot's script goes on
+        }
     }
 }
 
@@ -109,7 +112,10 @@ extern "C" PPC_FUNC(__imp__sub_82224DD0);
 PPC_FUNC(sub_82224DD0)
 {
     if (online::Enabled())
+    {
         fprintf(stderr, "[online] network error %d shown, from %08X\n", int32_t(ctx.r4.u32), uint32_t(ctx.lr));
+        online::NoteNetworkError();
+    }
     __imp__sub_82224DD0(ctx, base);
 }
 

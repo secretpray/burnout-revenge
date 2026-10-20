@@ -62,6 +62,11 @@ namespace settings
             { int32_t(MusicSource::EaTrax), "ea_trax", "EA Trax" },
             { int32_t(MusicSource::MyMusic), "my_music", "My Music" },
         };
+        constexpr EnumEntry kOnlineServers[] = {
+            { int32_t(OnlineServer::Community), "community", "Xerenge Community" },
+            { int32_t(OnlineServer::Own), "own", "My Server" },
+            { int32_t(OnlineServer::Lan), "lan", "LAN, No Server" },
+        };
         constexpr EnumEntry kButtonPromptsEntries[] = {
             { int32_t(ButtonPrompts::Auto), "auto", "Auto" },
             { int32_t(ButtonPrompts::Xbox), "xbox", "Xbox" },
@@ -463,6 +468,15 @@ namespace settings
             KeyOption2(Id::KeyLeftStickClick2, "left_stick_click_2", "Left Stick Click", "none"),
             KeyOption(Id::KeyRightStickClick, "right_stick_click", "Right Stick Click", "Pressing the right stick in.", "c"),
             KeyOption2(Id::KeyRightStickClick2, "right_stick_click_2", "Right Stick Click", "none"),
+            // Online
+            { .id = Id::OnlineEnabled, .category = Category::Online, .type = Type::Bool, .apply = Apply::Restart,
+              .table = "online", .key = "enabled", .label = "Online Play",
+              .description = "Sign in to Xbox Live in the game's Xbox Live menu: races, Crash and Burnout Clips with other players. Changes apply after restarting the game.",
+              .env = "BURNOUT_ONLINE", .defaultValue = 0 },
+            { .id = Id::OnlineServer, .category = Category::Online, .type = Type::Enum, .apply = Apply::Restart,
+              .table = "online", .key = "server", .label = "Server",
+              .description = "Where players meet: the Xerenge community server (by shipa-2), a server of your own, or the local network with no server (no Burnout Clips there). Changes apply after restarting the game.",
+              .env = "BURNOUT_ONLINE_SERVER", .defaultValue = 0, .entries = kOnlineServers },
             // Advanced
             { .id = Id::AsyncShaders, .category = Category::Advanced, .type = Type::Bool, .apply = Apply::Live,
               .table = "advanced", .key = "async_shaders", .label = "Asynchronous Shaders",
@@ -525,6 +539,27 @@ namespace settings
         std::atomic<double> s_envValue[kCount]{};  // this run's environment override
         std::atomic<bool> s_envSet[kCount]{};
         double s_baseline[kCount]{};               // stored values as last loaded or saved (Dirty)
+        // The text options (TextId) and theirs as last loaded or saved; under s_mutex.
+        constexpr size_t kTextCount = size_t(TextId::Count);
+        constexpr const char* kTextTable = "online";
+        constexpr const char* kTextKeys[kTextCount] = { "gamertag", "server_address" };
+        std::string s_text[kTextCount];
+        std::string s_textBaseline[kTextCount];
+
+        // A TOML basic string's body: quotes and backslashes escaped, control
+        // characters dropped (a gamertag or a host name has none).
+        std::string TomlString(std::string_view text)
+        {
+            std::string out;
+            for (char c : text)
+            {
+                if (c == '"' || c == '\\')
+                    out += '\\';
+                if (uint8_t(c) >= 0x20)
+                    out += c;
+            }
+            return out;
+        }
         std::atomic<double> s_deviceDefault[kCount]{};  // SetDeviceDefault's, where s_hasDeviceDefault
         std::atomic<bool> s_hasDeviceDefault[kCount]{};
         bool s_frozen = false;                     // Restart options hold their launch values (first Load)
@@ -1091,6 +1126,14 @@ namespace settings
                 std::string override = o.env ? std::format(" ({}{})", o.env, o.apply == Apply::Restart ? "; applies at the next launch" : "") : "";
                 out += std::format("# {}: {}\n# {}.{}\n", o.label, o.description, range, override);
                 out += std::format("{} = {}\n", o.key, TomlValue(o, values[i]));
+                if (std::string_view(o.table) == kTextTable && (i + 1 == kCount || std::string_view(kOptions[i + 1].table) != kTextTable))
+                {
+                    std::lock_guard lock(s_mutex);
+                    out += std::format("\n# Gamertag: your name online, up to 15 letters, digits, - and _ (BURNOUT_GAMERTAG).\n"
+                                       "{} = \"{}\"\n", kTextKeys[0], TomlString(s_text[0]));
+                    out += std::format("\n# Server Address: your own server's host name or IPv4 address (BURNOUT_LOBBY_SERVER).\n"
+                                       "{} = \"{}\"\n", kTextKeys[1], TomlString(s_text[1]));
+                }
             }
             std::string lastVersion;
             std::vector<int> notices;
@@ -1282,6 +1325,7 @@ namespace settings
         case Category::Input: return "Input";
         case Category::Controls: return "Controls";
         case Category::Wheel: return "Wheel";
+        case Category::Online: return "Online";
         case Category::Advanced: return "Advanced";
         default: return "";
         }
@@ -1348,8 +1392,28 @@ namespace settings
         for (size_t i = 0; i < kCount; i++)
             if (s_stored[i].load(std::memory_order_relaxed) != s_baseline[i])
                 return true;
+        for (size_t t = 0; t < kTextCount; t++)
+            if (s_text[t] != s_textBaseline[t])
+                return true;
         return false;
     }
+
+    std::string GetText(TextId id)
+    {
+        std::lock_guard lock(s_mutex);
+        return s_text[size_t(id)];
+    }
+
+    void SetText(TextId id, std::string_view value)
+    {
+        {
+            std::lock_guard lock(s_mutex);
+            s_text[size_t(id)] = std::string(Trim(value));
+        }
+        detail::g_generation.fetch_add(1, std::memory_order_release);
+    }
+
+    const char* TextKey(TextId id) { return kTextKeys[size_t(id)]; }
 
     SetResult Set(Id id, double value)
     {
@@ -1496,6 +1560,7 @@ namespace settings
         // Read and parse outside the lock: readers never wait, and writers
         // wait only for the values to be published.
         std::array<std::optional<double>, kCount> fileValues;
+        std::array<std::string, kTextCount> textValues;
         std::string text, readError, lastError, lastVersion;
         std::vector<int> notices;
         size_t fromFile = 0;
@@ -1575,6 +1640,19 @@ namespace settings
                                 NodeText(node).c_str());
                         continue;
                     }
+                    if (tableKey.str() == kTextTable)
+                    {
+                        const auto text = std::find(std::begin(kTextKeys), std::end(kTextKeys), key.str());
+                        if (text != std::end(kTextKeys))
+                        {
+                            if (auto v = node.as_string())
+                                textValues[size_t(text - std::begin(kTextKeys))] = std::string(Trim(v->get()));
+                            else
+                                fprintf(stderr, "[settings] %s: %s = %s isn't text; ignored\n", path.filename().c_str(), name.c_str(),
+                                    NodeText(node).c_str());
+                            continue;
+                        }
+                    }
                     const Option* o = Find(tableKey.str(), key.str());
                     if (!o)
                     {
@@ -1605,6 +1683,8 @@ namespace settings
                 if (RecomputeLocked(i))
                     changed.push_back(Id(i));
             }
+            for (size_t t = 0; t < kTextCount; t++)
+                s_text[t] = s_textBaseline[t] = textValues[t];
             s_frozen = true;
             LoadedPath() = path;
             LastErrorText() = lastError;
@@ -1648,6 +1728,7 @@ namespace settings
             {
                 LastErrorText().clear();
                 std::copy(values.begin(), values.end(), s_baseline);
+                std::copy(std::begin(s_text), std::end(s_text), std::begin(s_textBaseline));
                 if (LoadedPath().empty())
                     LoadedPath() = path;
             }

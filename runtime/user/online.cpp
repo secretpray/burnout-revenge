@@ -1,6 +1,7 @@
 // Burnout Revenge port. GPL-3.0-or-later (see COPYING). See online.h.
 #include "online.h"
 #include "online_identity.h"
+#include "settings.h"
 
 #include <arpa/inet.h>
 #include <ifaddrs.h>
@@ -8,8 +9,12 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <fcntl.h>
+#include <poll.h>
 #include <unistd.h>
 
+#include <algorithm>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -32,16 +37,24 @@ namespace online
             uint64_t xuid = kOfflineXuid;
         };
 
+        // The gamertag when none is set (online_identity.h).
+        std::string DefaultGamertag()
+        {
+            const char* user = std::getenv("USER");
+            return DefaultGamertagFor(user ? user : "");
+        }
+
         const Identity& Get()
         {
             static const Identity identity = [] {
                 Identity id;
-                const char* on = std::getenv("BURNOUT_ONLINE");
-                id.enabled = on && *on && std::strcmp(on, "0") != 0;
+                // Settings > Online (BURNOUT_ONLINE overrides it, settings.h).
+                id.enabled = settings::GetBool(settings::Id::OnlineEnabled);
                 if (!id.enabled)
                     return id;
                 const char* tag = std::getenv("BURNOUT_GAMERTAG");
-                id.gamertag = SanitizeGamertag(tag ? tag : "");
+                std::string chosen = tag && *tag ? tag : settings::GetText(settings::TextId::Gamertag);
+                id.gamertag = chosen.empty() ? DefaultGamertag() : SanitizeGamertag(chosen);
                 id.xuid = XuidFor(id.gamertag);
                 fprintf(stderr, "[online] signed in to Xbox Live as \"%s\" (XUID %016llX)\n",
                     id.gamertag.c_str(), (unsigned long long)id.xuid);
@@ -149,7 +162,18 @@ namespace online
         {
             static const Lobby lobby = [] {
                 Lobby l;
-                const char* name = std::getenv("BURNOUT_LOBBY_SERVER");
+                // BURNOUT_LOBBY_SERVER, else Settings > Online > Server.
+                std::string chosen;
+                if (const char* env = std::getenv("BURNOUT_LOBBY_SERVER"))
+                    chosen = env;
+                else
+                    switch (settings::OnlineServer(settings::GetInt(settings::Id::OnlineServer)))
+                    {
+                    case settings::OnlineServer::Community: chosen = kCommunityServer; break;
+                    case settings::OnlineServer::Own: chosen = settings::GetText(settings::TextId::ServerAddress); break;
+                    case settings::OnlineServer::Lan: chosen = "lan"; break;
+                    }
+                const char* name = chosen.c_str();
                 if (name && strcasecmp(name, "lan") == 0)
                 {
                     l.address = LocalAddress();
@@ -182,6 +206,196 @@ namespace online
     }
 
     bool HasLobbyServer() { return GetLobby().found; }
+
+    std::string ChosenServer()
+    {
+        switch (settings::OnlineServer(int32_t(settings::GetStoredValue(settings::Id::OnlineServer))))
+        {
+        case settings::OnlineServer::Community: return kCommunityServer;
+        case settings::OnlineServer::Own: return settings::GetText(settings::TextId::ServerAddress);
+        case settings::OnlineServer::Lan: return "";
+        }
+        return "";
+    }
+
+    namespace
+    {
+        // A TCP connection to `address`:`port` within `timeoutMs`: the
+        // socket, or -1 with `error` set.
+        int ConnectWithin(uint32_t address, uint16_t port, int timeoutMs, std::string& error)
+        {
+            const int fd = socket(AF_INET, SOCK_STREAM, 0);
+            if (fd < 0)
+            {
+                error = strerror(errno);
+                return -1;
+            }
+            const int one = 1;
+            setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &one, sizeof(one));
+            fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
+            sockaddr_in to{};
+            to.sin_len = sizeof(to);
+            to.sin_family = AF_INET;
+            to.sin_port = htons(port);
+            to.sin_addr.s_addr = address;
+            if (connect(fd, reinterpret_cast<sockaddr*>(&to), sizeof(to)) < 0 && errno != EINPROGRESS)
+            {
+                error = strerror(errno);
+                close(fd);
+                return -1;
+            }
+            pollfd wait{ fd, POLLOUT, 0 };
+            int code = 0;
+            socklen_t length = sizeof(code);
+            if (poll(&wait, 1, timeoutMs) <= 0)
+                error = "no answer in time";
+            else if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &code, &length) == 0 && code != 0)
+                error = strerror(code);
+            else
+                return fd;
+            close(fd);
+            return -1;
+        }
+    }
+
+    CheckResult CheckServer(const std::string& host)
+    {
+        CheckResult result;
+        if (host.empty())
+        {
+            result.text = "No server to check: the LAN needs none, and My Server needs an address.";
+            return result;
+        }
+        addrinfo hints{};
+        hints.ai_family = AF_INET;
+        hints.ai_socktype = SOCK_STREAM;
+        addrinfo* found = nullptr;
+        if (getaddrinfo(host.c_str(), nullptr, &hints, &found) != 0 || !found)
+        {
+            result.text = "\"" + host + "\" wasn't found: check the address and the network.";
+            return result;
+        }
+        const uint32_t address = reinterpret_cast<sockaddr_in*>(found->ai_addr)->sin_addr.s_addr;
+        freeaddrinfo(found);
+        std::string error;
+        const int fd = ConnectWithin(address, 31860, 5000, error);
+        if (fd < 0)
+        {
+            result.text = host + " (" + Text(address) + ") doesn't answer on port 31860: " + error + ".";
+            return result;
+        }
+        // @dir as the game sends it: a 12-byte header (command, code, length
+        // big-endian) and KEY=VALUE lines ending in a NUL.
+        const std::string body = "VERS=Burnout2006/02\nSKU=xbl2\n";
+        std::string packet = "@dir";
+        packet.append(4, '\0');
+        const uint32_t total = uint32_t(12 + body.size() + 1);
+        for (int shift = 24; shift >= 0; shift -= 8)
+            packet += char((total >> shift) & 0xFF);
+        packet += body;
+        packet += '\0';
+        std::string reply;
+        if (send(fd, packet.data(), packet.size(), 0) == ssize_t(packet.size()))
+        {
+            const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+            while (std::chrono::steady_clock::now() < until)
+            {
+                pollfd wait{ fd, POLLIN, 0 };
+                if (poll(&wait, 1, 250) <= 0)
+                    continue;
+                char chunk[2048];
+                const ssize_t got = recv(fd, chunk, sizeof(chunk), 0);
+                if (got <= 0)
+                    break;
+                reply.append(chunk, size_t(got));
+                if (reply.size() >= 12)
+                {
+                    const uint32_t length = uint32_t(uint8_t(reply[8])) << 24 | uint32_t(uint8_t(reply[9])) << 16 |
+                                            uint32_t(uint8_t(reply[10])) << 8 | uint8_t(reply[11]);
+                    if (reply.size() >= length)
+                        break;
+                }
+            }
+        }
+        close(fd);
+        if (reply.size() < 12 || reply.compare(0, 4, "@dir") != 0)
+        {
+            result.text = host + " answered, but not as a Burnout Revenge lobby server does.";
+            return result;
+        }
+        auto field = [&](const char* key) {
+            const std::string k = std::string(key) + "=";
+            size_t at = reply.find(k, 12);
+            if (at == std::string::npos)
+                return std::string();
+            at += k.size();
+            const size_t end = reply.find_first_of(std::string("\n\t|\0", 4), at);
+            return reply.substr(at, end == std::string::npos ? std::string::npos : end - at);
+        };
+        const int locker = ConnectWithin(address, 31862, 3000, error);
+        if (locker >= 0)
+            close(locker);
+        result.ok = true;
+        result.text = "Server found: its lobby is at " + field("ADDR") + ":" + field("PORT") + ". Burnout Clips: " +
+                      (locker >= 0 ? "yes." : "no (no Locker on port 31862).");
+        return result;
+    }
+
+    namespace
+    {
+        struct Retry
+        {
+            std::mutex mutex;
+            std::chrono::steady_clock::time_point last;
+            bool unconfirmed = false;  // the last login allowed hasn't reached the lobby
+            int failures = 0;
+        };
+        Retry& RetryState()
+        {
+            static Retry retry;
+            return retry;
+        }
+    }
+
+    bool LobbyConnectAllowed(uint32_t address, uint16_t port, double* waitSeconds)
+    {
+        if (port != 31860 || !HasLobbyServer() || address != LobbyServerAddress())
+            return true;
+        Retry& r = RetryState();
+        std::lock_guard lock(r.mutex);
+        const auto now = std::chrono::steady_clock::now();
+        if (r.unconfirmed)
+        {
+            const double pause = std::min(60.0, 5.0 * double(1 << std::min(r.failures, 4)));
+            const double since = std::chrono::duration<double>(now - r.last).count();
+            if (since < pause)
+            {
+                if (waitSeconds)
+                    *waitSeconds = pause - since;
+                return false;
+            }
+            r.failures++;
+        }
+        r.last = now;
+        r.unconfirmed = true;
+        return true;
+    }
+
+    void NoteNetworkError()
+    {
+        Retry& r = RetryState();
+        std::lock_guard lock(r.mutex);
+        if (r.unconfirmed)
+            r.last = std::chrono::steady_clock::now();
+    }
+
+    void NoteLobbyLogin()
+    {
+        Retry& r = RetryState();
+        std::lock_guard lock(r.mutex);
+        r.unconfirmed = false;
+        r.failures = 0;
+    }
     bool OwnLobby() { return GetLobby().own; }
     uint32_t LobbyServerAddress() { return GetLobby().address; }
 

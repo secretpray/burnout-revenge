@@ -29,5 +29,12 @@ int main()
     assert(SanitizeGamertag("a_very-long_gamertag_name") == "a_very-long_gam");
     assert(SanitizeGamertag("") == kDefaultGamertag);
     assert(SanitizeGamertag("!!!") == kDefaultGamertag);
+    // The default gamertag: Player and four digits, the same for one
+    // account, a valid gamertag, and not the account's name.
+    assert(DefaultGamertagFor("alice") == DefaultGamertagFor("alice"));
+    assert(DefaultGamertagFor("alice").size() == 10 && DefaultGamertagFor("alice").rfind("Player", 0) == 0);
+    assert(SanitizeGamertag(DefaultGamertagFor("alice")) == DefaultGamertagFor("alice"));
+    assert(DefaultGamertagFor("alice").find("alice") == std::string::npos);
+    assert(DefaultGamertagFor("alice") != DefaultGamertagFor("bob"));
     puts("online_identity_test: gamertags and their XUIDs");
 }

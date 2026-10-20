@@ -27,10 +27,14 @@
 #include <game/burnout_addons.h>
 #include <platform/audio_file.h>
 #include <user/my_music.h>
+#include <user/online.h>
+#include <user/online_identity.h>
 #include <SDL3/SDL_dialog.h>
 #include <SDL3/SDL_misc.h>  // SDL_OpenURL: Music Folder in Finder
+#include <atomic>
 #include <mutex>
 #include <optional>
+#include <thread>
 
 #include <imgui.h>
 #include <imgui_internal.h>  // ClosePopupToLevel: a dialog left open when the menu closed
@@ -57,6 +61,18 @@ namespace ui
         bool s_describedAddons = false;
         bool s_describedAbout = false;
         bool s_describedSaveBackups = false;
+        // The Online page's own rows: the two text options and Check Server.
+        bool s_describedGamertag = false;
+        bool s_describedServerAddress = false;
+        bool s_describedCheck = false;
+        bool s_openText = false;  // open the text dialog next frame
+        settings::TextId s_textEditing = settings::TextId::Gamertag;
+        char s_textBuffer[128] = {};
+        // Check Server runs on a thread of its own (it waits on the network).
+        std::mutex s_checkMutex;
+        std::atomic<bool> s_checking{ false };
+        std::optional<online::CheckResult> s_checkResult;
+        std::string s_checkedServer;  // the server the result is about
         bool s_describedMusicFolder = false;
         bool s_openAddons = false;
         std::mutex s_addonPickerMutex;
@@ -180,6 +196,10 @@ namespace ui
         {
             if (c == Category::Wheel)
                 return hid::wheel::Found();
+#if defined(__APPLE__) && TARGET_OS_IOS
+            if (c == Category::Online)
+                return false;  // not on iOS (no lobby of its own there)
+#endif
 #if defined(__APPLE__) && TARGET_OS_IOS
             if (c == Category::Controls)
                 return SDL_HasKeyboard();
@@ -882,8 +902,144 @@ namespace ui
             }
         }
 
+        // Settings > Online's rows besides its two options.
+        settings::OnlineServer StoredServer()
+        {
+            return settings::OnlineServer(int32_t(settings::GetStoredValue(Id::OnlineServer)));
+        }
+
+        std::string GamertagRowValue()
+        {
+            const std::string tag = settings::GetText(settings::TextId::Gamertag);
+            if (!tag.empty())
+                return tag;
+            const char* user = std::getenv("USER");
+            return online::DefaultGamertagFor(user ? user : "");
+        }
+
+        std::string CheckRowValue()
+        {
+            if (s_checking)
+                return "Checking...";
+            std::lock_guard lock(s_checkMutex);
+            if (!s_checkResult || s_checkedServer != online::ChosenServer())
+                return "Check";
+            return s_checkResult->ok ? "OK" : "Failed";
+        }
+
+        void StartCheck()
+        {
+            if (s_checking.exchange(true))
+                return;
+            const std::string server = online::ChosenServer();
+            std::thread([server] {
+                online::CheckResult result = online::CheckServer(server);
+                fprintf(stderr, "[settings] menu: check server \"%s\": %s\n", server.c_str(), result.text.c_str());
+                {
+                    std::lock_guard lock(s_checkMutex);
+                    s_checkResult = std::move(result);
+                    s_checkedServer = server;
+                }
+                s_checking = false;
+            }).detach();
+        }
+
+        void OnlineRows(float valueWidth)
+        {
+            if (ActionRow("gamertag", "Gamertag", GamertagRowValue().c_str(), valueWidth, s_describedGamertag))
+            {
+                s_textEditing = settings::TextId::Gamertag;
+                s_openText = true;
+            }
+            const bool own = StoredServer() == settings::OnlineServer::Own;
+            std::string address = settings::GetText(settings::TextId::ServerAddress);
+            if (ActionRow("server-address", "Server Address", address.empty() ? "Not set" : address.c_str(), valueWidth,
+                    s_describedServerAddress, own))
+            {
+                s_textEditing = settings::TextId::ServerAddress;
+                s_openText = true;
+            }
+            if (ActionRow("check-server", "Check Server", CheckRowValue().c_str(), valueWidth, s_describedCheck,
+                    StoredServer() != settings::OnlineServer::Lan && !s_checking))
+                StartCheck();
+        }
+
+        // The text dialog of Gamertag and Server Address: typed on a
+        // keyboard (Enter keeps it, Esc leaves it as it was).
+        bool DrawTextDialog(float s)
+        {
+            if (s_openText)
+            {
+                const std::string now = settings::GetText(s_textEditing);
+                std::snprintf(s_textBuffer, sizeof(s_textBuffer), "%s", now.c_str());
+                ImGui::OpenPopup("online-text");
+                s_openText = false;
+            }
+            if (!ImGui::IsPopupOpen("online-text"))
+                return false;
+            ImGuiViewport* viewport = ImGui::GetMainViewport();
+            ImGui::SetNextWindowPos(viewport->GetWorkCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+            burnout::PushDialogStyle();
+            const bool shown = ImGui::BeginPopupModal("online-text", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar);
+            burnout::PopDialogStyle();
+            if (!shown)
+                return true;
+            burnout::DialogFrame();
+            const bool gamertag = s_textEditing == settings::TextId::Gamertag;
+            const float width = burnout::kDialogWidth * s;
+            burnout::DialogText(gamertag ? "Your gamertag: up to 15 letters, digits, - and _. Empty: Player and four digits."
+                                         : "Your server's host name or IPv4 address.", width);
+            ImGui::Dummy(ImVec2(0, 8 * s));
+            if (ImGui::IsWindowAppearing())
+                ImGui::SetKeyboardFocusHere();
+            ImGui::SetNextItemWidth(width);
+            bool accept = ImGui::InputText("##text", s_textBuffer, gamertag ? online::kMaxGamertag + 1 : sizeof(s_textBuffer),
+                ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll);
+            ImGui::Dummy(ImVec2(0, 10 * s));
+            accept |= burnout::DialogOption("OK", width);
+            if (accept)
+            {
+                std::string value = s_textBuffer;
+                if (gamertag && !value.empty())
+                    value = online::SanitizeGamertag(value);
+                settings::SetText(s_textEditing, value);
+                fprintf(stderr, "[settings] menu: online %s = \"%s\" (applies at the next launch)\n", settings::TextKey(s_textEditing), value.c_str());
+                ImGui::CloseCurrentPopup();
+            }
+            if (burnout::DialogOption("Cancel", width) || ImGui::IsKeyPressed(ImGuiKey_Escape, false) ||
+                ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight, false))
+                ImGui::CloseCurrentPopup();
+            ImGui::Dummy(ImVec2(0, 6 * s));
+            burnout::Hints({ { "Select", "A" }, { "Back", "B" } });
+            burnout::EndDialog();
+            return true;
+        }
+
         void HelpLine()
         {
+            if (s_describedGamertag)
+            {
+                ImGui::TextWrapped("Your name online. Each player needs a different one: the lobby knows players by it. "
+                                   "Changes apply after restarting the game.");
+                return;
+            }
+            if (s_describedServerAddress)
+            {
+                ImGui::TextWrapped("The host name or IPv4 address of your own server (burnout-lobby, which comes with the "
+                                   "game's source). Set Server to My Server to use it. Changes apply after restarting the game.");
+                return;
+            }
+            if (s_describedCheck)
+            {
+                std::lock_guard lock(s_checkMutex);
+                if (s_checking)
+                    ImGui::TextWrapped("Asking %s...", online::ChosenServer().c_str());
+                else if (s_checkResult && s_checkedServer == online::ChosenServer())
+                    ImGui::TextWrapped("%s", s_checkResult->text.c_str());
+                else
+                    ImGui::TextWrapped("Ask the chosen server whether it is up, as signing in does. Nothing is sent but the question.");
+                return;
+            }
             if (s_describedMusicFolder)
             {
                 // The home folder as ~: the path fits the line.
@@ -1142,6 +1298,9 @@ namespace ui
         s_describedAddons = false;
         s_describedAbout = false;
         s_describedSaveBackups = false;
+        s_describedGamertag = false;
+        s_describedServerAddress = false;
+        s_describedCheck = false;
         s_describedMusicFolder = false;
         s_describedCal = false;
         if (s_waiting != Id::Count && settings::Info(s_waiting).category != s_category)
@@ -1216,6 +1375,9 @@ namespace ui
                                 valueWidth = std::max(valueWidth, ValueWidth(o));
                     if (category == Category::Audio)
                         valueWidth = std::max(valueWidth, ImGui::CalcTextSize("9999 FILES").x);
+                    if (category == Category::Online)
+                        for (const char* text : { "Checking...", "Not set", "WWWWWWWWWWWW" })
+                            valueWidth = std::max(valueWidth, ImGui::CalcTextSize(text).x);
                     if (category == Category::Advanced)
                         for (const char* text : { "Saving...", "Checking...", "Restore pending", UpdateRowValue() })
                             valueWidth = std::max(valueWidth, ImGui::CalcTextSize(Upper(text).c_str()).x);
@@ -1246,6 +1408,8 @@ namespace ui
                             MusicFolderRow(valueWidth);
                         if (category == Category::Wheel)
                             CalibrateRow(valueWidth);
+                        if (category == Category::Online)
+                            OnlineRows(valueWidth);
                         if (category == Category::Advanced)
                         {
                             BugReportRow(valueWidth);
@@ -1370,6 +1534,7 @@ namespace ui
         if (DrawUpdateDialog())
             popup = true;
         if (DrawAddons()) popup = true;
+        if (DrawTextDialog(s)) popup = true;
         if (DrawSaveBackups()) popup = true;
 #if BR_QUIT_GAME
         if (DrawQuitPrompt())

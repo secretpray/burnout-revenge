@@ -17,6 +17,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cstdio>
 #include <string>
 #include <string_view>
 
@@ -40,6 +41,17 @@ namespace online
         if (low == uint32_t(kOfflineXuid))
             low ^= 1;
         return (kOfflineXuid & 0xFFFFFFFF00000000ull) | low;
+    }
+
+    // The gamertag when none is chosen: "Player" and four digits from the
+    // Mac's account name - steady on one Mac, most likely different on the
+    // next, and the name itself never leaves the Mac.
+    inline std::string DefaultGamertagFor(std::string_view account)
+    {
+        const uint32_t digits = Fnv1a(account) % 10000;
+        char text[16];
+        snprintf(text, sizeof(text), "Player%04u", digits);
+        return text;
     }
 
     // What the lobby accepts as a gamertag, as Xerenge's installer asks for

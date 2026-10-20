@@ -132,6 +132,9 @@ namespace settings
         KeyRightStickRight, KeyRightStickRight2,
         KeyLeftStickClick, KeyLeftStickClick2,
         KeyRightStickClick, KeyRightStickClick2,
+        // Online (the [online] table; user/online.h): read at launch.
+        OnlineEnabled,
+        OnlineServer,
         // Advanced
         AsyncShaders,
         PerformanceOverlay,
@@ -144,7 +147,7 @@ namespace settings
     // Key: a key code of user/key_names.h (0: no key), saved by its name
     // there ("w", "left_shift", "none"); the menu takes it from a key press.
     enum class Type : uint8_t { Bool, Int, Float, Enum, Key };
-    enum class Category : uint8_t { Display, Graphics, Audio, Input, Wheel, Controls, Advanced, Count };
+    enum class Category : uint8_t { Display, Graphics, Audio, Input, Wheel, Controls, Online, Advanced, Count };
     enum class Apply : uint8_t { Live, Restart };
 
     // Values of the enum options (GetInt returns them).
@@ -159,6 +162,10 @@ namespace settings
     // Button Prompts: the pictures in the game's own prompts follow the
     // device in use (as our menus' hints do), or always show one set.
     enum class ButtonPrompts : int32_t { Auto = 0, Xbox = 1, PlayStation = 2, Keyboard = 3 };
+    // Online's server: the Xerenge community server (its author's, with his
+    // agreement), one of the player's own (TextId::ServerAddress), or none -
+    // the games of a LAN, each console running its lobby (user/online.h).
+    enum class OnlineServer : int32_t { Community = 0, Own = 1, Lan = 2 };
     // Frame Rate: 60, 30, or Auto (video/frame_rate.h: 60, or 30 while the
     // device is hot or can't hold 60).
     constexpr int32_t kFrameRateAuto = 0;
@@ -219,6 +226,14 @@ namespace settings
         Unchanged,   // it already had that value
         Invalid,     // not a value of this option (NaN, not an enum value)
     };
+
+    // Text options, beside the numeric ones in the [online] table: the
+    // gamertag and the address of the player's own server. Saved by Save,
+    // read by Load; online play reads them at launch. Any thread.
+    enum class TextId : uint8_t { Gamertag, ServerAddress, Count };
+    std::string GetText(TextId id);  // as stored; "" when unset
+    void SetText(TextId id, std::string_view value);  // stored (trimmed); Save writes it
+    const char* TextKey(TextId id);  // its key in [online]
 
     // The option table, in Id order.
     std::span<const Option> Options();

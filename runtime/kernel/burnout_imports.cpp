@@ -982,6 +982,15 @@ PPC_FUNC(__imp__NetDll_connect)
     memcpy(&target.sin_port, base + to + 2, 2);
     target.sin_port = HostPort(target.sin_port);
     memcpy(&target.sin_addr.s_addr, base + to + 4, 4);
+    // A login again soon after one that failed waits its turn (user/online.h):
+    // refused here, the game says "Connection problem" and the server isn't
+    // asked.
+    if (double wait = 0; !online::LobbyConnectAllowed(target.sin_addr.s_addr, ntohs(target.sin_port), &wait))
+    {
+        fprintf(stderr, "[online] lobby server not asked again for %.0f s after a failed login\n", std::ceil(wait));
+        ctx.r3.u64 = SocketFailure(10061);  // WSAECONNREFUSED
+        return;
+    }
     const int result = connect(socket->fd, reinterpret_cast<sockaddr*>(&target), sizeof(target));
     const int error = result < 0 ? errno : 0;
     const uint8_t* ip = reinterpret_cast<const uint8_t*>(&target.sin_addr.s_addr);

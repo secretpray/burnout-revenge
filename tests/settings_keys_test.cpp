@@ -109,7 +109,7 @@ int main()
         CHECK(size_t(d.id) == previous + 1, "%s follows the row before it", o.key);
         previous = size_t(d.id) + 1;
     }
-    CHECK(size_t(Id::AsyncShaders) == previous + 1, "Advanced follows the keys");
+    CHECK(size_t(Id::OnlineEnabled) == previous + 1, "Online follows the keys");
     CHECK(EnvOverride(Id::KeyA) == nullptr, "nothing overrides a key");
 
     // A scratch folder of our own.
@@ -183,8 +183,8 @@ int main()
     // what it wrote loads back.
     CHECK(Save(file), "saves: %s", LastError().c_str());
     std::string text = ReadAll(file);
-    size_t at = text.find("\n[keys]\n"), advanced = text.find("\n[advanced]\n");
-    CHECK(at != std::string::npos && advanced != std::string::npos && at < advanced, "[keys] before [advanced]");
+    size_t at = text.find("\n[keys]\n"), advanced = text.find("\n[online]\n");
+    CHECK(at != std::string::npos && advanced != std::string::npos && at < advanced, "[keys] before [online]");
     std::string section = at == std::string::npos ? "" : text.substr(at, advanced == std::string::npos ? std::string::npos : advanced - at);
     CHECK(section.find("right_trigger = \"up\"\n") != std::string::npos, "saved by name");
     CHECK(section.find("left_trigger = \"keypad_1\"\n") != std::string::npos, "the table's case, not the file's");
@@ -201,6 +201,24 @@ int main()
     CHECK(GetInt(Id::KeyRightTrigger) == Code("up") && GetInt(Id::KeyLeftTrigger) == Code("keypad_1") &&
         GetInt(Id::KeyRightStickUp) == Code("left_shift") && GetInt(Id::KeyLeftStickLeft2) == 0, "round trip");
     CHECK(!Dirty(), "nothing changed since the save");
+
+    // Settings > Online's text options, in [online] beside its options: a
+    // change is unsaved until saved, and comes back as it was written.
+    CHECK(GetText(TextId::Gamertag).empty() && GetText(TextId::ServerAddress).empty(), "no text options yet");
+    SetText(TextId::Gamertag, "  MacA  ");
+    SetText(TextId::ServerAddress, "lobby.example \"x\"");
+    CHECK(Dirty(), "a text option changed");
+    CHECK(Save(file), "saves the text options: %s", LastError().c_str());
+    {
+        std::string saved = ReadAll(file);
+        size_t online = saved.find("\n[online]\n");
+        CHECK(online != std::string::npos && saved.find("gamertag = \"MacA\"\n", online) != std::string::npos, "the gamertag, trimmed, in [online]");
+        CHECK(saved.find("server_address = \"lobby.example \\\"x\\\"\"\n", online) != std::string::npos, "a quote escaped");
+    }
+    SetText(TextId::Gamertag, "");
+    CHECK(Load(file), "loads the text options: %s", LastError().c_str());
+    CHECK(GetText(TextId::Gamertag) == "MacA" && GetText(TextId::ServerAddress) == "lobby.example \"x\"", "text round trip");
+    CHECK(!Dirty(), "nothing changed since the load");
 
     // The keys SDL names by a symbol are words here: nothing to escape.
     CHECK(Set(Id::KeyA, Code("backslash")) == SetResult::Applied && Set(Id::KeyB, Code("apostrophe")) == SetResult::Applied,
