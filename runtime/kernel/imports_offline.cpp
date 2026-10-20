@@ -13,6 +13,7 @@
 #include "function.h"
 #include "guest_wformat.h"
 #include "xam.h"
+#include "overlapped.h"
 
 #include <SDL3/SDL_messagebox.h>
 
@@ -222,3 +223,80 @@ PPC_FUNC(__imp__XamShowMessageBoxUIEx)
         buttons, reinterpret_cast<xpointer<be<uint16_t>>*>(at(labels)), focus, flags, reinterpret_cast<be<uint32_t>*>(at(result)),
         reinterpret_cast<XXOVERLAPPED*>(at(overlapped)));
 }
+
+// Xbox Live's own screens a game of the lobby's can open on a player: the
+// gamer card, the player review, the friends list, a message to them. There
+// is no Xbox Live to show them, so nothing is shown and the game carries on
+// (as the screen closing at once). These were stubs, which end the game:
+// pressing the button for a player's card in an online room did (19.10).
+namespace
+{
+    uint32_t NoLiveScreen(const char* name)
+    {
+        fprintf(stderr, "[online] %s: no Xbox Live screen to show; nothing shown\n", name);
+        return 0;  // ERROR_SUCCESS
+    }
+}
+
+uint32_t XamShowGamerCardUIForXUID(uint32_t userIndex, uint64_t xuid) { return NoLiveScreen("XamShowGamerCardUIForXUID"); }
+uint32_t XamShowPlayerReviewUI(uint32_t userIndex, uint64_t xuid) { return NoLiveScreen("XamShowPlayerReviewUI"); }
+uint32_t XamShowFriendsUI(uint32_t userIndex) { return NoLiveScreen("XamShowFriendsUI"); }
+uint32_t XamShowMessageComposeUI(uint32_t userIndex, uint32_t recipients, uint32_t count, uint32_t text)
+{
+    return NoLiveScreen("XamShowMessageComposeUI");
+}
+
+// XamUserAreUsersFriends(user, xuids, count, result*, overlapped): nobody is
+// a friend - there is no friends list without Xbox Live.
+uint32_t XamUserAreUsersFriends(uint32_t userIndex, uint32_t xuids, uint32_t count, be<uint32_t>* result, XXOVERLAPPED* overlapped)
+{
+    if (result)
+        *result = 0;
+    if (overlapped)
+    {
+        CompleteOverlapped(overlapped, 0);
+        return 997;  // ERROR_IO_PENDING
+    }
+    return 0;
+}
+
+GUEST_FUNCTION_HOOK(__imp__XamShowGamerCardUIForXUID, XamShowGamerCardUIForXUID);
+GUEST_FUNCTION_HOOK(__imp__XamShowPlayerReviewUI, XamShowPlayerReviewUI);
+GUEST_FUNCTION_HOOK(__imp__XamShowFriendsUI, XamShowFriendsUI);
+GUEST_FUNCTION_HOOK(__imp__XamShowMessageComposeUI, XamShowMessageComposeUI);
+GUEST_FUNCTION_HOOK(__imp__XamUserAreUsersFriends, XamUserAreUsersFriends);
+
+// A player's gamer picture: there is none to read without Xbox Live. The key
+// parses to nothing, and reading a tile fails (the game then draws without
+// it). (As Xenia: XamParseGamerTileKey and XamReadTileToTexture.)
+uint32_t XamParseGamerTileKey(uint32_t key, be<uint32_t>* titleId, be<uint32_t>* bigId, be<uint32_t>* smallId)
+{
+    if (titleId)
+        *titleId = 0;
+    if (bigId)
+        *bigId = 0;
+    if (smallId)
+        *smallId = 0;
+    return 0;
+}
+
+// (type, id, unknown, buffer, stride, height, overlapped)
+uint32_t XamReadTileToTexture(uint32_t type, uint32_t id, uint32_t unknown, uint32_t buffer, uint32_t stride, uint32_t height,
+    XXOVERLAPPED* overlapped)
+{
+    static bool logged = false;
+    if (!logged)
+    {
+        logged = true;
+        fprintf(stderr, "[online] gamer picture asked for: none (no Xbox Live)\n");
+    }
+    if (overlapped)
+    {
+        CompleteOverlapped(overlapped, 2);  // ERROR_FILE_NOT_FOUND
+        return 997;                         // ERROR_IO_PENDING
+    }
+    return 2;
+}
+
+GUEST_FUNCTION_HOOK(__imp__XamParseGamerTileKey, XamParseGamerTileKey);
+GUEST_FUNCTION_HOOK(__imp__XamReadTileToTexture, XamReadTileToTexture);
