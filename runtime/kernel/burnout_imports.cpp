@@ -14,6 +14,9 @@
 #include <netinet/tcp.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <deque>
+#include <map>
+#include <memory>
 #include <mutex>
 #include <thread>
 #include <unistd.h>
@@ -216,6 +219,15 @@ namespace
 {
     thread_local uint32_t s_socketError = 0;
     void DropPendingReceives(uint32_t handle);
+    struct OfflineSocket;
+    void LeavePort(OfflineSocket* socket);
+
+    // A datagram taken off a shared port for another of its sockets.
+    struct Datagram
+    {
+        std::vector<uint8_t> data;
+        sockaddr_in from{};
+    };
 
     // A socket. closesocket closes it (the host socket, its pending
     // receives) but leaves the object: the game also hands the handle to
@@ -223,15 +235,29 @@ namespace
     // which Xenia refuses and our NtClose would have freed a second time - the
     // heap went (both copies crashed in NtClose, 20.10). Now that NtClose frees
     // it, once; a handle closesocket closed is no socket any more.
+    //
+    // A UDP port can be one several sockets share (see SharePort): `share`
+    // holds them in the order they bound, `peers` where this one has sent
+    // (its datagrams come back to it), `queue` what came for it while another
+    // was reading. Under s_receiveMutex.
+    struct PortShare
+    {
+        std::vector<OfflineSocket*> members;
+    };
     struct OfflineSocket : KernelObject
     {
         int fd;
-        explicit OfflineSocket(int fd) : fd(fd) {}
+        bool udp;
+        std::shared_ptr<PortShare> share;
+        std::vector<sockaddr_in> peers;
+        std::deque<Datagram> queue;
+        OfflineSocket(int fd, bool udp) : fd(fd), udp(udp) {}
         void Close()
         {
             if (fd < 0)
                 return;
             DropPendingReceives(GetKernelHandle(this));
+            LeavePort(this);
             ::close(fd);
             fd = -1;
         }
@@ -265,7 +291,14 @@ PPC_FUNC(__imp__NetDll_socket)
         return;
     }
     fcntl(fd, F_SETFD, FD_CLOEXEC);
-    ctx.r3.u64 = GetKernelHandle(CreateKernelObject<OfflineSocket>(fd));
+    // A send on a connection its peer has closed fails (EPIPE, as Winsock's
+    // error) instead of raising SIGPIPE, which ends the process: online, a
+    // player leaving a game took every other copy down with it.
+#ifdef SO_NOSIGPIPE
+    const int one = 1;
+    setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &one, sizeof(one));
+#endif
+    ctx.r3.u64 = GetKernelHandle(CreateKernelObject<OfflineSocket>(fd, type == SOCK_DGRAM));
 }
 
 PPC_FUNC(__imp__NetDll_ioctlsocket)
@@ -284,7 +317,15 @@ PPC_FUNC(__imp__NetDll_ioctlsocket)
     }
 }
 
-namespace { uint16_t HostPort(uint16_t guestPortNetwork); }
+namespace
+{
+    uint16_t HostPort(uint16_t guestPortNetwork);
+    bool SharePort(OfflineSocket* socket, const sockaddr_in& local);
+    void HoldPort(OfflineSocket* socket);
+    void NoteSentTo(OfflineSocket* socket, const sockaddr_in& to);
+    void ExpectPeer(OfflineSocket* socket, uint16_t port);
+    void NotePlayerAddress(uint32_t address);
+}
 
 PPC_FUNC(__imp__NetDll_bind)
 {
@@ -313,14 +354,25 @@ PPC_FUNC(__imp__NetDll_bind)
     }
     else
         local.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    const bool ok = bind(socket->fd, reinterpret_cast<sockaddr*>(&local), sizeof(local)) == 0;
+    // A UDP port another of the game's sockets holds is shared (SharePort)
+    // before the system is asked: macOS lets a second bind through at times,
+    // and then gives the port's datagrams to one of the two only - a player
+    // never heard the one it had called from the new socket (four bots, 20.10).
+    const bool sharing = online::Enabled() && socket->udp && local.sin_port != 0;
+    bool shared = sharing && SharePort(socket, local);
+    bool ok = shared || bind(socket->fd, reinterpret_cast<sockaddr*>(&local), sizeof(local)) == 0;
+    const int error = errno;
+    if (ok && !shared && online::Enabled() && socket->udp)
+        HoldPort(socket);
+    if (ok && sharing)
+        ExpectPeer(socket, local.sin_port);
     if (online::Enabled())
     {
         const uint8_t* ip = reinterpret_cast<const uint8_t*>(&local.sin_addr.s_addr);
         fprintf(stderr, "[net] bind %08X to %u.%u.%u.%u:%u%s\n", ctx.r4.u32, ip[0], ip[1], ip[2], ip[3], ntohs(local.sin_port),
-            ok ? "" : " failed");
+            shared ? ": shares the port" : ok ? "" : " failed");
     }
-    ctx.r3.u64 = ok ? 0 : SocketFailure(errno == EADDRINUSE ? 10048 : 10022);
+    ctx.r3.u64 = ok ? 0 : SocketFailure(error == EADDRINUSE ? 10048 : 10022);
 }
 
 PPC_FUNC(__imp__NetDll_WSAWaitForMultipleEvents)
@@ -471,6 +523,250 @@ namespace
 
 #define NET_LOG(...) do { if (LogNet()) fprintf(stderr, "[net] " __VA_ARGS__); } while (0)
 
+namespace
+{
+    constexpr uint32_t kStatusPending = 0x103;
+
+    // The game's WSABUF array is its own stack, gone once WSARecvFrom
+    // returns (Winsock takes the buffers in the call): what it says is kept
+    // here. Read later, it was another function's stack, and a datagram went
+    // to wherever that pointed - DirtySock's socket list, which its thread
+    // then walked into address 0x100 (both two-copy runs crashed so).
+    struct GuestBuffers
+    {
+        uint32_t count = 0;
+        uint32_t length[4]{}, address[4]{};
+    };
+
+    struct PendingReceive
+    {
+        uint32_t handle;
+        GuestBuffers buffers;
+        uint32_t from, fromLength, overlapped;
+        int fd;
+    };
+
+    std::mutex s_receiveMutex;
+    std::vector<PendingReceive> s_pendingReceives;
+    int s_receiveWake[2] = { -1, -1 };
+
+    GuestBuffers LoadBuffers(uint8_t* base, uint32_t buffers, uint32_t count)
+    {
+        GuestBuffers b;
+        b.count = buffers ? std::min(count, 4u) : 0;
+        for (uint32_t i = 0; i < b.count; i++)
+        {
+            b.length[i] = PPC_LOAD_U32(buffers + i * 8);
+            b.address[i] = PPC_LOAD_U32(buffers + i * 8 + 4);
+        }
+        return b;
+    }
+
+    void CompleteReceive(uint8_t* base, uint32_t overlapped, uint32_t status, uint32_t bytes)
+    {
+        PPC_STORE_U32(overlapped + 4, bytes);
+        PPC_STORE_U32(overlapped, status);
+        if (const uint32_t event = PPC_LOAD_U32(overlapped + 16))
+            NtSetEvent(event, nullptr);
+    }
+
+    size_t BufferSpace(const GuestBuffers& buffers)
+    {
+        size_t space = 0;
+        for (uint32_t i = 0; i < buffers.count; i++)
+            space += buffers.length[i];
+        return space;
+    }
+
+    // Into the game's buffers and its address: the bytes taken.
+    uint32_t CopyOut(uint8_t* base, const Datagram& d, const GuestBuffers& buffers, uint32_t from, uint32_t fromLength)
+    {
+        size_t done = 0;
+        for (uint32_t i = 0; i < buffers.count && done < d.data.size(); i++)
+        {
+            const size_t part = std::min<size_t>(buffers.length[i], d.data.size() - done);
+            if (buffers.address[i])
+                memcpy(base + buffers.address[i], d.data.data() + done, part);
+            done += part;
+        }
+        if (from || fromLength)
+            StoreGuestAddress(base, from, fromLength, d.from);
+        return uint32_t(done);
+    }
+
+    // ---- A UDP port the game's sockets share --------------------------------
+    //
+    // The game binds a socket per player in a game to its peer-to-peer port
+    // (CommUDP ":8192:8192"). On the console the second bind succeeds and the
+    // sockets share the port; here it failed, and a third player never
+    // connected to the others (four bots, 20.10). Now a bind of a UDP port
+    // another of the game's sockets holds takes a duplicate of that socket:
+    // it sends from the port, and each datagram that arrives goes to the
+    // socket for its sender's player (ExpectPeer) or that has sent to it, from
+    // a sender none has to the newest socket with no one yet (Route). (The
+    // finding and that last rule are Xerenge's: shipa-2/rexglue-xerenge
+    // e029bb7, src/system/xsocket.cpp, GPL-3.0-or-later; the code is ours.)
+    // Under s_receiveMutex.
+    std::map<std::pair<uint32_t, uint16_t>, std::weak_ptr<PortShare>> s_ports;  // by address and port, network order
+
+    std::pair<uint32_t, uint16_t> PortKey(const sockaddr_in& a) { return { a.sin_addr.s_addr, a.sin_port }; }
+
+    bool SameAddress(const sockaddr_in& a, const sockaddr_in& b)
+    {
+        return a.sin_addr.s_addr == b.sin_addr.s_addr && a.sin_port == b.sin_port;
+    }
+
+    void HoldPort(OfflineSocket* socket)
+    {
+        sockaddr_in local{};
+        socklen_t length = sizeof(local);
+        if (getsockname(socket->fd, reinterpret_cast<sockaddr*>(&local), &length) < 0)
+            return;
+        std::lock_guard lock(s_receiveMutex);
+        socket->share = std::make_shared<PortShare>();
+        socket->share->members.push_back(socket);
+        s_ports[PortKey(local)] = socket->share;
+    }
+
+    bool SharePort(OfflineSocket* socket, const sockaddr_in& local)
+    {
+        std::lock_guard lock(s_receiveMutex);
+        const auto it = s_ports.find(PortKey(local));
+        const auto share = it != s_ports.end() ? it->second.lock() : nullptr;
+        if (!share || share->members.empty())
+            return false;
+        const int fd = fcntl(share->members.front()->fd, F_DUPFD_CLOEXEC, 0);
+        if (fd < 0)
+            return false;
+        ::close(socket->fd);
+        socket->fd = fd;
+        socket->share = share;
+        share->members.push_back(socket);
+        return true;
+    }
+
+    void LeavePort(OfflineSocket* socket)
+    {
+        std::lock_guard lock(s_receiveMutex);
+        if (socket->share)
+            std::erase(socket->share->members, socket);
+        socket->share.reset();
+        socket->queue.clear();
+        socket->peers.clear();
+    }
+
+    void NoteSentTo(OfflineSocket* socket, const sockaddr_in& to)
+    {
+        if (!socket->udp)
+            return;
+        std::lock_guard lock(s_receiveMutex);
+        if (socket->peers.size() < 32 && std::none_of(socket->peers.begin(), socket->peers.end(), [&](const sockaddr_in& p) { return SameAddress(p, to); }))
+            socket->peers.push_back(to);
+    }
+
+    // Who a datagram is for: the socket whose player sent it (ExpectPeer), or
+    // that has sent to its sender; from a sender none has, the newest socket
+    // with no one yet, else the first.
+    OfflineSocket* Route(PortShare& share, const sockaddr_in& from)
+    {
+        for (OfflineSocket* m : share.members)
+            for (const sockaddr_in& p : m->peers)
+                if (SameAddress(p, from))
+                    return m;
+        for (auto m = share.members.rbegin(); m != share.members.rend(); ++m)
+            if ((*m)->peers.empty())
+                return *m;
+        return share.members.front();
+    }
+
+    // Which player a socket is for. A joining console makes one per player in
+    // the game, each waiting to be called, and one given another player's
+    // datagram first never answered its own - a third player never connected
+    // (20.10). Right before, the game turns each player's XNADDR into an
+    // address (XNetXnAddrToInAddr), in the order it then binds the sockets:
+    // a UDP socket bound just after takes the oldest such address not taken.
+    std::deque<std::pair<uint32_t, std::chrono::steady_clock::time_point>> s_playerAddresses;
+
+    void NotePlayerAddress(uint32_t address)
+    {
+        std::lock_guard lock(s_receiveMutex);
+        s_playerAddresses.emplace_back(address, std::chrono::steady_clock::now());
+        while (s_playerAddresses.size() > 8)
+            s_playerAddresses.pop_front();
+    }
+
+    void ExpectPeer(OfflineSocket* socket, uint16_t port)
+    {
+        std::lock_guard lock(s_receiveMutex);
+        const auto now = std::chrono::steady_clock::now();
+        while (!s_playerAddresses.empty() && now - s_playerAddresses.front().second > std::chrono::seconds(2))
+            s_playerAddresses.pop_front();
+        if (s_playerAddresses.empty() || !socket->share)
+            return;
+        sockaddr_in peer{};
+        peer.sin_len = sizeof(peer);
+        peer.sin_family = AF_INET;
+        peer.sin_addr.s_addr = s_playerAddresses.front().first;
+        peer.sin_port = port;  // the players' port is the game's own on every console
+        s_playerAddresses.pop_front();
+        socket->peers.push_back(peer);
+        const uint8_t* ip = reinterpret_cast<const uint8_t*>(&peer.sin_addr.s_addr);
+        NET_LOG("socket %08X is for the player at %u.%u.%u.%u\n", GetKernelHandle(socket), ip[0], ip[1], ip[2], ip[3]);
+    }
+
+    bool TakeFor(uint8_t* base, OfflineSocket* self, Datagram& out, size_t most);
+
+    // A datagram queued for `to`: into its receive waiting, if it has one.
+    void DeliverQueued(uint8_t* base, OfflineSocket* to)
+    {
+        const uint32_t handle = GetKernelHandle(to);
+        const auto it = std::find_if(s_pendingReceives.begin(), s_pendingReceives.end(), [&](const PendingReceive& p) { return p.handle == handle; });
+        if (it == s_pendingReceives.end() || to->queue.empty())
+            return;
+        const uint32_t bytes = CopyOut(base, to->queue.front(), it->buffers, it->from, it->fromLength);
+        to->queue.pop_front();
+        CompleteReceive(base, it->overlapped, 0, bytes);
+        s_pendingReceives.erase(it);
+    }
+
+    // What there is for `self` (at most `most` bytes of a stream), without
+    // waiting: false (errno set) when nothing. Datagrams for the port's
+    // other sockets are handed to them on the way. Under s_receiveMutex.
+    bool TakeFor(uint8_t* base, OfflineSocket* self, Datagram& out, size_t most)
+    {
+        if (!self->queue.empty())
+        {
+            out = std::move(self->queue.front());
+            self->queue.pop_front();
+            return true;
+        }
+        for (;;)
+        {
+            Datagram d;
+            d.data.resize(self->udp ? 2048 : std::max<size_t>(most, 1));
+            socklen_t length = sizeof(d.from);
+            const ssize_t n = recvfrom(self->fd, d.data.data(), d.data.size(), MSG_DONTWAIT, reinterpret_cast<sockaddr*>(&d.from), &length);
+            if (n < 0)
+                return false;
+            d.data.resize(size_t(n));
+            if (!self->share || self->share->members.size() < 2)
+            {
+                out = std::move(d);
+                return true;
+            }
+            OfflineSocket* to = Route(*self->share, d.from);
+            if (to == self)
+            {
+                out = std::move(d);
+                return true;
+            }
+            if (to->queue.size() < 256)
+                to->queue.push_back(std::move(d));
+            DeliverQueued(base, to);
+        }
+    }
+}
+
 PPC_FUNC(__imp__NetDll_select)
 {
     GuestSet sets[3];
@@ -489,6 +785,15 @@ PPC_FUNC(__imp__NetDll_select)
     {
         const int64_t seconds = int32_t(PPC_LOAD_U32(timeout)), micros = int32_t(PPC_LOAD_U32(timeout + 4));
         timeoutMs = int(std::clamp<int64_t>(seconds * 1000 + (micros + 999) / 1000, 0, INT32_MAX));
+    }
+    // A shared port's socket may have datagrams waiting for it already, taken
+    // off the port by another (none of the port's readiness): ready at once.
+    bool queued[64]{};
+    {
+        std::lock_guard lock(s_receiveMutex);
+        for (uint32_t i = 0; i < sets[0].count; ++i)
+            if (auto* socket = SocketFromHandle(sets[0].handles[i]); socket && !socket->queue.empty())
+                queued[i] = true, timeoutMs = 0;
     }
     const int result = poll(fds.data(), nfds_t(fds.size()), timeoutMs);
     if (LogNet())
@@ -514,7 +819,7 @@ PPC_FUNC(__imp__NetDll_select)
         for (uint32_t i = 0; i < sets[k].count; ++i, ++next)
         {
             const short revents = fds[next].revents;
-            const bool isReady = k == 0 ? (revents & (POLLIN | POLLHUP | POLLERR)) != 0
+            const bool isReady = k == 0 ? (revents & (POLLIN | POLLHUP | POLLERR)) != 0 || queued[i]
                 : k == 1 ? (revents & (POLLOUT | POLLERR)) != 0 : (revents & POLLPRI) != 0;
             if (isReady)
                 PPC_STORE_U32(sets[k].address + 4 + kept++ * 4, sets[k].handles[i]);
@@ -533,18 +838,35 @@ static void Receive(PPCContext& ctx, uint8_t* base, uint32_t from, uint32_t from
         ctx.r3.u64 = SocketFailure(10038);
         return;
     }
-    sockaddr_in source{};
-    socklen_t sourceLength = sizeof(source);
-    const ssize_t n = recvfrom(socket->fd, base + ctx.r5.u32, ctx.r6.u32, 0, reinterpret_cast<sockaddr*>(&source), &sourceLength);
-    if (n < 0)
+    // Without waiting, under the lock (a shared port's datagrams for its
+    // other sockets are handed to them); a blocking socket waits outside it.
+    Datagram d;
+    for (;;)
     {
-        ctx.r3.u64 = SocketFailure(ErrnoToWsa(errno));
-        return;
+        bool taken;
+        int error;
+        {
+            std::lock_guard lock(s_receiveMutex);
+            taken = TakeFor(base, socket, d, ctx.r6.u32);
+            error = errno;
+        }
+        if (taken)
+            break;
+        if (error != EWOULDBLOCK || (fcntl(socket->fd, F_GETFL) & O_NONBLOCK))
+        {
+            ctx.r3.u64 = SocketFailure(ErrnoToWsa(error));
+            return;
+        }
+        pollfd wait{ socket->fd, POLLIN, 0 };
+        poll(&wait, 1, -1);
     }
-    if (from || fromLength)
-        StoreGuestAddress(base, from, fromLength, source);
-    NET_LOG("recv %08X: %zd bytes\n", ctx.r4.u32, n);
-    ctx.r3.u64 = uint64_t(n);
+    GuestBuffers buffer;
+    buffer.count = 1;
+    buffer.length[0] = ctx.r6.u32;
+    buffer.address[0] = ctx.r5.u32;
+    const uint32_t n = CopyOut(base, d, buffer, from, fromLength);
+    NET_LOG("recv %08X: %u bytes\n", ctx.r4.u32, n);
+    ctx.r3.u64 = n;
 }
 
 PPC_FUNC(__imp__NetDll_recv) { Receive(ctx, base, 0, 0); }
@@ -574,6 +896,7 @@ static void Send(PPCContext& ctx, uint8_t* base, uint32_t to, uint32_t toLength)
             memcpy(&target.sin_port, base + to + 2, 2);
             target.sin_port = HostPort(target.sin_port);
             memcpy(&target.sin_addr.s_addr, address, 4);
+            NoteSentTo(socket, target);
             n = sendto(socket->fd, base + ctx.r5.u32, ctx.r6.u32, 0, reinterpret_cast<sockaddr*>(&target), sizeof(target));
             ctx.r3.u64 = n < 0 ? SocketFailure(ErrnoToWsa(errno)) : uint64_t(n);
             return;
@@ -682,8 +1005,12 @@ PPC_FUNC(__imp__NetDll_accept)
         return;
     }
     fcntl(fd, F_SETFD, FD_CLOEXEC);
+#ifdef SO_NOSIGPIPE
+    const int one = 1;  // as NetDll_socket's
+    setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &one, sizeof(one));
+#endif
     StoreGuestAddress(base, ctx.r5.u32, ctx.r6.u32, peer);
-    ctx.r3.u64 = GetKernelHandle(CreateKernelObject<OfflineSocket>(fd));
+    ctx.r3.u64 = GetKernelHandle(CreateKernelObject<OfflineSocket>(fd, false));
 }
 
 PPC_FUNC(__imp__NetDll_listen)
@@ -754,73 +1081,6 @@ PPC_FUNC(__imp__NetDll_setsockopt)
 // OffsetHigh, hEvent }.
 namespace
 {
-    constexpr uint32_t kStatusPending = 0x103;
-
-    // The game's WSABUF array is its own stack, gone once WSARecvFrom
-    // returns (Winsock takes the buffers in the call): what it says is kept
-    // here. Read later, it was another function's stack, and a datagram went
-    // to wherever that pointed - DirtySock's socket list, which its thread
-    // then walked into address 0x100 (both two-copy runs crashed so).
-    struct GuestBuffers
-    {
-        uint32_t count = 0;
-        uint32_t length[4]{}, address[4]{};
-    };
-
-    struct PendingReceive
-    {
-        uint32_t handle;
-        GuestBuffers buffers;
-        uint32_t from, fromLength, overlapped;
-        int fd;
-    };
-
-    std::mutex s_receiveMutex;
-    std::vector<PendingReceive> s_pendingReceives;
-    int s_receiveWake[2] = { -1, -1 };
-
-    GuestBuffers LoadBuffers(uint8_t* base, uint32_t buffers, uint32_t count)
-    {
-        GuestBuffers b;
-        b.count = buffers ? std::min(count, 4u) : 0;
-        for (uint32_t i = 0; i < b.count; i++)
-        {
-            b.length[i] = PPC_LOAD_U32(buffers + i * 8);
-            b.address[i] = PPC_LOAD_U32(buffers + i * 8 + 4);
-        }
-        return b;
-    }
-
-    // Into the game's buffers; the bytes taken, or -1 with errno.
-    ssize_t ReceiveInto(uint8_t* base, int fd, const GuestBuffers& buffers, uint32_t from, uint32_t fromLength, int flags)
-    {
-        uint8_t data[2048];
-        sockaddr_in source{};
-        socklen_t sourceLength = sizeof(source);
-        const ssize_t n = recvfrom(fd, data, sizeof(data), flags, reinterpret_cast<sockaddr*>(&source), &sourceLength);
-        if (n < 0)
-            return n;
-        size_t done = 0;
-        for (uint32_t i = 0; i < buffers.count && done < size_t(n); i++)
-        {
-            const size_t part = std::min<size_t>(buffers.length[i], size_t(n) - done);
-            if (buffers.address[i])
-                memcpy(base + buffers.address[i], data + done, part);
-            done += part;
-        }
-        if (from || fromLength)
-            StoreGuestAddress(base, from, fromLength, source);
-        return ssize_t(done);
-    }
-
-    void CompleteReceive(uint8_t* base, uint32_t overlapped, uint32_t status, uint32_t bytes)
-    {
-        PPC_STORE_U32(overlapped + 4, bytes);
-        PPC_STORE_U32(overlapped, status);
-        if (const uint32_t event = PPC_LOAD_U32(overlapped + 16))
-            NtSetEvent(event, nullptr);
-    }
-
     void ReceiveThread(uint8_t* base)
     {
         for (;;)
@@ -848,11 +1108,16 @@ namespace
                 auto it = std::find_if(s_pendingReceives.begin(), s_pendingReceives.end(), [&](const PendingReceive& p) { return p.fd == fds[i].fd; });
                 if (it == s_pendingReceives.end())
                     continue;
-                const ssize_t n = ReceiveInto(base, it->fd, it->buffers, it->from, it->fromLength, MSG_DONTWAIT);
-                if (n < 0 && errno == EWOULDBLOCK)
+                // (Taking it may complete other receives, and move this one.)
+                const PendingReceive pending = *it;
+                auto* socket = SocketFromHandle(pending.handle);
+                Datagram d;
+                const bool taken = socket && TakeFor(base, socket, d, BufferSpace(pending.buffers));
+                if (!taken && socket && errno == EWOULDBLOCK)
                     continue;
-                CompleteReceive(base, it->overlapped, n < 0 ? 0xC000020C /* STATUS_CONNECTION_DISCONNECTED */ : 0, n < 0 ? 0 : uint32_t(n));
-                s_pendingReceives.erase(it);
+                const uint32_t bytes = taken ? CopyOut(base, d, pending.buffers, pending.from, pending.fromLength) : 0;
+                CompleteReceive(base, pending.overlapped, taken ? 0 : 0xC000020C /* STATUS_CONNECTION_DISCONNECTED */, bytes);
+                std::erase_if(s_pendingReceives, [&](const PendingReceive& p) { return p.overlapped == pending.overlapped; });
             }
         }
     }
@@ -888,7 +1153,16 @@ namespace
         }
         const GuestBuffers buffers = LoadBuffers(base, ctx.r5.u32, ctx.r6.u32);
         const uint32_t bytes = ctx.r7.u32, flags = ctx.r8.u32;
-        const ssize_t n = ReceiveInto(base, socket->fd, buffers, from, fromLength, MSG_DONTWAIT);
+        Datagram d;
+        bool taken;
+        int error;
+        {
+            std::lock_guard lock(s_receiveMutex);
+            taken = TakeFor(base, socket, d, BufferSpace(buffers));
+            error = errno;
+        }
+        const ssize_t n = taken ? ssize_t(CopyOut(base, d, buffers, from, fromLength)) : -1;
+        errno = error;
         if (n >= 0)
         {
             if (bytes)
@@ -1005,6 +1279,8 @@ PPC_FUNC(__imp__NetDll_XNetXnAddrToInAddr)
         address = htonl(INADDR_LOOPBACK);
     if (ctx.r6.u32)
         memcpy(base + ctx.r6.u32, &address, 4);
+    if (online::Enabled() && address != htonl(INADDR_LOOPBACK))
+        NotePlayerAddress(address);  // a socket for this player may follow
     ctx.r3.u64 = 0;
 }
 PPC_FUNC(__imp__NetDll_XNetConnect) { ctx.r3.u64 = 0; }
