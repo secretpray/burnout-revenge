@@ -1,18 +1,20 @@
 # Changelog
 
-## Unreleased
+## v0.1.16
 
 - Online play, off by default: Settings > Online > Online Play. Races,
   Road Rage, Crash Party, Crash Tour and Crash Battle with up to four
   players, and Burnout Clips shared, watched and downloaded. Players meet
   on the Xerenge community server (offered with its author's agreement), a
-  server of your own (the app has it: `burnout-lobby`), or the local
+  server of your own (the app has it: burnout-lobby), or the local
   network with no server at all. The lobby protocol and server are
   Xerenge's (shipa-2, GPL-3.0-or-later), so Mac players meet Xerenge's.
   Choose a gamertag; Check Server says whether the server is up. After a
   failed sign-in the server isn't asked again for a while (5 s, growing to
-  a minute). Ranked matches don't work yet. Ports, firewall and your own
-  server: [docs/ONLINE.md](docs/ONLINE.md).
+  a minute). Ranked matches don't work yet. Tested with up to four copies
+  on one Mac and on the community server; not yet between two Macs, so
+  reports are welcome. Ports, firewall and your own server: docs/ONLINE.md
+  with the game's source.
 - The game no longer quits when OK is pressed on Xbox Live's "Connection
   problem": it closed a handle it had never opened, which ended the game.
 

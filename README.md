@@ -105,6 +105,15 @@
 - The game's sound steps back while the settings menu is open. Mute, Mute in
   Background and a master volume.
 
+**Online**
+
+- Xbox Live play again, off by default (Settings > Online): races, Road Rage,
+  Crash Party, Crash Tour and Crash Battle with up to four players, and
+  Burnout Clips shared, watched and downloaded. Meet on the Xerenge community
+  server, a server of your own (it comes inside the app) or the local network
+  with no server. Not yet tested between two Macs: see
+  [docs/ONLINE.md](docs/ONLINE.md).
+
 **Controls**
 
 - Xbox controllers and DualSense through SDL, with vibration. Back + Start
