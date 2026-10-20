@@ -18,7 +18,14 @@ ignored here) are upstream's files as they were at that commit, unmodified by
 the import, so upstream's fixes can be taken over by copying them again.
 Changes of ours go in separate commits on top, each listed here:
 
-- (none yet)
+- `server.cpp`: a peer link (`xhlo`) only on a server with seamless
+  multiplayer on (`self_address`), and `xfwd` answers only to a client joined
+  through that link; login keys (`LKEY`) from the system's random source.
+
+What it cannot do: tell who a player is. EA's servers trusted Xbox Live for
+the gamertag; here a client's `auth` names its persona, and anyone can log in
+as anyone (and so reach that persona's Burnout Clips in the Locker). Run a
+server for people you know.
 
 Built by `runtime/CMakeLists.txt`: the `ealobby-core` library and the
 standalone server `burnout-lobby` (docs/ONLINE_PLAN_RU.md, phase 2).

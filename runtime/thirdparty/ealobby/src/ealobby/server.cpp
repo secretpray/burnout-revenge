@@ -180,7 +180,9 @@ std::string AddressString(const sockaddr_in& address) {
 }
 
 std::string RandomHex(size_t bytes) {
-  static std::mt19937_64 random{std::random_device{}()};
+  // The system's random source, not a seeded generator: a login key (LKEY)
+  // opens its persona's Locker files, and must not be guessable.
+  static std::random_device random;
   static const char digits[] = "0123456789abcdef";
   std::string out;
   for (size_t i = 0; i < bytes; ++i) {
@@ -531,6 +533,13 @@ void Server::Send(Connection& connection, const std::vector<uint8_t>& bytes) {
 
 void Server::Handle(Connection& connection, const Message& message) {
   if (connection.role == Role::kLobby && message.command == "xhlo") {
+    // Only a server that takes part in seamless multiplayer has peers: on any
+    // other a client could otherwise turn its connection into a link and speak
+    // for other servers' players.
+    if (options_.self_address.empty()) {
+      Log("lobby: xhlo from " + connection.peer + " refused (no seamless multiplayer here)");
+      return;
+    }
     connection.role = Role::kPeer;
   }
   if (connection.role == Role::kPeer) {
@@ -1537,7 +1546,7 @@ void Server::HandlePeer(Connection& link, const Message& message) {
     }
     // The client's end: what the host answers goes to the client as it is.
     for (const auto& [fd, connection] : connections_) {
-      if (connection->role == Role::kLobby && connection->id == id) {
+      if (connection->role == Role::kLobby && connection->id == id && connection->remote_link == link.fd) {
         Send(*connection, bytes);
         return;
       }
