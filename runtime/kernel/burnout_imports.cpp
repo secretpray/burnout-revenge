@@ -403,6 +403,8 @@ PPC_FUNC(__imp__NetDll_closesocket)
         ctx.r3.u64 = SocketFailure(10038);
     else
     {
+        if (socket->udp && online::Enabled() && std::getenv("BURNOUT_LOG_NET"))
+            fprintf(stderr, "[net] close %08X\n", handle);
         socket->Close();
         ctx.r3.u64 = 0;
     }
@@ -725,6 +727,7 @@ namespace
             return;
         const uint32_t bytes = CopyOut(base, to->queue.front(), it->buffers, it->from, it->fromLength);
         to->queue.pop_front();
+        NET_LOG("received %08X: %u bytes, from the queue\n", handle, bytes);
         CompleteReceive(base, it->overlapped, 0, bytes);
         s_pendingReceives.erase(it);
     }
@@ -755,6 +758,11 @@ namespace
                 return true;
             }
             OfflineSocket* to = Route(*self->share, d.from);
+            {
+                const uint8_t* ip = reinterpret_cast<const uint8_t*>(&d.from.sin_addr.s_addr);
+                NET_LOG("port share: %zu bytes from %u.%u.%u.%u:%u for %08X (read by %08X)\n", d.data.size(), ip[0], ip[1], ip[2],
+                    ip[3], ntohs(d.from.sin_port), GetKernelHandle(to), GetKernelHandle(self));
+            }
             if (to == self)
             {
                 out = std::move(d);
@@ -865,7 +873,14 @@ static void Receive(PPCContext& ctx, uint8_t* base, uint32_t from, uint32_t from
     buffer.length[0] = ctx.r6.u32;
     buffer.address[0] = ctx.r5.u32;
     const uint32_t n = CopyOut(base, d, buffer, from, fromLength);
-    NET_LOG("recv %08X: %u bytes\n", ctx.r4.u32, n);
+    if (LogNet())
+    {
+        const uint8_t* ip = reinterpret_cast<const uint8_t*>(&d.from.sin_addr.s_addr);
+        char hex[3 * 32 + 1] = "";
+        for (size_t i = 0; i < d.data.size() && i < 32 && d.data.size() <= 64; i++)
+            snprintf(hex + 3 * i, 4, " %02X", d.data[i]);
+        NET_LOG("recv %08X: %u bytes from %u.%u.%u.%u:%u%s\n", ctx.r4.u32, n, ip[0], ip[1], ip[2], ip[3], ntohs(d.from.sin_port), hex);
+    }
     ctx.r3.u64 = n;
 }
 
@@ -885,8 +900,14 @@ static void Send(PPCContext& ctx, uint8_t* base, uint32_t to, uint32_t toLength)
     {
         uint8_t address[4];
         memcpy(address, base + to + 4, 4);
-        NET_LOG("sendto %08X: %u bytes to %u.%u.%u.%u:%u\n", ctx.r4.u32, ctx.r6.u32, address[0], address[1], address[2], address[3],
-            uint32_t(base[to + 2]) << 8 | base[to + 3]);
+        if (LogNet())
+        {
+            char hex[3 * 32 + 1] = "";
+            for (uint32_t i = 0; i < ctx.r6.u32 && i < 32 && ctx.r6.u32 <= 64; i++)
+                snprintf(hex + 3 * i, 4, " %02X", base[ctx.r5.u32 + i]);
+            NET_LOG("sendto %08X: %u bytes to %u.%u.%u.%u:%u%s\n", ctx.r4.u32, ctx.r6.u32, address[0], address[1], address[2], address[3],
+                uint32_t(base[to + 2]) << 8 | base[to + 3], hex);
+        }
         if (online::Enabled())
         {
             // Online: where the game sends it.
@@ -1116,6 +1137,7 @@ namespace
                 if (!taken && socket && errno == EWOULDBLOCK)
                     continue;
                 const uint32_t bytes = taken ? CopyOut(base, d, pending.buffers, pending.from, pending.fromLength) : 0;
+                NET_LOG("received %08X: %u bytes, waited for%s\n", pending.handle, bytes, taken ? "" : " (closed)");
                 CompleteReceive(base, pending.overlapped, taken ? 0 : 0xC000020C /* STATUS_CONNECTION_DISCONNECTED */, bytes);
                 std::erase_if(s_pendingReceives, [&](const PendingReceive& p) { return p.overlapped == pending.overlapped; });
             }
@@ -1165,6 +1187,7 @@ namespace
         errno = error;
         if (n >= 0)
         {
+            NET_LOG("received %08X: %zd bytes, at once%s\n", ctx.r4.u32, n, overlapped ? "" : " (no overlapped)");
             if (bytes)
                 PPC_STORE_U32(bytes, uint32_t(n));
             if (flags)
@@ -1197,6 +1220,10 @@ namespace
             std::lock_guard lock(s_receiveMutex);
             std::erase_if(s_pendingReceives, [&](const PendingReceive& p) { return p.overlapped == overlapped; });
             s_pendingReceives.push_back({ ctx.r4.u32, buffers, from, fromLength, overlapped, socket->fd });
+            // A datagram another of the port's sockets took for this one
+            // since TakeFor above: the port shows nothing more, so it is
+            // handed over here, or the receive would wait for the next.
+            DeliverQueued(base, socket);
         }
         Wake();
         ctx.r3.u64 = SocketFailure(997);  // WSA_IO_PENDING
