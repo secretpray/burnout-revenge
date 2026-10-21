@@ -453,3 +453,33 @@ the user's real saves were not changed. Temporary test lobby stopped.
 (включая heap corruption и C++ EH). Настоящий PPC exception dispatch/unwind и
 выход в firmware пока unknown; они не заменялись успехом и не считаются готовыми.
 Проверка между двумя Mac отложена пользователем; World Tour проверять по находкам.
+
+
+### v0.1.18: пакет, публикация и установка
+
+- Main и сборочная копия синхронизированы на a0559ba69efd8f578b47b91c191deb7300e93f51:
+  все 12 изменённых файлов сверены с origin/main, stash -u сохранён, pull --ff-only.
+- Чистый build; app macOS 15+, MoltenVK 1.4.2, dmgbuild; check_app DMG PASS.
+  Кандидат 45 с с BURNOUT_MUTE=1, exit 0, главное меню по кадру, UNIMPLEMENTED нет.
+  What's new сначала закрылось до кадра; повтор без скрипта пада в первые кадры
+  подтвердил две видимые строки v0.1.18 без обрезки, закрытие и exit 0.
+- 7 release assets: DMG, полный third-party source tar.xz, канонический ZIP Player Files,
+  три .sha256, SHA256SUMS. Все скачаны из draft и побайтно сверены; SHA256SUMS PASS,
+  check_app скачанного DMG PASS. SHA256 DMG:
+  19fe0d6502c621ffa7fa13032ed28bfe4bc598275649e6ebf80365fd9da814e3.
+- Опубликован Latest v0.1.18 на a0559ba; установлен именно скачанный DMG:
+  SHA-256, codesign mounted/staging/installed и хеши обоих executable совпали.
+  Старый app заменён без backup, временный mount отключён. Сейвы пользователя не трогались.
+
+### Исследование состояний и новых возможностей
+
+По запросу пользователя после совместимости изучены PPSSPP SaveState/Rewind,
+архитектура текущего runtime и первичные README/issues 10 близких/крупных портов.
+Результат — docs/NEW_FEATURES_RESEARCH_RU.md; очередь остаётся в PLAN_RU.md.
+Измерен только известный Player Files (21 316 байт); размеры полного state и delta
+не выдуманы — даны формулы и явно условные примеры. RAM snapshot не включает автоматически
+нативные continuations, host kernel objects, GPU, audio, файлы и deadlines.
+Save states/rewind полезны, но требуют настоящего restore; предложен проверяемый
+эксперимент с одной гонкой. Внедрение не начиналось. Спрос по публичным feature issues
+отделён от наличия фич, stars и собственной оценки приоритетов. Дополнительные читы
+re:Blue обозначены как отдельный fork. Новых сообщений авторам не отправлялось.
