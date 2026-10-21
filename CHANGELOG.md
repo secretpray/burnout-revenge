@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.1.18
+
+- Fix an invalid memory write when the game requests an Xbox Live gamer
+  picture: a missing argument made the picture height look like a completion
+  pointer. Pictures remain unavailable without Xbox Live.
+- Online sessions report allocation failure correctly and reject null outputs
+  and the invalid handle sentinel. Friendship queries report missing users
+  and complete asynchronous results without claiming anyone is a friend.
+
 ## v0.1.17
 
 - Ranked matchmaking: Xbox Live > Quick Match > Ranked can join a room,

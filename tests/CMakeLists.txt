@@ -64,6 +64,13 @@ target_link_options(kernel_compat_test PRIVATE -fsanitize=address)
 if(BR_GAME STREQUAL "burnout")
     target_compile_definitions(kernel_compat_test PRIVATE BR_GAME_BURNOUT=1)
 endif()
+# Social imports and session lifetime through their PPC ABI wrappers. The test
+# reserves guest address space but commits only its small buffers and heaps.
+sb_test(online_compat_test SOURCES ${RT}/kernel/imports_online.cpp ${RT}/kernel/xdm.cpp)
+target_include_directories(online_compat_test PRIVATE ${RT}/kernel ${RT}/thirdparty/o1heap ${BR_PPC_DIR}
+    ${ROOT}/tools/XenonRecomp/XenonUtils ${ROOT}/tools/XenonRecomp/thirdparty/simde)
+target_compile_options(online_compat_test PRIVATE -fsanitize=address)
+target_link_options(online_compat_test PRIVATE -fsanitize=address)
 sb_test(burnout_addon_package_test)
 # Burnout's XAudio voice mix (apu/voice_mix.h, header only) against the
 # recompiled function's arithmetic; replays a recording from the game when

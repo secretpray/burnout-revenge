@@ -113,7 +113,8 @@
   server, a server of your own (it comes inside the app) or the local network
   with no server. Ranked matches can be hosted and joined too, without a
   global ranking or TrueSkill service. Not yet tested between two Macs: see
-  [docs/ONLINE.md](docs/ONLINE.md).
+  [docs/ONLINE.md](docs/ONLINE.md). Xbox Live friends, messages, player reviews
+  and gamer cards are unavailable; their buttons leave the game running.
 
 **Controls**
 

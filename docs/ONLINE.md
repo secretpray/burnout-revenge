@@ -86,8 +86,9 @@ signed ad hoc, so macOS may ask again after an update.
 
 - Global rankings, TrueSkill matchmaking and Scoreboards (see Ranked above).
 - **Revenge Rivals**, the news ticker and voice chat.
-- Friends, messages and gamer cards are the game's own screens over Xbox
-  Live services that don't exist any more.
+- The Xbox Live friends list, messages, player reviews and gamer cards.
+  Opening their buttons leaves the game running; no Xbox Live screen opens.
+  Gamer pictures are unavailable too.
 - Two players online from one Mac (split screen online).
 
 ## For testing

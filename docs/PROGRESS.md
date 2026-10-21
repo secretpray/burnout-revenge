@@ -394,3 +394,62 @@ arbitration/stat writes are accepted without an Xbox Live ranking service. The
 limitation is explicit in CHANGELOG/README/ONLINE and the in-game release note.
 Automated runs now use BURNOUT_MUTE=1 (user request); saved audio preferences and
 the user's real saves were not changed. Temporary test lobby stopped.
+
+
+## 2026-10-21: v0.1.18 — совместимость онлайн-импортов
+
+Пользователь отложил два настоящих Mac и поставил совместимость следующей задачей.
+Все игровые запуски: `BURNOUT_MUTE=1`, свои тестовые каталоги, виртуальный пад,
+встроенные Shot; настоящие сейвы и настройки звука не менялись.
+
+### Что исправлено
+
+- Список в плане был устаревшим: 218 импортов, 213 уже реализованы, 5 настоящих
+  заглушек. Четыре социальных UI, friendship, две tile-функции и две session-функции
+  были реализованы до этого этапа, но не имели прямого теста ABI.
+- `XamReadTileToTexture`: восемь аргументов, не семь: type, titleId, 64-битный tileId,
+  userIndex, pixels, stride, height, overlapped. Вызов sub_825AEBE0 передаёт height в r9,
+  completion в r10. Старый hook считал height указателем XXOVERLAPPED и мог писать
+  в низкую память. Сигнатура сверена с generated PPC и
+  https://github.com/xenia-project/xenia/blob/master/src/xenia/kernel/xam/xam_user.cc
+  (ABI, код не копировался). Картинок Xbox Live нет: ERROR_FILE_NOT_FOUND, для async
+  completion выставлен также HRESULT 0x80070002; буфер пикселей не трогается.
+- `XamUserAreUsersFriends`: нулевой BOOL синхронно либо Length=0 асинхронно, отдельные
+  ответы для отсутствующего/неверного user index и отсутствующего получателя результата.
+  Ошибка async — ERROR_FUNCTION_FAILED с HRESULT причины, а не выдуманная дружба.
+- `XamSessionCreateHandle`: null output/нехватка user или physical heap не дают успешной
+  сессии с нулевым guest object. При отказе второго allocation первый освобождается.
+  В Heap::AllocPhysical добавлена проверка null перед записью служебного заголовка.
+  RefObj очищает output при ошибке, проверяет null output и 0xFFFFFFFF до dynamic_cast.
+- Социальные импорты и session objects перенесены в imports_online.cpp, чтобы тест
+  линковал реальные функции и PPC wrappers без SDL/UI и всей игры.
+
+### Проверки
+
+- Новый `online_compat_test` с AddressSanitizer: прямые вызовы 9 PPC wrappers;
+  синхронный/асинхронный friendship и ошибки; обнуление tile key, отсутствие записи
+  в пиксели, completion именно из r10. Первые 64 KiB гостевой памяти защищены,
+  поэтому прежняя 7-аргументная форма с height=32 не смогла бы пройти этот тест.
+  Две инъекции OOM, неверный тип/invalid handle, 32 create/ref/release с проверкой
+  освобождения обоих allocations. Куча выдаёт буферы с 0xA5 — обнуление реально нужно.
+- Полный набор: **76/76 PASS**, 30.58 с, без повторов при корректных правах.
+  Первый запуск в sandbox не мог слушать loopback (ealobby) и отображать physical
+  memory (два write_watch), MetalFX был skipped. Повторён весь набор вне sandbox,
+  все 76 прошли, включая MetalFX; это ограничения окружения, не исправление тестов.
+- Реальная игра, журнал + кадры: `friends-before` — три Friends из Xbox Live,
+  меню остаётся рабочим, exit 0 при штатной остановке. `social-room` — два игрока
+  LAN и меню MacB (Kick / Submit Player Review / Show Gamer Card).
+- `social-actions`: две копии LAN. Хозяин вызывает XamShowPlayerReviewUI в 79.6 с,
+  затем XamShowFriendsUI в 83.6 с; второй игрок — XamShowGamerCardUIForXUID в 43.1 с
+  своего процесса. После каждого на кадрах обычная комната, оба игрока на месте.
+  Все соответствующие импорты возвращают сразу, без системных экранов Xbox Live.
+- XamShowMessageComposeUI и tile completion проверены прямым PPC-тестом. UI-путь
+  сообщения в игре и запрос самой картинки в игровом прогоне НЕ подтверждены.
+
+### Что остаётся
+
+`RtlCaptureContext`, `RtlRaiseException`, `RtlUnwind`, `__C_specific_handler`,
+`HalReturnToFirmware` — 5 loud stubs. Прямые exception callers найдены в CRT
+(включая heap corruption и C++ EH). Настоящий PPC exception dispatch/unwind и
+выход в firmware пока unknown; они не заменялись успехом и не считаются готовыми.
+Проверка между двумя Mac отложена пользователем; World Tour проверять по находкам.
