@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.1.17
+
+- Ranked matchmaking: Xbox Live > Quick Match > Ranked can join a room,
+  and Create Match > Ranked: Yes can host one. Matches use the same
+  player-to-player protocol as Player Match. There is no global ranking,
+  TrueSkill service or saved leaderboard; World Rank stays unavailable.
+- The bundled server and LAN lobbies keep Ranked and Player Match searches
+  separate. With no matching room, Quick Match offers to create one instead
+  of showing a connection problem.
+
 ## v0.1.16
 
 - Online play, off by default: Settings > Online > Online Play. Races,

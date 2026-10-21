@@ -111,7 +111,8 @@
   Crash Party, Crash Tour and Crash Battle with up to four players, and
   Burnout Clips shared, watched and downloaded. Meet on the Xerenge community
   server, a server of your own (it comes inside the app) or the local network
-  with no server. Not yet tested between two Macs: see
+  with no server. Ranked matches can be hosted and joined too, without a
+  global ranking or TrueSkill service. Not yet tested between two Macs: see
   [docs/ONLINE.md](docs/ONLINE.md).
 
 **Controls**
@@ -258,7 +259,8 @@ Every key can be changed in Settings > Controls.
 - A complete career playthrough isn't verified yet.
 - Online play (Settings > Online, off by default) is tested with up to four
   copies on one Mac and over the community server, not yet between Macs on
-  different networks; Ranked matches don't work. See [docs/ONLINE.md](docs/ONLINE.md).
+  different networks. Global rankings, TrueSkill and Scoreboards are unavailable.
+  See [docs/ONLINE.md](docs/ONLINE.md).
 - 14 rarely used system functions (friends and gamer-card screens, Live
   sessions, exception unwinding) are still stubs; none was reached offline in
   any menu or mode tested.

@@ -468,9 +468,8 @@ namespace
     // console's XNADDR, a new XNKID and XNKEY - which the host's lobby game
     // record carries to the others (SESS); a joiner passes the host's in.
     // Join, leave, start, end, modify and delete are accepted. Session search
-    // (0x000B0016, Ranked's TrueSkill matchmaking) isn't answered: there is no
-    // Xbox Live to search.
-    uint32_t XgiOnline(uint32_t message, uint32_t buffer)
+    // returns an empty result while matchmaking is supplied by the EA lobby.
+    uint32_t XgiOnline(uint32_t message, uint32_t buffer, uint32_t length)
     {
         switch (message)
         {
@@ -491,6 +490,30 @@ namespace
             hid::ScriptEvent("session");  // in a game's lobby: an online bot's script goes on
             return X_E_SUCCESS;
         }
+        case 0x000B0016:  // XSessionSearch (sub_82421818 builds the 32-byte request)
+        {
+            if (!buffer || length < 32)
+                return X_E_INVALIDARG;
+            auto* args = Guest<be<uint32_t>>(buffer);
+            const uint32_t size = args[6], results = args[7];
+            if (!results || size < 8)
+                return X_E_INVALIDARG;
+            // XSESSION_SEARCHRESULT_HEADER: count, pointer to results. Clear
+            // both even when the caller's buffer contains an earlier search.
+            *Guest<be<uint32_t>>(results) = 0;
+            *Guest<be<uint32_t>>(results + 4) = 0;
+            fprintf(stderr, "[online] XGI session search: proc %u, user %u, max %u, props %u, contexts %u, size %u: empty\n",
+                uint32_t(args[0]), uint32_t(args[1]), uint32_t(args[2]),
+                uint32_t(*Guest<be<uint16_t>>(buffer + 12)), uint32_t(*Guest<be<uint16_t>>(buffer + 14)), size);
+            if (getenv("BURNOUT_LOG_NET") && uint32_t(args[5]))
+                for (uint32_t i = 0; i < uint32_t(*Guest<be<uint16_t>>(buffer + 14)); ++i)
+                {
+                    const uint32_t context = uint32_t(args[5]) + i * 8;
+                    fprintf(stderr, "[online] search context %08X = %08X\n",
+                        uint32_t(*Guest<be<uint32_t>>(context)), uint32_t(*Guest<be<uint32_t>>(context + 4)));
+                }
+            return X_E_SUCCESS;
+        }
         case 0x000B0011:  // XGISessionDelete
         case 0x000B0012:  // XGISessionJoinLocal/Remote
         case 0x000B0013:  // XGISessionLeaveLocal/Remote
@@ -507,7 +530,10 @@ namespace
             return X_E_SUCCESS;
         }
         case 0x000B001A:  // XSessionArbitrationRegister: at a race's start
+            fprintf(stderr, "[online] XGI session arbitration: no Xbox Live arbitration service\n");
+            return X_E_SUCCESS;
         case 0x000B0025:  // XSessionWriteStats: at its end
+            fprintf(stderr, "[online] XGI session stats: accepted, not stored (no ranking service)\n");
             return X_E_SUCCESS;
         default:
             return X_E_NOTFOUND;
@@ -520,7 +546,7 @@ namespace
             return XmpDispatch(message, buffer, length);
         if (online::Enabled() && (app == 0xFB || app == 0xFC))
         {
-            const uint32_t result = app == 0xFC ? XLiveBaseOnline(message, buffer, length) : XgiOnline(message, buffer);
+            const uint32_t result = app == 0xFC ? XLiveBaseOnline(message, buffer, length) : XgiOnline(message, buffer, length);
             if (result != X_E_NOTFOUND)
                 return result;
         }

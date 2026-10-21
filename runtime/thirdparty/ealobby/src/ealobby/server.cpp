@@ -919,10 +919,17 @@ void Server::HandleLobby(Connection& connection, const Message& message) {
     return;
   }
   if (message.command == "gqwk") {
-    // Quick match: the first open game with room, or none.
+    // Quick match: GS1 is Burnout's ranked choice (1 ranked, 0 player).
+    // Its gcre uses SYSFLAGS bit 18 for ranked; both modes share the
+    // other flags (observed 262464 / 320). Keep that choice on LAN too.
+    const auto ranked_fits = [&](const std::string& sysflags) {
+      const std::string want = field("GS1", "");
+      return (want != "0" && want != "1") || ((number(sysflags) & 0x40000) != 0) == (want == "1");
+    };
     Game* game = nullptr;
     for (auto& [id, g] : games_) {
-      if (id != connection.game && !locked(g) && std::stoi(g.maxsize.empty() ? "0" : g.maxsize) >
+      if (id != connection.game && !locked(g) && ranked_fits(g.sysflags) &&
+          std::stoi(g.maxsize.empty() ? "0" : g.maxsize) >
                                        static_cast<int>(g.players.size())) {
         game = &g;
         break;
@@ -939,7 +946,7 @@ void Server::HandleLobby(Connection& connection, const Message& message) {
           const auto it = remote.record.find(key);
           return it != remote.record.end() ? it->second : std::string();
         };
-        if ((number(field_of("SYSFLAGS")) & 0x1000) == 0 &&
+        if ((number(field_of("SYSFLAGS")) & 0x1000) == 0 && ranked_fits(field_of("SYSFLAGS")) &&
             number(field_of("COUNT")) < number(field_of("MAXSIZE")) && join_remote(remote_id, remote)) {
           return;
         }
@@ -947,7 +954,10 @@ void Server::HandleLobby(Connection& connection, const Message& message) {
     }
     if (!game) {
       Log("lobby: gqwk - no open game");
-      Send(connection, Encode(message.command, Fields{}, "gjnf"));
+      // DirtySock maps nfnd to -52 (sub_82368710's error decoder),
+      // which Quick Match handles with its own no-match dialog. Unknown
+      // gjnf mapped to 0 and falsely showed a connection problem.
+      Send(connection, Encode(message.command, Fields{}, "nfnd"));
       return;
     }
     LeaveGame(connection);

@@ -158,6 +158,22 @@ int main()
     const Fields set = b.Ask("gset", { { "MAXSIZE", "2" }, { "KICK", "MacA" }, { "USERPARAMS", "7" } });
     assert(set.at("MAXSIZE") == "8" && set.at("COUNT") == "2" && set.at("OPPARAM1") == "7");
 
+    // Ranked and Player Match must remain separate even when both have
+    // room; a locked or full ranked game must not fall back to a player game.
+    Client c = LogIn(options, "MacC", "127.0.0.4");
+    const Fields ranked = c.Ask("gcre", {{"SYSFLAGS", "262464"}, {"MAXSIZE", "4"}});
+    const Fields rankedJoin = b.Ask("gqwk", {{"GS0", "50"}, {"GS1", "1"}});
+    assert(rankedJoin.at("IDENT") == ranked.at("IDENT") && rankedJoin.at("COUNT") == "2");
+    const Fields playerJoin = b.Ask("gqwk", {{"GS0", "50"}, {"GS1", "0"}});
+    assert(playerJoin.at("IDENT") == mine.at("IDENT"));
+    c.Ask("gset", {{"SYSFLAGS", "266560"}});  // ranked + locked
+    b.Send("gqwk", {{"GS1", "1"}});
+    assert(b.Wait("gqwk").code == "nfnd");
+    c.Ask("gset", {{"SYSFLAGS", "262464"}, {"MAXSIZE", "1"}});
+    b.Send("gqwk", {{"GS1", "1"}});
+    assert(b.Wait("gqwk").code == "nfnd");
+    close(c.fd);
+
     // A client can't make itself a server's peer link where there is no
     // seamless multiplayer (ours, README): xhlo is ignored, and the
     // connection stays a player's.

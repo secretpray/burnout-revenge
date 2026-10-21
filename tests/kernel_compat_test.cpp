@@ -18,6 +18,7 @@
 #include <unordered_set>
 
 uint32_t XMsgSystemProcessCall(uint32_t, uint32_t, uint32_t, uint32_t);
+uint32_t XMsgStartIORequest(uint32_t, uint32_t, XXOVERLAPPED*, uint32_t, uint32_t);
 PPC_EXTERN_FUNC(__imp__RtlUnicodeStringToAnsiString);
 PPC_EXTERN_FUNC(__imp__RtlFreeAnsiString);
 
@@ -44,7 +45,12 @@ void ImportTraceCall(const char*, const PPCContext&) {}
 void ImportTraceReturn(const char*, const PPCContext&) {}
 void GuestThread::SetLastError(uint32_t) {}
 namespace hid { void ScriptEvent(const char*) {} }
-void CompleteOverlapped(XXOVERLAPPED*, uint32_t, uint32_t, uint32_t) { assert(false); }
+static uint32_t completed = 0;
+void CompleteOverlapped(XXOVERLAPPED* o, uint32_t result, uint32_t error, uint32_t length)
+{
+    ++completed;
+    o->Error = result; o->dwExtendedError = error; o->Length = length;
+}
 namespace vfs
 {
     std::optional<Resolved> Resolve(std::string_view path, bool) { return Resolved{std::filesystem::path(path), true}; }
@@ -300,11 +306,45 @@ static void TestMyMusic()
     printf("XMP My Music: own files in the playlist's place, skips, switches and failures\n");
 }
 
+// A reused search buffer must not expose stale sessions after a successful
+// empty search; the asynchronous ABI must also finish the request.
+static void TestSessionSearch()
+{
+    auto* args = At<be<uint32_t>>(0x2000);
+    const uint32_t words[] = {1, 0, 4, 2, 0, 0x2200, 8192, 0x3000};
+    for (size_t i = 0; i < 8; ++i) args[i] = words[i];
+    auto reset = [] { memset(At<uint8_t>(0x2FFC), 0xA5, 16); };
+    auto check = [] {
+        assert(*At<be<uint32_t>>(0x3000) == 0 && *At<be<uint32_t>>(0x3004) == 0);
+        assert(*At<be<uint32_t>>(0x2FFC) == 0xA5A5A5A5 && *At<be<uint32_t>>(0x3008) == 0xA5A5A5A5);
+    };
+    reset();
+    assert(XMsgSystemProcessCall(0xFB, 0xB0016, 0x2000, 32) == 0);
+    check();
+    reset();
+    XXOVERLAPPED o{};
+    o.Error = 0xFFFFFFFF;
+    assert(XMsgStartIORequest(0xFB, 0xB0016, &o, 0x2000, 32) == 997);
+    assert(completed == 1 && o.Error == 0 && o.Length == 0 && o.dwExtendedError == 0);
+    check();
+    reset();
+    args[6] = 7;
+    assert(XMsgSystemProcessCall(0xFB, 0xB0016, 0x2000, 32) == 0x80070057);
+    assert(*At<be<uint32_t>>(0x3000) == 0xA5A5A5A5);
+    args[6] = 8192; args[7] = 0;
+    assert(XMsgSystemProcessCall(0xFB, 0xB0016, 0x2000, 32) == 0x80070057);
+    assert(XMsgSystemProcessCall(0xFB, 0xB0016, 0, 32) == 0x80070057);
+    assert(XMsgSystemProcessCall(0xFB, 0xB0016, 0x2000, 28) == 0x80070057);
+    puts("session search: empty header, bounds, reused buffer and overlapped completion");
+}
+
 int main()
 {
+    setenv("BURNOUT_ONLINE", "1", 1);
     g_memory.base = memory.data();
     TestRtl();
     TestXmp();
     TestMyMusic();
+    TestSessionSearch();
     puts("kernel_compat_test: real RTL exports and XMsg dispatcher passed");
 }

@@ -34,6 +34,12 @@ Changes of ours go in separate commits on top, each listed here:
   told first called the joiner before it knew the game (the fourth player of
   a Crash Party never connected). EA's servers answered the joiner first too.
 
+- `server.cpp`: Quick Match honours Burnout's `GS1` Ranked/Player choice
+  against `SYSFLAGS` bit 18, for local and LAN-announced games. An open
+  Player Match cannot be returned to a Ranked search (or the reverse). No
+  open game returns DirtySock's `nfnd` (-52, no match), rather than the
+  unknown `gjnf` that showed a connection problem.
+
 What it cannot do: tell who a player is. EA's servers trusted Xbox Live for
 the gamertag; here a client's `auth` names its persona, and anyone can log in
 as anyone (and so reach that persona's Burnout Clips in the Locker). Run a

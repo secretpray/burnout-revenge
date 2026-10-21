@@ -31,6 +31,19 @@ After a failed sign-in the game doesn't ask the server again for a while
 (5 seconds, then 10, 20, 40, at most 60): a server that is down isn't
 pressed with retries. Signing in resets it.
 
+## Ranked
+
+Choose **Quick Match > Ranked** to find a game, or **Create Match** with
+**Ranked: Yes** to host one. On the bundled server and LAN, if no matching
+room is open, the game offers to create one. Ranked searches and Player
+Match searches stay separate there. Other servers choose their own matches.
+
+Ranked here is a way to play the game's Ranked matches. There is **no global
+ranking, TrueSkill matchmaking or saved leaderboard**: World Rank remains
+unavailable, and Scoreboards has no categories. Results within a match
+still belong to that match. The lobby protocol stays compatible with
+Xerenge; no new ranking service is required.
+
 ## Your own server
 
 The app has the server inside it:
@@ -71,8 +84,7 @@ signed ad hoc, so macOS may ask again after an update.
 
 ## What doesn't work
 
-- **Ranked** matches: the game searches Xbox Live sessions for them, which
-  nothing answers yet.
+- Global rankings, TrueSkill matchmaking and Scoreboards (see Ranked above).
 - **Revenge Rivals**, the news ticker and voice chat.
 - Friends, messages and gamer cards are the game's own screens over Xbox
   Live services that don't exist any more.
