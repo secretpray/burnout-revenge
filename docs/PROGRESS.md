@@ -346,3 +346,51 @@ Applications/draft cda797a still lack those changes. Package validation remains
 open. Keep the current name-entry UI unless the actual Burnout APT screen is
 proved more faithful and complete; Xerenge's ImGui dialog is not that screen.
 Detailed open work and a compact new-chat prompt are now maintained separately.
+
+
+## 2026-10-21: v0.1.17 — Ranked matchmaking
+
+Published Latest at `44688ff3bfc663fe305cfb847c94edaff90b5e1a`; installed from the
+release's downloaded DMG. SHA-256:
+`71fcb3d473b94331f284fd50cb7c4dbda986bbe280c903b461f7ec964011d9c9`.
+All seven downloaded assets matched the local bytes; check_app PASS on the DMG,
+codesign and installed binary hashes checked. Standalone tests: 75/75 on the
+v0.1.17 candidate without retries. Earlier investigation under four running games
+hit the known swapchain_use_test scheduling threshold; its separate repeat passed.
+The packaged clean-commit candidate ran for 45 s with no stubs or hang, showed the
+v0.1.17 release note, closed it and reached the main menu (frames and log).
+
+XSessionSearch (`0x000B0016`): `sub_82421818` builds 32 bytes: proc/user/max (BE32),
+property/context counts (BE16), their pointers, result capacity and result pointer.
+Observed proc 0, max 5, props 0, contexts 2, capacity 6638; contexts `0x800A` is
+0 Ranked / 1 Player and `0x800B` is 0. An empty count/pointer header (8 bytes)
+completes successfully, including overlapped calls; the game then sends `gqwk`
+with empty `MACHINT`. The lobby supplies the host's SESS, so no fabricated Xbox
+Live session list or TrueSkill service is needed. Host flags `0x43F`, join `0x43E`.
+Reused output buffers, guards, invalid sizes and asynchronous completion are tested.
+
+The lobby's `GS1` (1 Ranked / 0 Player) matches SYSFLAGS bit 18 (observed 262464 /
+320). Quick Match now filters both local and LAN-announced games; a regression
+test has both modes open, then a ranked game locked/full. No match returns `nfnd`,
+which `sub_82368710` maps to -52; `sub_82218098` shows the original offer to create a
+match. Unknown `gjnf` had mapped to 0 and shown Connection problem. Frames confirmed
+the offer and Yes -> Game Options with Ranked: Yes. The author's server retains
+its own selection/error behavior; our wire protocol is unchanged.
+
+Ranked Race reached results with 2 and 4 copies on our server and on LAN, and
+2 copies through the author's community server. Logs confirm every participant's
+session start, stat writes and end; frames show the four-player LAN result table
+(6/5/4/3 points, the last bot's normal race TIMEOUT), and return/restart was checked.
+All were virtual pads on one Mac; no confirmation between two physical Macs.
+The first four-copy scenario started with three before the last bot entered and
+was not counted. The corrected harness starts each next copy after the previous
+session, delays the host 45 s per bot, and uses BOTS_SHORT_RACE=1 (one lap, one round).
+BOTS_RANKED=1 selects Ranked. Completed runs/screenshots/raw logs were removed;
+compact results remain in build/online-validation/ranked-investigation-summary.json.
+
+User decision (21.10): no global ranking, TrueSkill or saved leaderboard, preserve
+community-server compatibility. Scoreboards shows NO CHARS before any stat read;
+arbitration/stat writes are accepted without an Xbox Live ranking service. The
+limitation is explicit in CHANGELOG/README/ONLINE and the in-game release note.
+Automated runs now use BURNOUT_MUTE=1 (user request); saved audio preferences and
+the user's real saves were not changed. Temporary test lobby stopped.
