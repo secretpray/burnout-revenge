@@ -6,8 +6,8 @@
 // thread resumes them for more. A resume that lands before the worker's own
 // suspend (often, on our cores) would be lost, as a plain count loses it, and
 // once the last one before the main thread waits for their output (E_PENDING)
-// was, the game hung at launch (1 in ~100 with Skip Intro Movies; ACTIVE_WORK
-// 3b). So that resume is kept: the next self-suspend returns at once and the
+// was, the game hung at launch (1 in ~100 with Skip Intro Movies, 18.10.2026).
+// So that resume is kept: the next self-suspend returns at once and the
 // worker looks for work again, as its loop does after any wake. One is kept
 // at most, so resumes don't pile up into suspends skipped later.
 #pragma once

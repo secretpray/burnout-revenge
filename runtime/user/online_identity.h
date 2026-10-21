@@ -1,6 +1,6 @@
 // Burnout Revenge port. GPL-3.0-or-later (see COPYING).
 //
-// Who this console is online (docs/ONLINE_PLAN_RU.md): its gamertag and the
+// Who this console is online (docs/ONLINE.md): its gamertag and the
 // XUID that goes with it. Header only, so tests/online_identity_test.cpp can
 // check it without the game.
 //

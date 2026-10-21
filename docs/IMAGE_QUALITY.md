@@ -1,6 +1,6 @@
 # Image quality: anti-aliasing measurements
 
-Date: 2026-10-18. Apple M1 Pro, macOS 27.0.1. Stage 4 of [the roadmap](ROADMAP_RU.md).
+Date: 2026-10-18. Apple M1 Pro, macOS 27.0.1. Stage 4 of the roadmap of the time (image quality).
 Same route as [the shader baseline](SHADER_PREP_BASELINE.md) (profile save copy,
 virtual pad to a Traffic Attack race), internal 1.5x (1080p), Bicubic scaling,
 `BURNOUT_GPU_TIMING=1`; captures at 85/95 s. Frames differ run to run (traffic),

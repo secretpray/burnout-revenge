@@ -1,7 +1,7 @@
 # Shader/PSO preparation: baseline measurement
 
 Date: 2026-10-18. Apple M1 Pro, macOS 27.0.1, v0.1.4 (ccf1e7e) from /Applications.
-Stage 3 of [the roadmap](ROADMAP_RU.md) starts with this measurement: is first-use
+Stage 3 of the roadmap of the time (shader preparation) started with this measurement: is first-use
 shader or pipeline compilation a visible cost worth an optional preparation step?
 
 ## Method

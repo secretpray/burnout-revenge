@@ -1,8 +1,7 @@
 # Progress and known limitations
 
 Updated 2026-10-18. v0.1.0 is public; v0.1.1 remains a draft.
-**Current work:** [open tasks](ACTIVE_WORK.md), [detailed roadmap](ROADMAP_RU.md),
-[new-chat prompt](NEW_CHAT_PROMPT_RU.md).
+**Current work:** [the plan](PLAN_RU.md), [new-chat prompt](NEW_CHAT_PROMPT_RU.md).
 
 ## Verified before standalone extraction
 

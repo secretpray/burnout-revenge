@@ -1,6 +1,6 @@
 // Burnout Revenge port. GPL-3.0-or-later (see COPYING).
 //
-// Online play (docs/ONLINE_PLAN_RU.md), phase 0: the console says it is
+// Online play (docs/ONLINE.md), phase 0: the console says it is
 // signed in to Xbox Live, and game/online_log.cpp logs the login, to see
 // where it stops. Nothing is contacted yet: the network stays the offline
 // console's (kernel/burnout_imports.cpp).

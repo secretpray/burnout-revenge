@@ -68,7 +68,7 @@ endif()
 add_library(o1heap STATIC ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/o1heap/o1heap.c)
 # Xerenge's lobby server (thirdparty/ealobby, GPL-3.0-or-later, see its
 # README): a library, and burnout-lobby, a server of your own standing in for
-# EA's (docs/ONLINE_PLAN_RU.md, phase 2). Not on iOS.
+# EA's (docs/PLAN_RU.md, online). Not on iOS.
 if(NOT IOS)
     find_package(Threads REQUIRED)
     set(EALOBBY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/ealobby)

@@ -40,6 +40,6 @@ as anyone (and so reach that persona's Burnout Clips in the Locker). Run a
 server for people you know.
 
 Built by `runtime/CMakeLists.txt`: the `ealobby-core` library, the
-standalone server `burnout-lobby` (docs/ONLINE_PLAN_RU.md, phase 2), and the
+standalone server `burnout-lobby` (docs/ONLINE.md), and the
 game's own lobby for a LAN with no server (`BURNOUT_LOBBY_SERVER=lan`,
 `runtime/user/online.cpp`, phase 5).

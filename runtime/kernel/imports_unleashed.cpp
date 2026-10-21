@@ -255,7 +255,7 @@ uint32_t ObReferenceObjectByHandle(uint32_t handle, uint32_t objectType, be<uint
 namespace
 {
     // BURNOUT_LOG_SUSPEND=1: each self-suspend and resume (diagnosing the
-    // movie player's start, ACTIVE_WORK 3b).
+    // movie player's start, the hang at launch of 18.10.2026).
     bool LogSuspend()
     {
         static const bool log = std::getenv("BURNOUT_LOG_SUSPEND") != nullptr;
