@@ -14,6 +14,7 @@
 #include <user/key_names.h>
 
 #include <SDL3/SDL.h>
+#include <fstream>
 
 // key_map.h names XInput's bits as literals (it has no kernel header): keep
 // them the bits the game reads.
@@ -163,7 +164,7 @@ namespace
     // `polls`: how many of the game's reads have seen it - a tap lasts until
     // three have, however long a frame takes (with several copies running
     // one can take a second, and a tap would fall between two reads).
-    struct ScriptTap { double time; uint16_t buttons; int16_t lx, ly; double duration = 0.15; uint8_t lt = 0, rt = 0; int anchor = -1; int polls = 0; double base = 0.0; int until = -1; };
+    struct ScriptTap { double time; uint16_t buttons; int16_t lx, ly; double duration = 0.15; uint8_t lt = 0, rt = 0; int anchor = -1; int polls = 0; double base = 0.0; int until = -1; bool live = false; };
     std::vector<ScriptTap> s_script;
     // The events the script names ("@online+3:B") and when each last came
     // (seconds since launch, -1 not yet). Names are fixed once parsed; the
@@ -223,6 +224,85 @@ namespace
         return 0;
     }
 
+    // One "when:BUTTON" item of the script; `offset` (seconds since launch)
+    // is added to its times (a live command counts from when it came).
+    void ParseItem(const std::string& item, std::vector<ScriptTap>& out, double offset = 0.0)
+    {
+        size_t colon = item.find(':');
+        if (colon == std::string::npos)
+            return;
+        // "sec:BUTTON", "from-to/step:BUTTON" (a tap every `step` s) or
+        // "from~to:BUTTON" (held).
+        std::string when = item.substr(0, colon);
+        std::string name = item.substr(colon + 1);
+        const auto anchorIndex = [](const std::string& event) {
+            auto it = std::find(s_anchors.begin(), s_anchors.end(), event);
+            if (it == s_anchors.end())
+            {
+                s_anchors.push_back(event);
+                s_anchorTimes.push_back(-1.0);
+                it = s_anchors.end() - 1;
+            }
+            return int(it - s_anchors.begin());
+        };
+        int until = -1;
+        if (const size_t bang = name.find('!'); bang != std::string::npos)
+        {
+            until = anchorIndex(name.substr(bang + 1));
+            name.resize(bang);
+        }
+        ScriptTap proto{ 0, ButtonByName(name), 0, 0 };
+        proto.until = until;
+        // "@event+when": counted from the event (ScriptEvent), not launch.
+        if (when.size() > 1 && when[0] == '@')
+        {
+            const size_t plus = when.find('+');
+            const std::string event = when.substr(1, plus == std::string::npos ? std::string::npos : plus - 1);
+            when = plus == std::string::npos ? "0" : when.substr(plus + 1);
+            proto.anchor = anchorIndex(event);
+        }
+        if (name == "RT") proto.rt = 255;
+        else if (name == "LT") proto.lt = 255;
+        else if (name == "LL") proto.lx = -32767;
+        else if (name == "LR") proto.lx = 32767;
+        else if (name == "LU") proto.ly = 32767;
+        else if (name == "LD") proto.ly = -32767;
+        else if (proto.buttons == 0)
+        {
+            fprintf(stderr, "[input] script: unknown button in \"%s\"\n", item.c_str());
+            return;
+        }
+        uint16_t button = proto.buttons;
+        if (size_t tilde = when.find('~'); tilde != std::string::npos)
+        {
+            ScriptTap hold = proto;
+            hold.time = std::atof(when.substr(0, tilde).c_str());
+            hold.duration = std::atof(when.substr(tilde + 1).c_str()) - hold.time;
+            hold.time += offset;
+            out.push_back(hold);
+            return;
+        }
+        size_t dash = when.find('-'), slash = when.find('/');
+        if (dash != std::string::npos && slash != std::string::npos && slash > dash)
+        {
+            double from = std::atof(when.substr(0, dash).c_str());
+            double to = std::atof(when.substr(dash + 1, slash - dash - 1).c_str());
+            double step = std::max(0.2, std::atof(when.substr(slash + 1).c_str()));
+            for (double t = from; t <= to; t += step)
+            {
+                ScriptTap tap = proto;
+                tap.time = t + offset;
+                out.push_back(tap);
+            }
+        }
+        else
+        {
+            ScriptTap tap = proto;
+            tap.time = std::atof(when.c_str()) + offset;
+            out.push_back(tap);
+        }
+    }
+
     void ParseScript()
     {
         const char* s = std::getenv("BURNOUT_INPUT_SCRIPT");
@@ -233,82 +313,74 @@ namespace
         while (pos < all.size())
         {
             size_t end = all.find(',', pos);
-            std::string item = all.substr(pos, end == std::string::npos ? std::string::npos : end - pos);
+            ParseItem(all.substr(pos, end == std::string::npos ? std::string::npos : end - pos), s_script);
             pos = end == std::string::npos ? all.size() : end + 1;
-            size_t colon = item.find(':');
-            if (colon == std::string::npos)
-                continue;
-            // "sec:BUTTON", "from-to/step:BUTTON" (a tap every `step` s) or
-            // "from~to:BUTTON" (held).
-            std::string when = item.substr(0, colon);
-            std::string name = item.substr(colon + 1);
-            const auto anchorIndex = [](const std::string& event) {
-                auto it = std::find(s_anchors.begin(), s_anchors.end(), event);
-                if (it == s_anchors.end())
-                {
-                    s_anchors.push_back(event);
-                    s_anchorTimes.push_back(-1.0);
-                    it = s_anchors.end() - 1;
-                }
-                return int(it - s_anchors.begin());
-            };
-            int until = -1;
-            if (const size_t bang = name.find('!'); bang != std::string::npos)
-            {
-                until = anchorIndex(name.substr(bang + 1));
-                name.resize(bang);
-            }
-            ScriptTap proto{ 0, ButtonByName(name), 0, 0 };
-            proto.until = until;
-            // "@event+when": counted from the event (ScriptEvent), not launch.
-            if (when.size() > 1 && when[0] == '@')
-            {
-                const size_t plus = when.find('+');
-                const std::string event = when.substr(1, plus == std::string::npos ? std::string::npos : plus - 1);
-                when = plus == std::string::npos ? "0" : when.substr(plus + 1);
-                proto.anchor = anchorIndex(event);
-            }
-            if (name == "RT") proto.rt = 255;
-            else if (name == "LT") proto.lt = 255;
-            else if (name == "LL") proto.lx = -32767;
-            else if (name == "LR") proto.lx = 32767;
-            else if (name == "LU") proto.ly = 32767;
-            else if (name == "LD") proto.ly = -32767;
-            else if (proto.buttons == 0)
-            {
-                fprintf(stderr, "[input] script: unknown button in \"%s\"\n", item.c_str());
-                continue;
-            }
-            uint16_t button = proto.buttons;
-            if (size_t tilde = when.find('~'); tilde != std::string::npos)
-            {
-                ScriptTap hold = proto;
-                hold.time = std::atof(when.substr(0, tilde).c_str());
-                hold.duration = std::atof(when.substr(tilde + 1).c_str()) - hold.time;
-                s_script.push_back(hold);
-                continue;
-            }
-            size_t dash = when.find('-'), slash = when.find('/');
-            if (dash != std::string::npos && slash != std::string::npos && slash > dash)
-            {
-                double from = std::atof(when.substr(0, dash).c_str());
-                double to = std::atof(when.substr(dash + 1, slash - dash - 1).c_str());
-                double step = std::max(0.2, std::atof(when.substr(slash + 1).c_str()));
-                for (double t = from; t <= to; t += step)
-                {
-                    ScriptTap tap = proto;
-                    tap.time = t;
-                    s_script.push_back(tap);
-                }
-            }
-            else
-            {
-                ScriptTap tap = proto;
-                tap.time = std::atof(when.c_str());
-                s_script.push_back(tap);
-            }
         }
         fprintf(stderr, "[input] script: %zu taps\n", s_script.size());
+    }
+
+    // BURNOUT_INPUT_LIVE=<file>: a test's commands while the game runs, one
+    // per line appended to the file: a script item counted from when it is
+    // read ("0:A", "0~5:RT"), SHOT (the next frame, ui::RequestShot), CLEAR
+    // (lets go of every live input) or "KEY F1" (a key for our menus). For
+    // menus whose loading time varies: look at a frame, then press. Main
+    // thread (Update); the game's thread reads the script under s_mutex.
+    void ReadLive()
+    {
+        static const char* path = std::getenv("BURNOUT_INPUT_LIVE");
+        static double last = -1.0;
+        static std::streamoff offset = 0;
+        const double now = SecondsSinceLaunch();
+        if (!path || now - last < 0.1)
+            return;
+        last = now;
+        std::ifstream file(path);
+        if (!file || !file.seekg(offset))
+            return;
+        std::string line;
+        while (std::getline(file, line))
+        {
+            if (file.eof())
+                break;  // a line still being written
+            offset = file.tellg();
+            if (line == "SHOT")
+                ui::RequestShot();
+            else if (line.starts_with("KEY "))
+            {
+                // Our menus' keys (F1, Down, Return): what BURNOUT_UI_KEYS sends.
+                const SDL_Keycode key = SDL_GetKeyFromName(line.c_str() + 4);
+                // The game's window, focused or not (a test runs in the background).
+                int count = 0;
+                SDL_Window** windows = SDL_GetWindows(&count);
+                SDL_Window* window = count > 0 ? windows[0] : nullptr;
+                SDL_free(windows);
+                for (bool down : { true, false })
+                {
+                    SDL_Event e{};
+                    e.type = down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+                    e.key.timestamp = SDL_GetTicksNS();
+                    e.key.windowID = window ? SDL_GetWindowID(window) : 0;
+                    e.key.key = key;
+                    e.key.scancode = SDL_GetScancodeFromKey(key, nullptr);
+                    e.key.down = down;
+                    SDL_PushEvent(&e);
+                }
+            }
+            else if (line == "CLEAR")
+            {
+                std::lock_guard lock(s_mutex);
+                std::erase_if(s_script, [](const ScriptTap& tap) { return tap.live; });
+            }
+            else if (!line.empty())
+            {
+                std::lock_guard lock(s_mutex);
+                const size_t first = s_script.size();
+                ParseItem(line, s_script, now);
+                for (size_t i = first; i < s_script.size(); ++i)
+                    s_script[i].live = true;
+            }
+            fprintf(stderr, "[input] live: \"%s\" at %.1f s\n", line.c_str(), now);
+        }
     }
 
     // Apply the scripted inputs active now on top of the device state.
@@ -924,6 +996,7 @@ namespace hid
         // when one of our panels draws a hint.
         if (!s_glyphsKnown)
             LastGlyphs();
+        ReadLive();
         const std::string padSteps[2] = { StepVirtualPad(s_virtualPads[0]), StepVirtualPad(s_virtualPads[1]) };
         if (const std::string wheelSteps = virtual_wheel::Step(SecondsSinceLaunch()); !wheelSteps.empty())
             fprintf(stderr, "[wheel] virtual wheel %s\n", wheelSteps.c_str());

@@ -477,6 +477,27 @@ namespace settings
               .table = "online", .key = "server", .label = "Server",
               .description = "Where players meet: the Xerenge community server (by shipa-2), a server of your own, or the local network with no server (no Burnout Clips there). Changes apply after restarting the game.",
               .env = "BURNOUT_ONLINE_SERVER", .defaultValue = 0, .entries = kOnlineServers },
+            // Codes: an environment override cannot bypass the runtime guard.
+            { .id = Id::InfiniteBoost, .category = Category::Codes, .type = Type::Bool, .apply = Apply::Live,
+              .table = "codes", .key = "infinite_boost", .label = "Infinite Boost",
+              .description = "Keep boost full at level 4 in solo World Tour driving events. Turning this off restores the level from before the Code. Career progress is saved normally. Disabled in local Multiplayer, Burnout Clips and every run with Online Play enabled. Crash is unchanged.",
+              .env = "BURNOUT_INFINITE_BOOST", .defaultValue = 0 },
+            { .id = Id::InfiniteTime, .category = Category::Codes, .type = Type::Bool, .apply = Apply::Live,
+              .table = "codes", .key = "infinite_time", .label = "Infinite Time",
+              .description = "Stop the event countdown in solo World Tour driving events. Driving and crashes continue normally. Turn this off to finish events that end on timeout. Disabled with Online Play and in Multiplayer, Crash and clips.",
+              .env = "BURNOUT_INFINITE_TIME", .defaultValue = 0 },
+            { .id = Id::QuickMoney, .category = Category::Codes, .type = Type::Bool, .apply = Apply::Live,
+              .table = "codes", .key = "quick_money", .label = "Quick Money",
+              .description = "Earn at least $30,000 per traffic hit in solo World Tour Traffic Attack. This changes the event score saved to your career. Disabled with Online Play and in Multiplayer.",
+              .env = "BURNOUT_QUICK_MONEY", .defaultValue = 0 },
+            { .id = Id::QuickTakedowns, .category = Category::Codes, .type = Type::Bool, .apply = Apply::Live,
+              .table = "codes", .key = "quick_takedowns", .label = "Quick Takedowns",
+              .description = "Reach 99 event Takedowns after your first real Takedown in solo World Tour. This changes career results. Disabled with Online Play and in Multiplayer.",
+              .env = "BURNOUT_QUICK_TAKEDOWNS", .defaultValue = 0 },
+            { .id = Id::EasyBoost, .category = Category::Codes, .type = Type::Bool, .apply = Apply::Live,
+              .table = "codes", .key = "easy_boost", .label = "Easy Boost",
+              .description = "Earn a full current boost bar from a Near Miss. Lower the speed and distance required for Near Miss and drift boost in solo World Tour. Disabled with Online Play and in Multiplayer.",
+              .env = "BURNOUT_EASY_BOOST", .defaultValue = 0 },
             // Advanced
             { .id = Id::AsyncShaders, .category = Category::Advanced, .type = Type::Bool, .apply = Apply::Live,
               .table = "advanced", .key = "async_shaders", .label = "Asynchronous Shaders",
@@ -1326,6 +1347,7 @@ namespace settings
         case Category::Controls: return "Controls";
         case Category::Wheel: return "Wheel";
         case Category::Online: return "Online";
+        case Category::Codes: return "Codes";
         case Category::Advanced: return "Advanced";
         default: return "";
         }

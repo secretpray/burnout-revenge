@@ -38,6 +38,10 @@
 //     "...:START!race": no more once `race` has come after it. A tap lasts
 //     until the game has read it three times, however slow its frames.
 //     It feeds the game after the deadzones.
+//   - BURNOUT_INPUT_LIVE=<file>: the same items appended to a file while
+//     the game runs, counted from when each is read ("0:A"), SHOT for a
+//     capture, CLEAR to let go and "KEY F1" for our menus: a test looks at
+//     a frame before its next press.
 //   - BURNOUT_VIRTUAL_PAD="2:LX=0.05,4:RT=0.06": an SDL virtual controller whose
 //     axes take those values at those seconds, through the deadzones, and
 //     whose rumble is logged with what the game asked for (tests of the

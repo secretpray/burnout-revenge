@@ -116,6 +116,18 @@
   [docs/ONLINE.md](docs/ONLINE.md). Xbox Live friends, messages, player reviews
   and gamer cards are unavailable; their buttons leave the game running.
 
+**Offline Codes**
+
+- Settings > Codes, each off by default and applied live, solo World Tour only:
+  **Infinite Boost** (full bar at level 4), **Infinite Time** (event countdown
+  stopped), **Quick Money** (at least $30,000 per Traffic Attack award),
+  **Quick Takedowns** (99 event Takedowns after the first real one) and
+  **Easy Boost** (a Near Miss fills the bar). Career progress saves normally,
+  so results earned with Codes stay in your career.
+  The game hook blocks them in local Multiplayer, Crash, clips and every run
+  with Online Play enabled. To use them, turn Online Play off and restart the game.
+  [Behavior and limits](docs/CODES_RU.md).
+
 **Controls**
 
 - Xbox controllers and DualSense through SDL, with vibration. Back + Start
@@ -225,6 +237,7 @@ Open with **F1**, **Cmd+,** or **Back + Start**. LB/RB (Q/E) switch pages.
 | Wheel | Shown while a steering wheel is plugged in: Steering Wheel, Steering Range, Invert Steering, Steering Deadzone, Steering Response, Force Feedback, Centering Force, Calibrate |
 | Controls | Two keys for each Xbox 360 control |
 | Online | Online Play, Server (Xerenge Community, My Server, LAN), Gamertag, Server Address, Check Server ([online play](docs/ONLINE.md)) |
+| Codes | Infinite Boost, Infinite Time, Quick Money, Quick Takedowns, Easy Boost; solo World Tour only, off by default |
 | Advanced | Asynchronous Shaders, Performance Overlay, Auto-import Add-ons, Skip Intro Movies, Save Bug Report, Check for Updates, Add-ons, Save Backups, About |
 
 A good start on an M1 Pro: 1.5x internal resolution (1080p), SMAA, Bicubic,

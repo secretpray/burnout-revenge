@@ -71,6 +71,12 @@ target_include_directories(online_compat_test PRIVATE ${RT}/kernel ${RT}/thirdpa
     ${ROOT}/tools/XenonRecomp/XenonUtils ${ROOT}/tools/XenonRecomp/thirdparty/simde)
 target_compile_options(online_compat_test PRIVATE -fsanitize=address)
 target_link_options(online_compat_test PRIVATE -fsanitize=address)
+# Real Codes hook: fail closed for online, local multiplayer, Crash and AI.
+sb_test(codes_test SOURCES ${RT}/game/codes.cpp ${RT}/user/settings.cpp)
+target_include_directories(codes_test PRIVATE ${RT}/kernel ${RT}/thirdparty/o1heap ${BR_PPC_DIR}
+    ${ROOT}/tools/XenonRecomp/XenonUtils ${ROOT}/tools/XenonRecomp/thirdparty/simde)
+target_compile_options(codes_test PRIVATE -fsanitize=address)
+target_link_options(codes_test PRIVATE -fsanitize=address)
 sb_test(burnout_addon_package_test)
 # Burnout's XAudio voice mix (apu/voice_mix.h, header only) against the
 # recompiled function's arithmetic; replays a recording from the game when

@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.1.19
+
+- Settings > Codes: five offline modifiers for solo World Tour, all off by
+  default and applied live. Infinite Boost keeps a full level 4 boost bar
+  (turning it off restores the earlier level). Infinite Time stops the event
+  countdown; turning it off resumes from the frozen time. Quick Money raises
+  each Traffic Attack award to at least $30,000. Quick Takedowns sets the
+  event's Takedown count to 99 after the first real Takedown, so the HUD,
+  medal and results agree. Easy Boost fills the current bar on a Near Miss
+  and lowers the Near Miss and drift thresholds.
+- Each Code is checked in the game's own hook: local Multiplayer, Crash,
+  Burnout Clips, AI cars and any run with Online Play enabled are rejected,
+  even when an environment variable forces a Code on. Career progress made
+  with Codes is saved normally.
+
 ## v0.1.18
 
 - Fix an invalid memory write when the game requests an Xbox Live gamer
