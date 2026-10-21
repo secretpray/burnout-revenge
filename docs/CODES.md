@@ -12,10 +12,10 @@ code never edits your save file.
 | Infinite Boost | The player's boost bar is full at level 4 (720 in a Race); turning it off restores the earlier level | Race and Road Rage: level 4, 720/720 while A is held; AI cars are unaffected |
 | Infinite Time | The event timer does not run down; the game's own time bonuses still apply. Turning it off resumes from the frozen value | Road Rage: ~60 s held through 50+ s of driving; turned off from the menu mid-event, the countdown continued from the same value and the event finished normally |
 | Quick Money | Every Traffic Attack award is at least $30,000 | Traffic Attack: a 3,000 Traffic Check paid 30,000; the HUD reached $2,220,000 against a $1,250,000 gold target |
-| Quick Takedowns | After your first real Takedown the event counts 99; later Takedowns add normally | Road Rage results: **108 Takedowns, GOLD, AWESOME** |
+| Quick Takedowns | After your first real Takedown the event counts 99; later Takedowns add normally | Road Rage results: **100 Takedowns, GOLD, AWESOME** |
 | Easy Boost | A Near Miss fills the current boost bar; Near Miss and drift need less speed and distance | Race: the bar went from 0/240 to 240/240 on the first Near Miss |
 
-![Road Rage results with Quick Takedowns](screenshots/codes-takedowns-gold.png)
+![Road Rage results with Quick Takedowns](screenshots/codes-takedowns-gold.jpg)
 
 ## Limits
 

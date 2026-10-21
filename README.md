@@ -196,9 +196,9 @@ in your career.
 | **Easy Boost** | A Near Miss fills the current bar, and Near Miss and drift need less speed and distance |
 
 <p align="center">
-  <img src="docs/screenshots/codes-takedowns-gold.png" alt="Road Rage results: Rating Awesome, 108 Takedowns, Gold medal awarded" width="50%">
+  <img src="docs/screenshots/codes-takedowns-gold.jpg" alt="Road Rage results: Rating Awesome, 100 Takedowns, Gold medal awarded" width="70%">
   <br>
-  <sub>Road Rage with Quick Takedowns: 108 Takedowns, a Gold medal.</sub>
+  <sub>Road Rage with Quick Takedowns: 100 Takedowns, a Gold medal.</sub>
 </p>
 
 Fair play is enforced inside the game's own code, not just in the menu: every Code
