@@ -17,6 +17,8 @@
   &nbsp;·&nbsp;
   <a href="#highlights">Highlights</a>
   &nbsp;·&nbsp;
+  <a href="#offline-codes">Codes</a>
+  &nbsp;·&nbsp;
   <a href="#settings">Settings</a>
   &nbsp;·&nbsp;
   <a href="CHANGELOG.md">Changelog</a>
@@ -52,6 +54,11 @@
 
 <sub>Unedited screenshots from this port on an M1 Pro. The game content in them belongs to its owners.</sub>
 
+> [!TIP]
+> **New in v0.1.19: offline Codes.** Infinite Boost, Infinite Time, Quick Money,
+> Quick Takedowns and Easy Boost for your solo World Tour career, one switch each in
+> Settings > Codes. [See how they work](#offline-codes).
+
 **TL;DR**
 
 - The original 2006 Xbox 360 game runs as a native Mac app: its own cars, tracks,
@@ -63,6 +70,8 @@
 - [Download](https://github.com/secretpray/burnout-revenge/releases/latest) the DMG, drag the app to
   Applications, open it and choose your disc image. It checks and installs the
   game, then you play.
+- Optional offline [Codes](#offline-codes) for the solo career, and Xbox Live
+  play again through community or your own servers.
 - Updates install over the old version. Saves and settings stay.
 - Settings: **F1**, **Cmd+,** or **Back + Start** on a controller.
 
@@ -116,18 +125,6 @@
   [docs/ONLINE.md](docs/ONLINE.md). Xbox Live friends, messages, player reviews
   and gamer cards are unavailable; their buttons leave the game running.
 
-**Offline Codes**
-
-- Settings > Codes, each off by default and applied live, solo World Tour only:
-  **Infinite Boost** (full bar at level 4), **Infinite Time** (event countdown
-  stopped), **Quick Money** (at least $30,000 per Traffic Attack award),
-  **Quick Takedowns** (99 event Takedowns after the first real one) and
-  **Easy Boost** (a Near Miss fills the bar). Career progress saves normally,
-  so results earned with Codes stay in your career.
-  The game hook blocks them in local Multiplayer, Crash, clips and every run
-  with Online Play enabled. To use them, turn Online Play off and restart the game.
-  [Behavior and limits](docs/CODES.md).
-
 **Controls**
 
 - Xbox controllers and DualSense through SDL, with vibration. Back + Start
@@ -178,6 +175,37 @@
 - Save Bug Report gathers the logs and settings into one file; Check for
   Updates asks GitHub for a newer release.
 
+## Offline Codes
+
+<p align="center">
+  <img src="docs/screenshots/settings-codes.jpg" alt="Settings, Codes page: Infinite Boost On, Infinite Time Off, Quick Money Off, Quick Takedowns On and selected with its description, Easy Boost Off" width="85%">
+  <br>
+  <sub>Settings > Codes: one switch each, off by default, applied at once.</sub>
+</p>
+
+Five modifiers for the **solo World Tour**, modelled on the old Xbox 360 trainers.
+They change what the game awards, not how it saves: results earned with a Code stay
+in your career.
+
+| Code | What it does |
+|---|---|
+| **Infinite Boost** | The boost bar stays full at level 4. Turn it off and your earlier level comes back |
+| **Infinite Time** | The event countdown stops; the game's own time bonuses still apply. Turn it off to finish an event that ends on timeout |
+| **Quick Money** | Every Traffic Attack award is at least $30,000 |
+| **Quick Takedowns** | After your first real Takedown the event counts 99, and the HUD, medal and results agree |
+| **Easy Boost** | A Near Miss fills the current bar, and Near Miss and drift need less speed and distance |
+
+<p align="center">
+  <img src="docs/screenshots/codes-takedowns-gold.png" alt="Road Rage results: Rating Awesome, 108 Takedowns, Gold medal awarded" width="50%">
+  <br>
+  <sub>Road Rage with Quick Takedowns: 108 Takedowns, a Gold medal.</sub>
+</p>
+
+Fair play is enforced inside the game's own code, not just in the menu: every Code
+is rejected in local Multiplayer, Crash, Burnout Clips, for AI cars and in any run
+with Online Play enabled. To use them, turn Online Play off and restart the game.
+Details, limits and how each Code was checked: [docs/CODES.md](docs/CODES.md).
+
 ## Quick start
 
 1. Download **BurnoutRevenge-x.y.z-macos.dmg** from
@@ -226,6 +254,10 @@ Open with **F1**, **Cmd+,** or **Back + Start**. LB/RB (Q/E) switch pages.
     <td width="50%"><img src="docs/screenshots/settings-audio-my-music.jpg" alt="Settings, Audio page: Music set to My Music, Music Folder with 2 files"><br><sub>Audio, with My Music.</sub></td>
     <td width="50%"><img src="docs/screenshots/settings-input.jpg" alt="Settings, Input page: Button Prompts set to Auto"><br><sub>Input, Button Prompts.</sub></td>
   </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/settings-codes.jpg" alt="Settings, Codes page with Quick Takedowns selected"><br><sub>Codes, solo career only.</sub></td>
+    <td width="50%"></td>
+  </tr>
 </table>
 
 | Page | What's there |
@@ -237,7 +269,7 @@ Open with **F1**, **Cmd+,** or **Back + Start**. LB/RB (Q/E) switch pages.
 | Wheel | Shown while a steering wheel is plugged in: Steering Wheel, Steering Range, Invert Steering, Steering Deadzone, Steering Response, Force Feedback, Centering Force, Calibrate |
 | Controls | Two keys for each Xbox 360 control |
 | Online | Online Play, Server (Xerenge Community, My Server, LAN), Gamertag, Server Address, Check Server ([online play](docs/ONLINE.md)) |
-| Codes | Infinite Boost, Infinite Time, Quick Money, Quick Takedowns, Easy Boost; solo World Tour only, off by default |
+| Codes | Infinite Boost, Infinite Time, Quick Money, Quick Takedowns, Easy Boost; solo World Tour only, off by default ([Codes](#offline-codes)) |
 | Advanced | Asynchronous Shaders, Performance Overlay, Auto-import Add-ons, Skip Intro Movies, Save Bug Report, Check for Updates, Add-ons, Save Backups, About |
 
 A good start on an M1 Pro: 1.5x internal resolution (1080p), SMAA, Bicubic,
