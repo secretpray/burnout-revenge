@@ -99,5 +99,4 @@ Environment variables override the settings for one run:
 Mac's address for the others, and the one its sockets use: `127.0.0.2`
 and `127.0.0.3` let two copies play on one Mac after
 `sudo ifconfig lo0 alias 127.0.0.2 up`), `BURNOUT_LOG_NET=1` (every
-network call in the log). What's next is in
-[PLAN_RU.md](PLAN_RU.md) (in Russian).
+network call in the log).

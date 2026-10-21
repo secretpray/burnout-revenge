@@ -714,8 +714,7 @@ def main():
             # failing and retrying ~3 times a second for the whole fullscreen
             # session; the DualSense dropped 6 s in and Magic Keyboard was
             # lost 5 s after Game Mode ended (runs 93 and 103). The same game
-            # outside Game Mode (run 96) had neither. See
-            # docs/RELEASE_VALIDATION_0.1.2.md.
+            # outside Game Mode (run 96) had neither.
             'LSApplicationCategoryType': 'public.app-category.racing-games',
             'LSSupportsGameMode': False,
             'GCSupportsControllerUserInteraction': True,

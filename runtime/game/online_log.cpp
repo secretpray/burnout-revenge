@@ -1,6 +1,6 @@
 // Burnout Revenge port. GPL-3.0-or-later (see COPYING).
 //
-// Online, phase 0 (docs/PLAN_RU.md, online): with BURNOUT_ONLINE the Xbox Live
+// Online, phase 0: with BURNOUT_ONLINE the Xbox Live
 // login is logged, to see where it stops - nothing here changes what the game
 // does. The login is CB4XenonLoginMenuState, a state machine in +0x140 that
 // sub_82217590 (its Action) runs each frame:

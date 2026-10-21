@@ -226,7 +226,7 @@ src/ealobby/, tools/ealobby/; ~4,000 lines plus the SDK half):
 
 Licence: Xerenge is GPL-3.0-or-later since `c023338` (2026-10-19), and its
 author agreed to our adapting `ealobby` and the `online_stub.cpp` notes, with
-copyright and credit kept (shipa-2/Xerenge#28; plan: docs/PLAN_RU.md). ReXGlue SDK is BSD-3 (Xenia-derived); the fork's SDK files
+copyright and credit kept (shipa-2/Xerenge#28). ReXGlue SDK is BSD-3 (Xenia-derived); the fork's SDK files
 can be adapted with the BSD notice kept, after checking each file's header.
 
 Fit for us: our network layer is now an honest offline console (v0.1.12). Online

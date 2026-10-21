@@ -1,6 +1,6 @@
 // Burnout Revenge port. GPL-3.0-or-later (see COPYING).
 //
-// Online, phase 3 (docs/PLAN_RU.md, online): the places after the lobby login
+// Online, phase 3: the places after the lobby login
 // where the game waits on EA's other servers, long gone. With BURNOUT_ONLINE
 // the lobby itself is real (Xerenge's ealobby or ours, kernel/xmsg.cpp gives
 // its address), and these are answered here:

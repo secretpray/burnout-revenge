@@ -155,31 +155,33 @@ if samples:
     }
     result['performance_medians'] = {key: round(statistics.median(s[key] for s in samples if key in s), 3) for key in keys}
 (out / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n')
-progress = ROOT / 'docs/PROGRESS.md'
+# A run diary kept outside the repository (private/ is ignored by git).
+progress = ROOT / 'private/docs/PROGRESS.md'
 if progress.exists():
-    status = 'остановлен по лимиту времени' if timed_out else f'завершился с кодом {code}'
+    status = 'stopped at the time limit' if timed_out else f'exited with code {code}'
     relative = out.relative_to(ROOT)
+    log_name = "session.log" if session_logs else "run.log"
     entry = (f'\n### {now} — {args.game}, {args.name}\n\n'
-             f'- Запуск {status}; длительность {result["duration"]} с.\n'
-             f'- Лог: [`{relative}/{"session.log" if session_logs else "run.log"}`](../{relative}/{"session.log" if session_logs else "run.log"}).\n'
-             f'- Кадров: {len(captures)}; папка `{relative}/build/`.\n'
-             f'- Звук: {"по умолчанию" if args.defaults else "включён" if args.sound else "принудительно выключен для проверки"}.\n'
-             f'- Шейдеры: {"по умолчанию" if args.defaults else "асинхронно" if args.async_shaders else "ожидание компиляции"}; '
-             f'контроллер: {"виртуальный тестовый" if not args.no_virtual_pad else "обычный ввод"}.\n'
-             f'- Аварийные импорты: {", ".join(missing) if missing else "в логе не зарегистрированы"}.\n'
-             '- Стадия меню/гонки требует визуальной проверки; автоматический отчёт её не подтверждает.\n')
+             f'- Run {status}; duration {result["duration"]} s.\n'
+             f'- Log: [`{relative}/{log_name}`](../../{relative}/{log_name}).\n'
+             f'- Frames: {len(captures)}; folder `{relative}/build/`.\n'
+             f'- Sound: {"default" if args.defaults else "on" if args.sound else "forced off for the check"}.\n'
+             f'- Shaders: {"default" if args.defaults else "asynchronous" if args.async_shaders else "wait for compilation"}; '
+             f'controller: {"virtual test pad" if not args.no_virtual_pad else "normal input"}.\n'
+             f'- Fatal imports: {", ".join(missing) if missing else "none registered in the log"}.\n'
+             '- The menu/race stage needs a visual check; the automatic report does not confirm it.\n')
     if samples:
-        entry += (f'- Периодические показатели после {args.measure_after:g} с '
-                  f'({len(samples)} выборок, средние значений логгера): '
+        entry += (f'- Periodic figures after {args.measure_after:g} s '
+                  f'({len(samples)} samples, means of the logger values): '
                   f'`{json.dumps(result["performance_means"])}`; '
-                  f'пул снимков: `{result["snapshot_slots"]}`. '
-                  'Это не распределение времени всех кадров.\n')
+                  f'snapshot pool: `{result["snapshot_slots"]}`. '
+                  'This is not the distribution of every frame time.\n')
     for warning in result['measurement_warnings']:
         entry += f'- **Measurement warning:** {warning}\n'
     if args.game == 'burnout':
-        entry += (f'- Add-on: зарегистрировано {len(addons)}; '
-                  f'ответы на перечисление игрой: `{addon_queries}`. '
-                  'Доступность каждой машины требует проверки в гараже.\n')
+        entry += (f'- Add-ons: {len(addons)} registered; '
+                  f'the game\'s enumeration answers: `{addon_queries}`. '
+                  'Whether each car is usable needs a check in the garage.\n')
     with progress.open('a') as doc:
         doc.write(entry)
 raise SystemExit(code if code >= 0 else 128 - code)

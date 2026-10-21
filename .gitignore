@@ -1,7 +1,17 @@
 # Game data is NEVER committed. Players supply their own disc.
 # (Anchored: runtime/game/ is source. No trailing slash: a symlink too.)
 /game
+# Working notes: the plan, progress diary, validation logs, drafts and research
+# in Russian. They stay on the author's disk (private/docs/); the repository
+# holds only documentation for users and contributors, in English.
 private/
+/private
+docs/*_RU.md
+docs/PROGRESS.md
+docs/NEW_CHAT_PROMPT*
+docs/RELEASE_0.1.0.md
+docs/RELEASE_VALIDATION_*
+docs/*_DRAFT.md
 *.iso
 *.xex
 *.xexp

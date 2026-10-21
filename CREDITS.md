@@ -62,6 +62,11 @@ detail, controller slots, safe saves and loading. No source blocks are copied
 from them. See the pinned revisions and boundaries in
 [the adoption plan](docs/EXTERNAL_PORTS_PLAN.md).
 
+The offline [Codes](docs/CODES.md) follow the behavior of the Xbox 360 trainers by
+RETROBYTE (Aurora) and TeamXPG (losparo / XPGObyto). They were read only to learn
+what each cheat changes; no code or binary patch was copied, and every function
+was found again in the game's own executable.
+
 Settings > Graphics > Motion Blur follows boma's Burnout Revenge game patch for
 Xenia, as Xerenge applies it (the motion blur's frame counter reads as finished);
 the code is our own. Bloom off does not use that patch set's bloom half (it greys

@@ -37,7 +37,7 @@ do not label a failed system-wide typing check a pass because the pad stays open
 The probe drains stop output briefly before close. That does not promise delivery
 under SIGKILL or a failed Bluetooth link. Build has been checked; physical runs
 are pending. These probe runs have no automatic game-progress update: record the
-experiment and result in PROGRESS after each run.
+experiment and its result yourself after each run.
 
 ## Fullscreen / Game Mode variable
 

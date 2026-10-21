@@ -126,7 +126,7 @@
   so results earned with Codes stay in your career.
   The game hook blocks them in local Multiplayer, Crash, clips and every run
   with Online Play enabled. To use them, turn Online Play off and restart the game.
-  [Behavior and limits](docs/CODES_RU.md).
+  [Behavior and limits](docs/CODES.md).
 
 **Controls**
 
@@ -280,8 +280,7 @@ Every key can be changed in Settings > Controls.
   any menu or mode tested.
 - Live frame generation is not enabled.
 
-More detail: [progress and limitations](docs/PROGRESS.md),
-[rendering notes](docs/RENDERING.md), [image quality measurements](docs/IMAGE_QUALITY.md).
+More detail: [rendering notes](docs/RENDERING.md), [image quality measurements](docs/IMAGE_QUALITY.md).
 
 ## Origins and license
 
