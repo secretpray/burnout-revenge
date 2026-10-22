@@ -18,6 +18,7 @@ static constexpr uint32_t kRecorder=0x82AFE440, kHeader=0x40000000, kPayload=kHe
 static constexpr uint32_t kEvent=0x8287EC90, kInput=0x50000000, kSnapshots=0x51000000;
 static PPCContext expected;
 namespace online { bool Enabled() { return live; } }
+namespace game::rewind::ring { void AtBoundary(PPCContext&, uint8_t*, uint32_t) {} }
 uint32_t GuestThread::GetCurrentThreadId() { return 1; }
 void* Heap::Alloc(size_t size) { assert(size <= 0x10000); ++allocations; return g_memory.base+kScratch; }
 void Heap::Free(void* p) { assert(p == g_memory.base+kScratch); ++frees; }

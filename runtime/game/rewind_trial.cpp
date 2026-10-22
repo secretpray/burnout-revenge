@@ -2,6 +2,7 @@
 // One native world checkpoint, deliberately restored only in an opt-in trial.
 #include <stdafx.h>
 #include "rewind_trial.h"
+#include "rewind_ring.h"
 #include "rewind_probe.h"
 #include <cpu/guest_thread.h>
 #include <user/online.h>
@@ -200,4 +201,5 @@ PPC_FUNC(sub_82346C68)
     const uint32_t recorder = ctx.r3.u32;
     __imp__sub_82346C68(ctx, base);
     game::rewind::trial::AtBoundary(ctx, base, recorder);
+    game::rewind::ring::AtBoundary(ctx, base, recorder);
 }

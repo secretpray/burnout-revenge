@@ -70,6 +70,37 @@ before accepting a restore path. Crash, Aftertouch, loading/unloading, save writ
 audio behavior and further modes need their own validation. The trial supplies
 no persistent state format and does not restore host threads or kernel objects.
 
+## Bounded history experiment
+
+`BURNOUT_REWIND_RING=10`, `20` or `30` enables a separate automatic experiment
+in solo World Tour Road Rage. `sequence` exercises all three durations in one
+event: 40 → 30, 51 → 31 and 62 → 32 seconds. Leave
+`BURNOUT_REWIND_TRIAL` unset. Use an isolated profile and mute automated runs.
+These switches are developer diagnostics; there is no player-facing rewind
+control yet, and both experiments are off by default.
+
+The ring invokes the native capture function at the end of the recorder update
+once per simulation second, starting at five seconds. It owns an immutable
+header/payload copy for each point, separately from the game's native 15-second
+Replay checkpoints. History is limited to 32 seconds, 34 points and 80 MiB of
+serialized data; a separate guest staging buffer is limited to 16 MiB plus its
+76-byte header. Eviction happens before allocating the new host payload. A
+large payload may shorten available history; a request without enough history
+is refused. Selection takes the most recent checkpoint at or before the target;
+it does not simulate forward to a fractional second.
+
+Restore checks the selected point's world clock, both RNG words and Road Rage
+deadline directly against the captured values. It preserves the PPC caller's
+registers, returns to live mode, truncates future native input/checkpoints, and
+restores the native recorder's last-capture clock. Points after the selected
+checkpoint are removed, and subsequent captures belong to the new branch.
+Capture and restore are restricted to the observed main guest thread (ID 1).
+Event changes, a backwards clock, Replay and recorder buffer changes invalidate
+history. Completion or invalidation frees the staging allocation.
+This is still an isolated experiment: other events, controlled Aftertouch,
+save/lifecycle interactions and audio need further game validation before UI
+or release integration.
+
 ## Tests
 
 `rewind_probe_test` executes the real observer hooks on inaccessible or read-only
@@ -82,3 +113,10 @@ serializer. It checks immutable cloning after the original buffer is overwritten
 PPC register preservation, return to live mode, future recording truncation,
 disabled/online behavior, and refusal after a buffer or event change. It does not
 validate the game's serializer; actual event runs are required for that.
+
+`rewind_ring_test` executes the real ring with a synthetic serializer under
+AddressSanitizer. It checks 10/20/30 selection after eviction, recording metadata,
+PPC register preservation, new branches, insufficient history under the memory
+cap, disabled/invalid/conflicting switches, online/Replay/event exclusions,
+buffer changes, capture failure, a foreign thread, and a reused event with a
+reset clock.

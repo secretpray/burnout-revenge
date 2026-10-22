@@ -101,6 +101,14 @@ target_link_options(rewind_trial_test PRIVATE -fsanitize=address)
 foreach(mode disabled online buffer event mode)
     add_test(NAME rewind_trial_${mode}_test COMMAND rewind_trial_test ${mode})
 endforeach()
+sb_test(rewind_ring_test SOURCES ${RT}/game/rewind_ring.cpp)
+target_include_directories(rewind_ring_test PRIVATE ${RT}/kernel ${RT}/thirdparty/o1heap ${BR_PPC_DIR}
+    ${ROOT}/tools/XenonRecomp/XenonUtils ${ROOT}/tools/XenonRecomp/thirdparty/simde)
+target_compile_options(rewind_ring_test PRIVATE -fsanitize=address)
+target_link_options(rewind_ring_test PRIVATE -fsanitize=address)
+foreach(mode disabled invalid trial thread online replay event buffer budget failed lifecycle)
+    add_test(NAME rewind_ring_${mode}_test COMMAND rewind_ring_test ${mode})
+endforeach()
 sb_test(burnout_addon_package_test)
 # Burnout's XAudio voice mix (apu/voice_mix.h, header only) against the
 # recompiled function's arithmetic; replays a recording from the game when

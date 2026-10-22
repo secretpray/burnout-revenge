@@ -30,6 +30,7 @@ if(BR_GAME STREQUAL "burnout")
     list(APPEND RUNTIME_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/game/codes.cpp)
     list(APPEND RUNTIME_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/game/rewind_probe.cpp)
     list(APPEND RUNTIME_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/game/rewind_trial.cpp)
+    list(APPEND RUNTIME_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/game/rewind_ring.cpp)
     list(APPEND RUNTIME_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/game/online_log.cpp)
     list(APPEND RUNTIME_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/game/online_hooks.cpp)
     # Stubs are generated into this build's folder, never over the NW stubs.
