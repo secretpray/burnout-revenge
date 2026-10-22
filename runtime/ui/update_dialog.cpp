@@ -1,3 +1,4 @@
+#include <user/localization.h>
 // SpeedBreaker runtime. GPL-3.0-or-later (see COPYING). See ui.h.
 //
 // Settings > Advanced > Check for Updates: the row's value and help, and the
@@ -116,6 +117,7 @@ namespace ui
 
         void Legend(const char* text)
         {
+            text = locale::Text(text);
             ImGui::SameLine();
             float w = ImGui::CalcTextSize(text).x;
             ImGui::SetCursorPosX(std::max(ImGui::GetCursorPosX(), ImGui::GetWindowContentRegionMax().x - w));
@@ -166,11 +168,11 @@ namespace ui
                         break;
                     }
                 if (r.notes.lines.empty())
-                    ImGui::TextDisabled("This release has no notes.");
+                    ImGui::TextDisabled("%s", locale::Text("This release has no notes."));
                 else if (r.notes.truncated)
                 {
                     ImGui::Spacing();
-                    ImGui::TextDisabled("The rest is on the download page.");
+                    ImGui::TextDisabled("%s", locale::Text("The rest is on the download page."));
                 }
                 ImGui::PopTextWrapPos();
                 // The D-pad, the stick or the arrow keys scroll (the buttons keep the focus).
@@ -207,17 +209,17 @@ namespace ui
                 ImGui::BeginGroup();
                 DrawQr(qr, side);
                 ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + side);
-                ImGui::TextDisabled("No browser? Point a phone's camera at the code.");
+                ImGui::TextDisabled("%s", locale::Text("No browser? Point a phone's camera at the code."));
                 ImGui::PopTextWrapPos();
                 ImGui::EndGroup();
             }
-            ImGui::TextDisabled("Download page: %s", r.url.c_str());
+            ImGui::TextDisabled(locale::Text("Download page: %s"), r.url.c_str());
 
             ButtonRowAtBottom();
             FocusOnce("available " + r.latest);
-            bool open = ImGui::Button("Open download page");
+            bool open = ImGui::Button(locale::Text("Open download page"));
             ImGui::SameLine();
-            bool close = ImGui::Button("Close");
+            bool close = ImGui::Button(locale::Text("Close"));
             Legend("D-pad: scroll, choose   A: select   B: back");
             if (open)
                 OpenPage(r.url);
@@ -232,18 +234,18 @@ namespace ui
             ImGui::PushTextWrapPos(0.0f);
             ImGui::TextUnformatted(r.message.c_str());
             if (r.outcome == update::Outcome::Unavailable)
-                ImGui::TextDisabled("Releases: %s", update::kReleasesPage);
+                ImGui::TextDisabled(locale::Text("Releases: %s"), update::kReleasesPage);
             ImGui::PopTextWrapPos();
             ImGui::Spacing();
             ImGui::Spacing();
             const bool failed = r.outcome != update::Outcome::UpToDate && r.outcome != update::Outcome::Unavailable;
-            FocusOnce(std::format("result {}", checks));
-            bool close = ImGui::Button("OK");
+            FocusOnce(locale::Format("result {}", checks));
+            bool close = ImGui::Button(locale::Text("OK"));
             bool retry = false;
             if (failed)
             {
                 ImGui::SameLine();
-                retry = ImGui::Button("Try again");
+                retry = ImGui::Button(locale::Text("Try again"));
             }
             Legend(failed ? "D-pad: choose   A: select   B: back" : "A or B: back");
             if (retry)
@@ -256,14 +258,14 @@ namespace ui
             TitleText("Checking for updates");
             ImGui::Spacing();
             const int dots = int(ImGui::GetTime() * 2.0) % 4;
-            ImGui::Text("Asking GitHub for the newest release%.*s", dots, "...");
+            ImGui::Text(locale::Text("Asking GitHub for the newest release%.*s"), dots, "...");
             ImGui::PushTextWrapPos(0.0f);
-            ImGui::TextDisabled("It takes a few seconds at most. Only the question goes out: nothing about you or this device.");
+            ImGui::TextDisabled("%s", locale::Text("It takes a few seconds at most. Only the question goes out: nothing about you or this device."));
             ImGui::PopTextWrapPos();
             ImGui::Spacing();
             ImGui::Spacing();
             FocusOnce("checking");
-            bool close = ImGui::Button("Close");
+            bool close = ImGui::Button(locale::Text("Close"));
             Legend("A or B: back (the check carries on)");
             return close;
         }
@@ -289,17 +291,17 @@ namespace ui
 
     void UpdateRowHelp()
     {
-        ImGui::TextWrapped("Asks GitHub whether a newer BurnoutRevenge is out. The game goes online only when you press this, "
-                           "and sends nothing but the question.");
+        ImGui::TextWrapped("%s", locale::Text("Asks GitHub whether a newer BurnoutRevenge is out. The game goes online only when you press this, "
+                           "and sends nothing but the question."));
         update::Status status = update::GetStatus();
         if (status.phase == update::Phase::Checking)
-            ImGui::TextDisabled("Checking...");
+            ImGui::TextDisabled("%s", locale::Text("Checking..."));
         else if (!status.result)
-            ImGui::TextDisabled("This version: v%s", update::RunningVersion().c_str());
+            ImGui::TextDisabled(locale::Text("This version: v%s"), update::RunningVersion().c_str());
         else if (status.result->outcome == update::Outcome::Available)
         {
             PushAccentText();
-            ImGui::Text("%s (you have v%s)", status.result->headline.c_str(), status.result->current.c_str());
+            ImGui::Text(locale::Text("%s (you have v%s)"), status.result->headline.c_str(), status.result->current.c_str());
             PopAccentText();
         }
         else if (status.result->outcome == update::Outcome::UpToDate)

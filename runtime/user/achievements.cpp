@@ -12,10 +12,10 @@ namespace achievements
 {
     Store& Current() { static Store store; return store; }
 
-    bool Store::Initialize(std::span<const uint8_t> database, std::filesystem::path file)
+    bool Store::Initialize(std::span<const uint8_t> database, std::filesystem::path file, uint32_t language)
     {
         std::lock_guard lock(mutex);
-        definitions = ParseDatabase(database); path = std::move(file); notices.clear(); error.clear(); unreadable = false;
+        definitions = ParseDatabase(database, language); path = std::move(file); notices.clear(); error.clear(); unreadable = false;
         for (auto& user : users)
         {
             user.clear();

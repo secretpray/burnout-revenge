@@ -22,7 +22,10 @@ requests; joining a lobby alone is not treated as earning them by the port.
 
 Names, conditions, scores and PNG icons are read from the XDBF/SPA resource in
 the player's own XEX at launch. They are not included in this repository. The
-screen currently uses English, matching the rest of the port's menus.
+screen follows Settings > Advanced > Language. Names and conditions use the
+original localized tables, with English as a fallback for missing entries.
+The original Japanese achievement names are English; their conditions are
+Japanese. The port's status labels and notifications follow the selected language.
 
 ## Implementation references
 
@@ -32,7 +35,7 @@ checked against these projects:
 - [Xenia Canary's XGI dispatcher](https://github.com/xenia-canary/xenia-canary/blob/canary_experimental/src/xenia/kernel/xam/apps/xgi_app.cc):
   app `0xFB`, message `0x000B0008`, a count and pointer to `{user, id}` pairs.
 - [Xenia's XDBF reader](https://github.com/xenia-project/xenia/blob/master/src/xenia/kernel/util/xdbf_utils.h):
-  SPA entry tables, English strings and achievement metadata.
+  SPA entry tables, localized strings and achievement metadata.
 - [Xenia Canary's achievement flags](https://github.com/xenia-canary/xenia-canary/blob/canary_experimental/src/xenia/kernel/xam/xdbf/gpd_info.h)
   and [enumerator](https://github.com/xenia-canary/xenia-canary/blob/canary_experimental/src/xenia/kernel/xenumerator.h):
   36-byte details, UTF-16BE strings, unlock flag and FILETIME.

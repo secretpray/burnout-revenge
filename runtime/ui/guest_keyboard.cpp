@@ -1,3 +1,4 @@
+#include <user/localization.h>
 // SpeedBreaker runtime. GPL-3.0-or-later (see COPYING).
 #include <stdafx.h>
 #include "guest_keyboard.h"
@@ -65,8 +66,8 @@ namespace ui
             for (const unsigned char* p = reinterpret_cast<const unsigned char*>(request->text.data()); *p; ++p)
                 if ((*p & 0xC0) != 0x80) units += *p >= 0xF0 ? 2 : 1;
             bool valid = units > 0 && units <= request->maxUnits;
-            ImGui::TextDisabled("%zu / %zu characters", units, request->maxUnits);
-            if (units > request->maxUnits) ImGui::TextUnformatted("Name is too long.");
+            ImGui::TextDisabled(locale::Text("%zu / %zu characters"), units, request->maxUnits);
+            if (units > request->maxUnits) ImGui::TextUnformatted(locale::Text("Name is too long."));
             auto append = [&](char c) {
                 if (request->replaceInitial) { request->text[0] = 0; request->replaceInitial = false; units = 0; }
                 size_t bytes = std::strlen(request->text.data());
@@ -118,8 +119,8 @@ namespace ui
             ImGui::SameLine();
             bool cancel = burnout::Button("CANCEL", {half, 52 * s}) || ImGui::IsKeyPressed(ImGuiKey_Escape, false) ||
                 ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight, false);
-            ImGui::TextDisabled("D-pad: choose   A: type   X: delete   Start: done   B: cancel");
-            ImGui::TextDisabled("Or type with your keyboard. Enter: done. Esc: cancel.");
+            ImGui::TextDisabled("%s", locale::Text("D-pad: choose   A: type   X: delete   Start: done   B: cancel"));
+            ImGui::TextDisabled("%s", locale::Text("Or type with your keyboard. Enter: done. Esc: cancel."));
             request->firstFrame = false;
             ImGui::PopFont();
             ImGui::End();

@@ -14,13 +14,13 @@
 //     that runs before main() calls Load(), so it would miss the file (it
 //     gets the environment and defaults, with a warning in the log).
 //   - An environment variable (BURNOUT_AA=0, ...) wins over the file for that
-//     run and is never written back; EnvOverride() tells the menu. Key
-//     options have none.
+//     run and is never written back; the menu shows the effective value
+//     read-only. Key options have none.
 //   - A Restart option keeps its launch value for the whole run. Its
 //     consumers read it once (the window's size), so a change mid-run would
 //     reach only part of them. The menu edits the stored value and shows
-//     RestartPending(). Every option the menu shows is Live: Internal
-//     Resolution and Mipmaps rebuild what depends on them between two frames
+//     RestartPending(). Internal Resolution and Mipmaps are Live: they
+//     rebuild what depends on them between two frames
 //     (gpu/renderer's ApplyLiveSettings).
 //   - Save() writes a temporary file, syncs it and renames it over
 //     settings.toml: a crash or a full disk leaves the previous file whole.
@@ -138,6 +138,7 @@ namespace settings
         // Codes: built-in modifiers, guarded in the guest hook.
         InfiniteBoost, InfiniteTime, QuickMoney, QuickTakedowns, EasyBoost,
         // Advanced
+        Language,  // interface and game language, applied at launch
         AsyncShaders,
         PerformanceOverlay,
         AutoImportAddons,
@@ -275,6 +276,8 @@ namespace settings
     // the environment overrides the option or a Restart option waits for a
     // restart.
     double GetStoredValue(Id id);
+    // The menu shows the active override; otherwise it edits the stored choice.
+    double GetMenuValue(Id id);
     bool IsDefault(Id id);  // stored value == default
 
     // Main thread, before Load(): `value` is the option's default on this

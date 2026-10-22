@@ -1,3 +1,4 @@
+#include <user/localization.h>
 // SpeedBreaker runtime. GPL-3.0-or-later (see COPYING). See ui.h.
 //
 // The one-time "What's new" note: the first launch of a newer version shows
@@ -73,7 +74,7 @@ namespace ui
                 ImGui::PushFont(burnout::DisplayFont(), 40.0f);
                 ImGui::TextUnformatted(heading.c_str());
                 ImGui::PopFont();
-                ImGui::TextColored(ImVec4(0.95f, 0.6f, 0.13f, 1), "[WHAT'S NEW]");
+                ImGui::TextColored(ImVec4(0.95f, 0.6f, 0.13f, 1), "%s", locale::Text("[WHAT'S NEW]"));
             }
             ImGui::Dummy(ImVec2(0, 6 * s));
 

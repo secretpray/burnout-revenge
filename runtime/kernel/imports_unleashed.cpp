@@ -19,6 +19,7 @@
 #include "xam.h"
 #include "xdm.h"
 #include <user/online.h>
+#include <user/localization.h>
 
 #ifdef _WIN32
 #include <ntstatus.h>
@@ -97,7 +98,7 @@ uint32_t XamShowDeviceSelectorUI
 
 uint32_t XGetLanguage()
 {
-    return 1; // XC_LANGUAGE_ENGLISH (TODO: setting)
+    return locale::XboxLanguage();
 }
 
 uint32_t XGetAVPack()

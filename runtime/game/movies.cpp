@@ -31,7 +31,7 @@ namespace
     bool IsIntro(std::string_view path)
     {
         // The USA disc's names (_N); EA's logos also in their _E variants.
-        for (std::string_view name : { "EAHD_E_N.xmv", "EA_E_N.xmv", "CRRW_N.xmv", "CRRW_E_N.xmv", "ATTR_N.xmv" })
+        for (std::string_view name : { "EAHD_E_N.xmv", "EA_E_N.xmv", "CRRW_N.xmv", "CRRW_E_N.xmv", "ATTR_N.xmv", "ATTRM.xmv" })
             if (path.size() >= name.size() && strncasecmp(path.data() + path.size() - name.size(), name.data(), name.size()) == 0)
                 return true;
         return false;

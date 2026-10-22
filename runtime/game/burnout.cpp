@@ -7,6 +7,7 @@
 #include "ultrawide.h"
 #include "hud_anchor.h"
 #include <user/settings.h>
+#include <user/localization.h>
 #include <apu/xma_mmio.h>
 #include <apu/voice_mix.h>
 #include "frame_time.h"
@@ -529,4 +530,38 @@ PPC_FUNC(sub_822AC748)
         fprintf(stderr, "[mix] snapshots %04X, music fader %.3f\n", mask, loadF(kFaders + kMusic * 20 + 4));
     }
     __imp__sub_822AC748(ctx, base);
+}
+
+// USA sub_8210FA70 filters the console language by disc territory. The host
+// has verified the requested language's files before guest startup; preserve
+// the USA executable and let the original loaders take that language ID.
+PPC_FUNC(sub_8210FA70)
+{
+    ctx.r3.u64 = locale::GameLanguageId();
+}
+
+extern "C" PPC_FUNC(__imp__sub_8210FA20);
+PPC_FUNC(sub_8210FA20)
+{
+    ctx.r4.u64 = locale::GameLanguageId();
+    fprintf(stderr, "[language] game selection %u\n", ctx.r4.u32);
+    __imp__sub_8210FA20(ctx, base);
+}
+
+extern "C" PPC_FUNC(__imp__sub_821159A8);
+PPC_EXTERN_FUNC(sub_82104868);
+PPC_EXTERN_FUNC(sub_821048F0);
+PPC_FUNC(sub_821159A8)
+{
+    const uint32_t object = ctx.r3.u32;
+    __imp__sub_821159A8(ctx, base);
+    const PPCContext saved = ctx;
+    PPC_STORE_U32(object + 48, locale::GameLanguageId());
+    PPC_STORE_U32(0x82825BCC, locale::GameLanguageId());
+    ctx.r3.u32 = object;
+    sub_82104868(ctx, base);
+    ctx.r3.u32 = object;
+    sub_821048F0(ctx, base);
+    ctx = saved;
+    fprintf(stderr, "[language] initialized game language %u\n", locale::GameLanguageId());
 }

@@ -1,3 +1,4 @@
+#include <user/localization.h>
 // Burnout Revenge port. GPL-3.0-or-later (see COPYING).
 #include <cfloat>
 #include "achievements.h"
@@ -70,10 +71,10 @@ namespace ui
         }
         std::string When(int64_t timestamp)
         {
-            if (!timestamp) return "Locked";
+            if (!timestamp) return locale::Text("Locked");
             std::time_t t = std::time_t(timestamp); std::tm local{}; localtime_r(&t, &local);
             char date[32]; std::strftime(date, sizeof(date), "%Y-%m-%d %H:%M", &local);
-            return std::string("Unlocked ") + date;
+            return std::string(locale::Text("Unlocked ")) + date;
         }
     }
 
@@ -88,14 +89,14 @@ namespace ui
             if (i < entries.size() && entries[i].unlocked) { ++earned; score += definitions[i].score; }
         }
         ImGui::PushFont(burnout::LabelFont(), 22);
-        ImGui::Text("%u / %zu unlocked     %u / %u G", earned, definitions.size(), score, total);
+        ImGui::Text(locale::Text("%u / %zu unlocked     %u / %u G"), earned, definitions.size(), score, total);
         ImGui::PopFont();
     }
     void DrawAchievements(bool focusFirst)
     {
         const auto& definitions = achievements::Current().Definitions();
         auto entries = achievements::Current().Entries(s_user);
-        if (definitions.empty()) { ImGui::TextWrapped("Achievements are available after the game has loaded."); return; }
+        if (definitions.empty()) { ImGui::TextWrapped("%s", locale::Text("Achievements are available after the game has loaded.")); return; }
         float s = Scale(), icon = 48 * s, row = 62 * s;
         for (size_t i = 0; i < definitions.size(); ++i)
         {
@@ -114,14 +115,14 @@ namespace ui
             Icon(d, unlocked, {at.x + 8*s, at.y + 6*s}, icon);
             auto* draw = ImGui::GetWindowDrawList();
             float x = at.x + icon + 24*s;
-            std::string points = std::format("{} G", d.score);
+            std::string points = locale::Format("{} G", d.score);
             float pointsWidth = ImGui::CalcTextSize(points.c_str()).x;
             if (s_selected == d.id)
                 burnout::SelectorLines(draw, at, {at.x + width, at.y + row});
             draw->PushClipRect({x, at.y}, {at.x + width - pointsWidth - 24*s, at.y + row}, true);
             draw->AddText({x, at.y + 5*s}, s_selected == d.id ? IM_COL32(245,182,38,255) : unlocked ? IM_COL32(243,235,218,255) : IM_COL32(177,174,166,255), d.name.c_str());
             ImGui::PushFont(burnout::LabelFont(), 17);
-            draw->AddText({x, at.y + 33*s}, IM_COL32(177,174,166,255), unlocked ? "Unlocked" : "Locked");
+            draw->AddText({x, at.y + 33*s}, IM_COL32(177,174,166,255), locale::Text(unlocked ? "Unlocked" : "Locked"));
             ImGui::PopFont(); draw->PopClipRect();
             draw->AddText({at.x + width - pointsWidth - 8*s, at.y + 18*s}, IM_COL32(243,235,218,255), points.c_str());
             burnout::RowRule(draw, at.x, at.x + width, at.y + row);
@@ -131,7 +132,7 @@ namespace ui
     void AchievementHelp()
     {
         std::string error = achievements::Current().Error();
-        if (!error.empty()) { ImGui::TextWrapped("%s", error.c_str()); return; }
+        if (!error.empty()) { ImGui::TextWrapped("%s", locale::Text(error.c_str())); return; }
         if (const auto* d = Definition(s_selected))
         {
             auto entries = achievements::Current().Entries(s_user);
@@ -140,7 +141,7 @@ namespace ui
             ImGui::TextWrapped("%s", (earned ? d->description : d->lockedDescription).c_str());
             ImGui::TextDisabled("%s", When(earned ? it->unlocked : 0).c_str());
         }
-        else ImGui::TextWrapped("Earn achievements by playing. Select one to see its requirements.");
+        else ImGui::TextWrapped("%s", locale::Text("Earn achievements by playing. Select one to see its requirements."));
     }
     bool AchievementNoticePending() { return s_notice.has_value() || achievements::Current().HasNotices(); }
     bool AchievementNoticeVisible()
@@ -169,11 +170,11 @@ namespace ui
             ImVec2 at = ImGui::GetCursorScreenPos(); Icon(*d, true, at, 48*s);
             ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 64*s);
             ImGui::BeginGroup();
-            ImGui::TextColored({0.61f, 0.82f, 0.31f, 1}, "Achievement unlocked");
+            ImGui::TextColored({0.61f, 0.82f, 0.31f, 1}, "%s", locale::Text("Achievement unlocked"));
             ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + width - 100*s);
-            ImGui::Text("%u G - %s", d->score, d->name.c_str());
+            ImGui::Text(locale::Text("%u G - %s"), d->score, d->name.c_str());
             ImGui::PopTextWrapPos();
-            if (s_notice->user) ImGui::TextDisabled("Player %u", s_notice->user + 1);
+            if (s_notice->user) ImGui::TextDisabled(locale::Text("Player %u"), s_notice->user + 1);
             ImGui::EndGroup();
             ImGui::Dummy({0, std::max(0.0f, at.y + 48*s - ImGui::GetCursorScreenPos().y)});
         }

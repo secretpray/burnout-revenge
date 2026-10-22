@@ -1,3 +1,4 @@
+#include <user/localization.h>
 // SpeedBreaker runtime. GPL-3.0-or-later (see COPYING). See save_backups.h.
 #include <stdafx.h>
 #include "save_backups.h"
@@ -110,9 +111,9 @@ namespace ui
         {
             std::string label = sb::DisplayName(b.name);
             if (b.beforeRestore)
-                label += "  (before a restore)";
+                label += locale::Text("  (before a restore)");
             else if (b.imported)
-                label += "  (imported)";
+                label += locale::Text("  (imported)");
             return label + "###" + b.name;
         }
 
@@ -134,7 +135,7 @@ namespace ui
             Refresh();
         if (!s_pending.empty())
             return "RESTORE PENDING";
-        return s_backups.empty() ? std::string("NONE YET") : std::format("{} KEPT", s_backups.size());
+        return s_backups.empty() ? std::string("NONE YET") : locale::Format("{} KEPT", s_backups.size());
     }
 
     const char* SaveBackupsHelp()
@@ -187,7 +188,7 @@ namespace ui
         }
         if (!s_importing.empty())
         {
-            burnout::DialogText(std::format("Import {} from {}? Saves of the same name are replaced; your current saves are "
+            burnout::DialogText(locale::Format("Import {} from {}? Saves of the same name are replaced; your current saves are "
                 "backed up first. The game quits now; start it again to play the imported saves.", si::Describe(s_importing),
                 s_importFrom.filename().string()).c_str(), width);
             ImGui::Dummy(ImVec2(0, 10 * s));
@@ -222,7 +223,7 @@ namespace ui
         else if (!s_confirm.empty())
         {
             // The question, before anything changes.
-            burnout::DialogText(std::format("Restore the saves from {}? Your current saves are backed up first. The game "
+            burnout::DialogText(locale::Format("Restore the saves from {}? Your current saves are backed up first. The game "
                 "quits now; start it again to play the restored saves.", sb::DisplayName(s_confirm)).c_str(), width);
             ImGui::Dummy(ImVec2(0, 10 * s));
             if (burnout::DialogOption("Restore and Quit", width))
@@ -250,11 +251,11 @@ namespace ui
         else
         {
             ImGui::PushFont(burnout::DisplayFont(), 34.0f);
-            ImGui::TextUnformatted("SAVE BACKUPS");
+            ImGui::TextUnformatted(locale::Text("SAVE BACKUPS"));
             ImGui::PopFont();
             const std::vector<sb::Backup> backups = s_backups;
             if (!pending.empty())
-                burnout::DialogText(std::format("The saves from {} are restored at the next launch.", sb::DisplayName(pending)).c_str(), width);
+                burnout::DialogText(locale::Format("The saves from {} are restored at the next launch.", sb::DisplayName(pending)).c_str(), width);
             else if (backups.empty())
                 burnout::DialogText("No backups yet: the next launch makes one once you have saved.", width);
             else

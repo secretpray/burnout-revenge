@@ -1,3 +1,4 @@
+#include <user/localization.h>
 // SpeedBreaker runtime. GPL-3.0-or-later (see COPYING). See setup_music.h.
 //
 // The decoder thread opens each song through install::FileReader (the disc
@@ -319,6 +320,6 @@ namespace ui::setup_music
     std::string NowPlaying()
     {
         int track = s_track;
-        return s_stream && track > 0 ? std::format("EA TRAX  /  TRACK {:02}", track) : std::string();
+        return s_stream && track > 0 ? locale::Format("EA TRAX  /  TRACK {:02}", track) : std::string();
     }
 }

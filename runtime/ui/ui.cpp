@@ -1,3 +1,4 @@
+#include <user/localization.h>
 // SpeedBreaker runtime. GPL-3.0-or-later (see COPYING). See ui.h.
 #include <stdafx.h>
 #include "ui.h"
@@ -88,8 +89,9 @@ namespace ui
             return s_toast;
         }
 
-        void DrawToast(const std::string& text)
+        void DrawToast(const std::string& original)
         {
+            const std::string text = locale::Text(original.c_str());
             float s = s_scale;
             ImGuiViewport* viewport = ImGui::GetMainViewport();
             ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + viewport->WorkSize.x * 0.5f, viewport->WorkPos.y + viewport->WorkSize.y - kSpaceL * s),
@@ -664,6 +666,13 @@ namespace ui
         ImFontConfig config;
         config.FontDataOwnedByAtlas = false;
         io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(kFont), int(sizeof(kFont)), kFontSize, &config);
+#ifdef __APPLE__
+        if (std::filesystem::exists("/System/Library/Fonts/Supplemental/Arial Unicode.ttf"))
+        {
+            ImFontConfig fallback; fallback.MergeMode = true;
+            io.Fonts->AddFontFromFileTTF("/System/Library/Fonts/Supplemental/Arial Unicode.ttf", kFontSize, &fallback);
+        }
+#endif
         burnout::LoadFonts();
         ApplyStyle();
 
@@ -1250,6 +1259,7 @@ namespace ui
 
     void TitleText(const char* text, const char* hint)
     {
+        text = locale::Text(text);
         ImVec2 start = ImGui::GetCursorPos();
         float right = start.x + ImGui::GetContentRegionAvail().x;
         ImGui::PushFont(nullptr, kFontSize * 1.55f);

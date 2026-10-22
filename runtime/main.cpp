@@ -35,6 +35,8 @@
 #include <ui/ui.h>
 #include <user/paths.h>
 #include <user/settings.h>
+#include <user/localization.h>
+#include <user/language_resources.h>
 #include <user/version_check.h>
 
 #include <SDL3/SDL.h>
@@ -362,6 +364,7 @@ int main(int argc, char** argv)
         for (const std::string& p : message.paragraphs)
             fprintf(stderr, "[runtime]   %s\n", p.c_str());
         settings::Load();
+        locale::Select(settings::GetInt(settings::Id::Language));
         if (video::Initialize())
         {
             ui::RunStartupError(message.title, message.paragraphs, message.details, [] { return video::RunFrame(); });
@@ -403,6 +406,13 @@ int main(int argc, char** argv)
         ~ClearMarkerOnReturn() { report::ClearCrashMarker(); }
     } clearMarkerOnReturn;
 
+    if (argc == 3 && std::string_view(argv[1]) == "--import-languages")
+    {
+        auto result = locale::ImportResources(argv[2], GetUserPath());
+        fprintf(stderr, "%s\n", result.message.c_str());
+        return result.Ok() ? 0 : 1;
+    }
+
     // Anything else starting with '-' is a mistake, not a XEX path.
     if (argc > 1 && argv[1][0] == '-')
     {
@@ -410,8 +420,9 @@ int main(int argc, char** argv)
                         "  %s                          run the installed game (or install it)\n"
                         "  %s path/to/default.xex      run a specific XEX (development)\n"
                         "  %s --install <image|folder> [--dest <dir>] | --verify <image|folder> | --find-images | --where\n"
-                        "  %s --import-save <save package or folder>   import saves at the next launch\n",
-            argv[1], argv[0], argv[0], argv[0], argv[0]);
+                        "  %s --import-save <save package or folder>   import saves at the next launch\n"
+                        "  %s --import-languages <image.iso>          import verified disc translations\n",
+            argv[1], argv[0], argv[0], argv[0], argv[0], argv[0]);
         return 2;
     }
 
@@ -432,6 +443,7 @@ int main(int argc, char** argv)
     }
 #endif
     bool settingsLoaded = settings::Load();
+    locale::Select(settings::GetInt(settings::Id::Language));
     // Which version ran last: a line in the log (so a bug report shows when a
     // problem began), the "What's new" note below, and this version recorded
     // as the last (user/version_check.h).
@@ -546,6 +558,8 @@ int main(int argc, char** argv)
     }
     fprintf(stderr, "[runtime] game files: %s\n", GetGamePath().string().c_str());
 
+    if (!locale::PrepareGame(locale::Current(), GetGamePath(), GetUserPath()))
+        ui::Toast(locale::Text("Game language resources are missing or damaged. The game will use English. In Advanced settings, import languages from your own European disc image, then restart."), 12.0);
     std::vector<uint8_t> file = LoadFile(xexPath);
     if (file.empty())
     {
@@ -575,7 +589,7 @@ int main(int argc, char** argv)
                 achievementData = { image.data.get() + address - image.base, length };
         }
     }
-    if (!achievements::Current().Initialize(achievementData, GetUserPath() / "achievements.txt"))
+    if (!achievements::Current().Initialize(achievementData, GetUserPath() / "achievements.txt", uint32_t(locale::Current())))
     {
         fprintf(stderr, "[achievements] %s\n", achievements::Current().Error().c_str());
         ui::Toast(achievements::Current().Error(), 12.0);

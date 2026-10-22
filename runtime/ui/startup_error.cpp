@@ -1,3 +1,4 @@
+#include <user/localization.h>
 // SpeedBreaker runtime. GPL-3.0-or-later (see COPYING). See ui.h.
 //
 // The page shown instead of the game when it can't start: today, when the
@@ -51,7 +52,7 @@ namespace ui
             {
                 if (i > 0)
                     ImGui::Dummy(ImVec2(0, kSpaceS * s));
-                ImGui::TextWrapped("%s", page.paragraphs[i].c_str());
+                ImGui::TextWrapped("%s", locale::Text(page.paragraphs[i].c_str()));
             }
             if (!page.details.empty())
             {
@@ -66,7 +67,7 @@ namespace ui
                 ImGui::Dummy(ImVec2(0, kSpaceS * s));
                 if (page.firstFrame)
                     ImGui::SetKeyboardFocusHere();
-                bool quit = ImGui::Button("Quit");
+                bool quit = ImGui::Button(locale::Text("Quit"));
                 if (quit || ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight, false) || ImGui::IsKeyPressed(ImGuiKey_Escape, false)
                     || ImGui::IsKeyPressed(ImGuiKey_GamepadStart, false))
                     page.quit = true;

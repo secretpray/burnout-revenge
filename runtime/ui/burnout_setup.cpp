@@ -1,3 +1,4 @@
+#include <user/localization.h>
 // SpeedBreaker runtime. GPL-3.0-or-later (see COPYING).
 //
 // The first-run screens' look, after the game's own menus: heavy condensed
@@ -125,7 +126,7 @@ namespace ui::burnout
         };
         float width = 0;
         for (auto [label, button] : items)
-            width += ImGui::CalcTextSize(label).x + gap + glyphs(nullptr, ImVec2(), button) + between;
+            width += ImGui::CalcTextSize(locale::Text(label)).x + gap + glyphs(nullptr, ImVec2(), button) + between;
         width -= between;
         ImVec2 at = ImGui::GetCursorScreenPos();
         const float frame = ImGui::GetFrameHeight();
@@ -134,6 +135,7 @@ namespace ui::burnout
         ImDrawList* draw = ImGui::GetWindowDrawList();
         for (auto [label, button] : items)
         {
+            label = locale::Text(label);
             const ImVec2 text = ImGui::CalcTextSize(label);
             draw->AddText(ImVec2(at.x, at.y + (h - text.y) * 0.5f), Faded(kPaper), label);
             at.x += text.x + gap;
@@ -200,6 +202,7 @@ namespace ui::burnout
 
     void DialogText(const char* text, float width)
     {
+        text = locale::Text(text);
         // Centred lines, wrapped at `width`, white with the game's shadow.
         ImFont* font = ImGui::GetFont();
         const float size = ImGui::GetFontSize(), s = Scale();
@@ -227,12 +230,14 @@ namespace ui::burnout
 
     bool DialogOption(const char* label, float width)
     {
+        const char* identity = label;
+        label = locale::Text(label);
         // A choice: the focused (or hovered) one as the game's selection,
         // large and white on a yellow band; the others orange on dark bands.
         const float s = Scale();
         const float height = 44 * s;
         ImGui::PushStyleColor(ImGuiCol_NavCursor, ImVec4(0, 0, 0, 0));
-        const bool hit = ImGui::InvisibleButton(label, {width, height}, ImGuiButtonFlags_EnableNav);
+        const bool hit = ImGui::InvisibleButton(identity, {width, height}, ImGuiButtonFlags_EnableNav);
         ImGui::PopStyleColor();
         const bool lit = ImGui::IsItemFocused() || ImGui::IsItemHovered();
         ImDrawList* draw = ImGui::GetWindowDrawList();
@@ -244,9 +249,14 @@ namespace ui::burnout
         draw->AddRectFilled({a.x + fade, a.y}, {b.x - fade, b.y}, Faded(band));
         draw->AddRectFilledMultiColor({b.x - fade, a.y}, b, Faded(band), Faded(clear), Faded(clear), Faded(band));
         ImFont* font = Or(s_label);
-        const float size = lit ? 34 * s : 27 * s;
+        float size = lit ? 34 * s : 27 * s;
         const char* end = ImGui::FindRenderedTextEnd(label);
-        const ImVec2 text = font->CalcTextSizeA(size, FLT_MAX, 0, label, end);
+        ImVec2 text = font->CalcTextSizeA(size, FLT_MAX, 0, label, end);
+        if (text.x > width - 32 * s)
+        {
+            size = std::max(18 * s, size * (width - 32 * s) / text.x);
+            text = font->CalcTextSizeA(size, FLT_MAX, 0, label, end);
+        }
         const ImVec2 pos(a.x + (width - text.x) * 0.5f, a.y + (height - text.y) * 0.5f);
         draw->AddText(font, size, {pos.x + 2 * s, pos.y + 2 * s}, Faded(IM_COL32(0, 0, 0, 190)), label, end);
         draw->AddText(font, size, pos, Faded(lit ? kPaper : IM_COL32(242, 154, 34, 255)), label, end);
@@ -469,15 +479,17 @@ namespace ui::burnout
         float bottom = p.y + size.y - 62 * s;
         d->AddRectFilled({p.x, bottom}, {p.x + size.x, p.y + size.y}, IM_COL32(26, 23, 20, 255));
         d->AddRectFilled({p.x, bottom}, {p.x + 6 * s, p.y + size.y}, kRed);
-        d->AddText(Or(s_display), 24 * s, {p.x + 20 * s, bottom + 7 * s}, kYellow, "TRAFFIC. TAKEDOWNS. REVENGE.");
-        d->AddText(Or(s_label), 14 * s, {p.x + 20 * s, bottom + 36 * s}, IM_COL32(184, 173, 151, 255), "NATIVE ON APPLE SILICON");
+        d->AddText(Or(s_display), 24 * s, {p.x + 20 * s, bottom + 7 * s}, kYellow, locale::Text("TRAFFIC. TAKEDOWNS. REVENGE."));
+        d->AddText(Or(s_label), 14 * s, {p.x + 20 * s, bottom + 36 * s}, IM_COL32(184, 173, 151, 255), locale::Text("NATIVE ON APPLE SILICON"));
     }
 
     bool Button(const char* label, ImVec2 size, bool primary)
     {
+        const char* identity = label;
+        label = locale::Text(label);
         float s = Scale();
         ImGui::PushStyleColor(ImGuiCol_NavCursor, ImVec4(0, 0, 0, 0));
-        bool hit = ImGui::InvisibleButton(label, size, ImGuiButtonFlags_EnableNav);
+        bool hit = ImGui::InvisibleButton(identity, size, ImGuiButtonFlags_EnableNav);
         ImGui::PopStyleColor();
         bool focus = ImGui::IsItemFocused(), hover = ImGui::IsItemHovered();
         bool disabled = ImGui::GetItemFlags() & ImGuiItemFlags_Disabled;
@@ -513,6 +525,11 @@ namespace ui::burnout
         float textSize = std::clamp(size.y * .46f, 17 * s, 27 * s);
         ImFont* font = Or(s_label);
         ImVec2 text = font->CalcTextSizeA(textSize, FLT_MAX, 0, label, end);
+        if (text.x > size.x - 64 * s)
+        {
+            textSize = std::max(17 * s, textSize * (size.x - 64 * s) / text.x);
+            text = font->CalcTextSizeA(textSize, FLT_MAX, 0, label, end);
+        }
         ImU32 color = disabled ? IM_COL32(135, 125, 107, 255) : primary ? kInk : kPaper;
         d->AddText(font, textSize, {a.x + 28 * s + ease * 8 * s, a.y + (size.y - text.y) * .5f}, Faded(color), label, end);
         // A broad hit area and normal ImGui navigation remain underneath
@@ -522,6 +539,7 @@ namespace ui::burnout
 
     void Heading(const char* text, float size)
     {
+        text = locale::Text(text);
         ImGui::PushFont(Or(s_display), size);
         ImGui::TextWrapped("%s", text);
         ImGui::PopFont();
@@ -529,6 +547,7 @@ namespace ui::burnout
 
     void Eyebrow(const char* text)
     {
+        text = locale::Text(text);
         ImGui::PushFont(Or(s_label), 17);
         ImGui::TextColored(ImVec4(.96f, .71f, .15f, 1), "%s", text);
         ImGui::PopFont();
@@ -543,6 +562,7 @@ namespace ui::burnout
 
     bool Link(const char* label)
     {
+        label = locale::Text(label);
         ImGui::PushFont(Or(s_label), 15);
         ImVec2 size = ImGui::CalcTextSize(label, ImGui::FindRenderedTextEnd(label));
         ImGui::PushStyleColor(ImGuiCol_NavCursor, ImVec4(0, 0, 0, 0));
@@ -572,7 +592,7 @@ namespace ui::burnout
             bool done = i + 1 < current, now = i + 1 == current;
             ImU32 bar = done ? IM_COL32(150, 112, 30, 255) : now ? kYellow : kSteel;
             ImU32 color = now ? kPaper : done ? IM_COL32(184, 173, 151, 255) : IM_COL32(110, 102, 88, 255);
-            d->AddText(font, 15 * s, a, Faded(color), kSteps[i]);
+            d->AddText(font, 15 * s, a, Faded(color), locale::Text(kSteps[i]));
             Slab(d, {a.x, a.y + 22 * s}, {a.x + width, a.y + 27 * s}, Faded(bar), 4 * s);
         }
         ImGui::Dummy({ImGui::GetContentRegionAvail().x, 27 * s});

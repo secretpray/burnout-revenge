@@ -19,6 +19,8 @@
   &nbsp;·&nbsp;
   <a href="#offline-codes">Codes</a>
   &nbsp;·&nbsp;
+  <a href="#languages">Languages</a>
+  &nbsp;·&nbsp;
   <a href="#settings">Settings</a>
   &nbsp;·&nbsp;
   <a href="CHANGELOG.md">Changelog</a>
@@ -55,9 +57,10 @@
 <sub>Unedited screenshots from this port on an M1 Pro. The game content in them belongs to its owners.</sub>
 
 > [!TIP]
-> **New in v0.1.20: Xbox 360 achievements.** The original 36 achievements,
-> earned dates and Gamerscore in Settings, with new awards shown during play.
-> [Details](docs/ACHIEVEMENTS.md).
+> **New in v0.1.21: six languages.** English, Japanese, German, French,
+> Spanish and Italian for the port menus and game text. Choose your language
+> in Settings; import game translations from your own European disc image.
+> [Setup and screenshots](#languages).
 
 **TL;DR**
 
@@ -72,6 +75,8 @@
   game, then you play.
 - Optional offline [Codes](#offline-codes) for the solo career, and Xbox Live
   play again through community or your own servers.
+- Menus and game text in **English, Japanese, German, French, Spanish and Italian**.
+  [Language setup](#languages) explains the optional European disc import.
 - Updates install over the old version. Saves and settings stay.
 - Settings: **F1**, **Cmd+,** or **Back + Start** on a controller.
 
@@ -144,8 +149,8 @@
 **A menu in the game's own style**
 
 - A settings menu modelled on the game's Settings screen: its fonts, its
-  orange rows and yellow bands, its running chevrons and button hints. Every
-  change applies live, and each row explains itself.
+  orange rows and yellow bands, its running chevrons and button hints. Each row
+  explains itself; most changes apply live, while Language needs a restart.
 - Dialogs, notices and the "What's new" note look like the game's own prompts.
 
 **Achievements**
@@ -235,9 +240,9 @@ conditions and artwork come from your own game disc. They do not sync with an
 Xbox Live, Steam or RetroAchievements account.
 
 <p align="center">
-  <img src="docs/screenshots/achievement-unlocked.jpg" alt="Server Surfer achievement unlocking for 5 G during an online Crash Battle event" width="85%">
+  <img src="docs/screenshots/achievement-unlocked.jpg" alt="Crashes To Ashes achievement unlocking for 35 G at the start of an online race" width="85%">
   <br>
-  <sub>A natural Server Surfer unlock during an online Crash Battle event.</sub>
+  <sub>Crashes To Ashes: the six-second achievement notification during online play.</sub>
 </p>
 
 ## Quick start
@@ -247,9 +252,10 @@ Xbox Live, Steam or RetroAchievements account.
    **Burnout Revenge.app** to Applications.
 2. Open it. The app is signed ad hoc, not notarized: if macOS blocks it, use
    System Settings > Privacy & Security > Open Anyway.
-3. Choose your **USA Xbox 360 disc image** (.iso). Optionally choose an install
+3. Choose your language and your **USA Xbox 360 disc image** (.iso). Optionally choose an install
    folder and your add-on car packs, then Install & Verify.
-4. Start your engines. Later launches go straight to the game.
+4. Start your engines. Later launches go straight to the game. For translated game
+   text, [import language resources](#languages) from your own European disc image.
 
 <p align="center">
   <img src="docs/screenshots/setup-drag-to-applications.png" alt="The download's Finder window: hazard stripes, BURNOUT REVENGE in heavy italic capitals, the game's icon with chevrons running to the Applications folder, and DRAG THE GAME TO APPLICATIONS" width="60%">
@@ -272,8 +278,9 @@ Settings, saves and the installed game live in
 
 **Requirements:** an Apple silicon Mac with macOS 15 or later, and the USA
 Xbox 360 disc image of Burnout Revenge. Developed and tested on an M1 Pro.
-PAL and Japanese discs, title updates, GOD packages and Xbox save imports are
-not supported.
+European disc images can supply [language resources](#languages); game installation
+still requires the USA revision. European or Japanese executables, title updates
+and GOD packages are not supported. [Xbox 360 saves can be imported](#highlights).
 
 ## Settings
 
@@ -305,7 +312,7 @@ Open with **F1**, **Cmd+,** or **Back + Start**. LB/RB (Q/E) switch pages.
 | Online | Online Play, Server (Xerenge Community, My Server, LAN), Gamertag, Server Address, Check Server ([online play](docs/ONLINE.md)) |
 | Achievements | Original Xbox 360 list, requirements, earned dates and local Gamerscore ([details](docs/ACHIEVEMENTS.md)) |
 | Codes | Infinite Boost, Infinite Time, Quick Money, Quick Takedowns, Easy Boost; solo World Tour only, off by default ([Codes](#offline-codes)) |
-| Advanced | Asynchronous Shaders, Performance Overlay, Auto-import Add-ons, Skip Intro Movies, Save Bug Report, Check for Updates, Add-ons, Save Backups, About |
+| Advanced | Language, Import Languages from Disc, Asynchronous Shaders, Performance Overlay, Auto-import Add-ons, Skip Intro Movies, Save Bug Report, Check for Updates, Add-ons, Save Backups, About |
 
 A good start on an M1 Pro: 1.5x internal resolution (1080p), SMAA, Bicubic,
 sharpening 0.3 and 16x anisotropic filtering. Use 1x if the GPU can't keep
@@ -316,6 +323,52 @@ sharpening 0.3 and 16x anisotropic filtering. Use 1x if the GPU can't keep
   <br>
   <sub>My Music in the main menu. Song names in any script are shown.</sub>
 </p>
+
+### Languages
+
+<p align="center">
+  <img src="docs/screenshots/localization-settings-fr.jpg" alt="French Advanced settings with Language set to Français and the action for importing languages from a disc" width="85%">
+  <br>
+  <sub>French settings: the language choice and verified disc import.</sub>
+</p>
+
+The port menus, setup, dialogs, settings help, Codes and achievement status
+are available in **English, 日本語, Deutsch, Français, Español and Italiano**.
+
+Choose a language in the first-run screen, or in
+**Settings > Advanced > Language**. A change in Settings applies
+after restarting the game. If `BURNOUT_LANGUAGE` is set, the menu shows that
+active language with an ENV marker and disables editing; remove the variable
+to use the saved choice.
+
+The USA disc contains English game text. To use another game language, choose
+**Import Languages from Disc...** in Advanced and select your own European Xbox
+360 ISO. The **Europe (Fr,De,It)** disc contains the Japanese, German, French,
+Spanish and Italian text resources; **Europe (En,Es,Nl,Sv,Fi)** also supplies
+Spanish. To apply a game translation:
+
+1. Open **Settings > Advanced > Import Languages from Disc...**.
+2. Select your own European Xbox 360 ISO and wait for the import confirmation.
+3. Choose **Language** above, then close and restart the game.
+
+Importing copies only verified language files into the game's data folder,
+without replacing the USA executable or your saves.
+Missing or damaged resources leave the game in English, with an explanation;
+the port's menus still use the language you chose.
+
+<p align="center">
+  <img src="docs/screenshots/localization-game-ja.jpg" alt="The World Tour garage in Japanese, showing vehicle details, menu text and the original disc font" width="85%">
+  <br>
+  <sub>The original Japanese game text and font, loaded alongside the USA game.</sub>
+</p>
+
+Japanese uses the original disc font in the game and system glyphs in the port
+menus. Achievement names and requirements use the original translations from
+your game; the Japanese edition's achievement names remain in English. Movie
+audio, music titles and the original title artwork are unchanged;
+release notes and technical diagnostics may remain in English. The recompiled
+executable still targets the USA revision; importing languages does not add
+support for running a European executable.
 
 ### Keyboard
 

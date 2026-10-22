@@ -1,3 +1,4 @@
+#include <user/localization.h>
 // SpeedBreaker runtime. GPL-3.0-or-later (see COPYING). See ui.h.
 //
 // A one-time notice over the game (the refresh-rate one, video/
@@ -57,14 +58,14 @@ namespace ui
             }
             burnout::DialogFrame();
             {
-                std::string heading = notice.title;
+                std::string heading = locale::Text(notice.title.c_str());
                 for (char& c : heading)
                     c = char(std::toupper(static_cast<unsigned char>(c)));
                 ImGui::PushFont(burnout::DisplayFont(), 34.0f);
                 ImGui::TextUnformatted(heading.c_str());
                 ImGui::PopFont();
             }
-            burnout::DialogText(notice.text.c_str(), width);
+            burnout::DialogText(locale::Text(notice.text.c_str()), width);
             ImGui::Dummy(ImVec2(0, 10 * s));
             if (notice.firstFrame)
                 ImGui::SetKeyboardFocusHere();

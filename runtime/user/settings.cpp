@@ -58,6 +58,10 @@ namespace settings
 #else
         constexpr bool kFsr1Offered = true;
 #endif
+        constexpr EnumEntry kLanguageEntries[] = {
+            { 1, "en", "English" }, { 2, "ja", "日本語" }, { 3, "de", "Deutsch" },
+            { 4, "fr", "Français" }, { 5, "es", "Español" }, { 6, "it", "Italiano" },
+        };
         constexpr EnumEntry kMusicEntries[] = {
             { int32_t(MusicSource::EaTrax), "ea_trax", "EA Trax" },
             { int32_t(MusicSource::MyMusic), "my_music", "My Music" },
@@ -499,6 +503,10 @@ namespace settings
               .description = "Earn a full current boost bar from a Near Miss. Lower the speed and distance required for Near Miss and drift boost in solo World Tour. Disabled with Online Play and in Multiplayer.",
               .env = "BURNOUT_EASY_BOOST", .defaultValue = 0 },
             // Advanced
+            { .id = Id::Language, .category = Category::Advanced, .type = Type::Enum, .apply = Apply::Restart,
+              .table = "general", .key = "language", .label = "Language",
+              .description = "Language for the port menus and the game. Restart to apply. Import language resources from your own European disc image to translate the game; without them, the game stays in English.",
+              .env = "BURNOUT_LANGUAGE", .defaultValue = 1, .entries = kLanguageEntries },
             { .id = Id::AsyncShaders, .category = Category::Advanced, .type = Type::Bool, .apply = Apply::Live,
               .table = "advanced", .key = "async_shaders", .label = "Asynchronous Shaders",
               .description = "Skip an object for a frame or two while its shader compiles, instead of stuttering.",
@@ -1358,6 +1366,11 @@ namespace settings
     {
         EnsureInit("a stored value was read");
         return s_stored[size_t(id)].load(std::memory_order_relaxed);
+    }
+
+    double GetMenuValue(Id id)
+    {
+        return EnvOverride(id) ? GetValue(id) : GetStoredValue(id);
     }
 
     bool IsDefault(Id id)

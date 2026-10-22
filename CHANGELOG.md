@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.1.21
+
+- Six interface languages: English, Japanese, German, French, Spanish and Italian.
+  Choose a language during first-run setup or under Settings > Advanced, then
+  restart to apply a change made in Settings. Labels, help, dialogs, Codes,
+  achievement status, update checks and server checks share one catalogue.
+- Import verified game translations and the original Japanese font from your own
+  European Xbox 360 disc image in Advanced settings. The port keeps its USA
+  executable and your saves. Missing or damaged language resources fall back
+  to English game text, with a notice. Achievement names and requirements use
+  the language tables already in the game executable.
+- Environment overrides show their active value in Settings, including Language,
+  and disable editing until the override is removed.
+- Long translated labels fit the settings rows and action buttons. Setup pages
+  can scroll on short windows, and Japanese glyphs are available in all menu fonts.
+
 ## v0.1.20
 
 - Settings > Achievements: the 36 original Xbox 360 achievements (1000 G),

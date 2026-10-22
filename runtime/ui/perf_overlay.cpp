@@ -1,3 +1,4 @@
+#include <user/localization.h>
 // SpeedBreaker runtime. GPL-3.0-or-later (see COPYING).
 //
 // The performance overlay (Settings > Advanced): frame rate and frame times
@@ -62,10 +63,10 @@ namespace ui
             }
             float average = n ? sum / n : 0.0f;
             PushAccentText();
-            ImGui::Text("%.0f fps", average > 0 ? 1000.0f / average : 0.0f);
+            ImGui::Text(locale::Text("%.0f fps"), average > 0 ? 1000.0f / average : 0.0f);
             PopAccentText();
             ImGui::SameLine();
-            ImGui::TextDisabled("%.1f ms  (worst %.1f)", average, worst);
+            ImGui::TextDisabled(locale::Text("%.1f ms  (worst %.1f)"), average, worst);
 
             // Oldest first, for the plot.
             float ordered[kHistory];
@@ -77,8 +78,8 @@ namespace ui
             ImGui::Spacing();
 
             gpu::renderer::PerfNumbers perf = gpu::renderer::GetPerfNumbers();
-            ImGui::TextDisabled("CPU render %.1f ms   GPU %.1f ms", perf.cpMs, perf.gpuMs);
-            ImGui::TextDisabled("%.0f draws per frame", perf.draws);
+            ImGui::TextDisabled(locale::Text("CPU render %.1f ms   GPU %.1f ms"), perf.cpMs, perf.gpuMs);
+            ImGui::TextDisabled(locale::Text("%.0f draws per frame"), perf.draws);
         }
         ImGui::End();
         ImGui::PopFont();

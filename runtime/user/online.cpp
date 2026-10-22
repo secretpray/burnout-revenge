@@ -1,3 +1,4 @@
+#include <user/localization.h>
 // Burnout Revenge port. GPL-3.0-or-later (see COPYING). See online.h.
 #include "online.h"
 #include "online_identity.h"
@@ -263,7 +264,7 @@ namespace online
         CheckResult result;
         if (host.empty())
         {
-            result.text = "No server to check: the LAN needs none, and My Server needs an address.";
+            result.text = locale::Text("No server to check: the LAN needs none, and My Server needs an address.");
             return result;
         }
         addrinfo hints{};
@@ -272,7 +273,7 @@ namespace online
         addrinfo* found = nullptr;
         if (getaddrinfo(host.c_str(), nullptr, &hints, &found) != 0 || !found)
         {
-            result.text = "\"" + host + "\" wasn't found: check the address and the network.";
+            result.text = locale::Format("\"{}\" wasn't found: check the address and the network.", host);
             return result;
         }
         const uint32_t address = reinterpret_cast<sockaddr_in*>(found->ai_addr)->sin_addr.s_addr;
@@ -281,7 +282,7 @@ namespace online
         const int fd = ConnectWithin(address, 31860, 5000, error);
         if (fd < 0)
         {
-            result.text = host + " (" + Text(address) + ") doesn't answer on port 31860: " + error + ".";
+            result.text = locale::Format("{} ({}) doesn't answer on port 31860: {}.", host, Text(address), error);
             return result;
         }
         // @dir as the game sends it: a 12-byte header (command, code, length
@@ -320,7 +321,7 @@ namespace online
         close(fd);
         if (reply.size() < 12 || reply.compare(0, 4, "@dir") != 0)
         {
-            result.text = host + " answered, but not as a Burnout Revenge lobby server does.";
+            result.text = locale::Format("{} answered, but not as a Burnout Revenge lobby server does.", host);
             return result;
         }
         auto field = [&](const char* key) {
@@ -336,8 +337,8 @@ namespace online
         if (locker >= 0)
             close(locker);
         result.ok = true;
-        result.text = "Server found: its lobby is at " + field("ADDR") + ":" + field("PORT") + ". Burnout Clips: " +
-                      (locker >= 0 ? "yes." : "no (no Locker on port 31862).");
+        result.text = locale::Format("Server found: its lobby is at {}:{}. Burnout Clips: {}", field("ADDR"), field("PORT"),
+                      locale::Text(locker >= 0 ? "yes." : "no (no Locker on port 31862)."));
         return result;
     }
 

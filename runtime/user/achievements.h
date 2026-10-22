@@ -24,7 +24,7 @@ namespace achievements
         bool unreadable = false;
         bool Save(); // under mutex
     public:
-        bool Initialize(std::span<const uint8_t> database, std::filesystem::path file);
+        bool Initialize(std::span<const uint8_t> database, std::filesystem::path file, uint32_t language = 1);
         bool Earn(uint32_t user, uint32_t id); // true also for a duplicate; false on invalid input or disk failure
         std::vector<Entry> Entries(uint32_t user = 0) const;
         const std::vector<Definition>& Definitions() const { return definitions; } // immutable after startup

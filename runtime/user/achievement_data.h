@@ -24,7 +24,7 @@ namespace achievements
     }
     inline uint16_t Read16(std::span<const uint8_t> b, size_t p) { return uint16_t((b[p] << 8) | b[p + 1]); }
 
-    inline std::vector<Definition> ParseDatabase(std::span<const uint8_t> data)
+    inline std::vector<Definition> ParseDatabase(std::span<const uint8_t> data, uint32_t language = 1)
     {
         if (data.size() < 24 || Read32(data, 0) != 0x58444246 || Read32(data, 4) != 0x10000) return {};
         const uint32_t capacity = Read32(data, 8), used = Read32(data, 12), free = Read32(data, 16);
@@ -42,19 +42,27 @@ namespace achievements
         auto block = [&](uint16_t section, uint64_t id) -> std::span<const uint8_t> {
             auto it = blocks.find({section, id}); return it == blocks.end() ? std::span<const uint8_t>() : it->second;
         };
-        auto strings = block(3, 1); // English, the port's interface language.
         auto table = block(1, 0x58414348);
-        if (strings.size() < 14 || Read32(strings, 0) != 0x58535452 || Read32(strings, 4) != 1 ||
-            table.size() < 14 || Read32(table, 0) != 0x58414348 || Read32(table, 4) != 1) return {};
-        std::map<uint16_t, std::string> text;
-        size_t p = 14;
-        for (uint16_t i = 0; i < Read16(strings, 12); ++i)
-        {
-            if (p + 4 > strings.size()) return {};
-            uint16_t id = Read16(strings, p), length = Read16(strings, p + 2); p += 4;
-            if (length > strings.size() - p) return {};
-            text[id] = std::string(reinterpret_cast<const char*>(strings.data() + p), length); p += length;
-        }
+        if (table.size() < 14 || Read32(table, 0) != 0x58414348 || Read32(table, 4) != 1) return {};
+        auto readStrings = [](std::span<const uint8_t> strings) {
+            std::map<uint16_t, std::string> text;
+            if (strings.size() < 14 || Read32(strings, 0) != 0x58535452 || Read32(strings, 4) != 1) return text;
+            size_t p = 14;
+            for (uint16_t i = 0; i < Read16(strings, 12); ++i)
+            {
+                if (p + 4 > strings.size()) return std::map<uint16_t, std::string>{};
+                uint16_t id = Read16(strings, p), length = Read16(strings, p + 2); p += 4;
+                if (length > strings.size() - p || text.contains(id)) return std::map<uint16_t, std::string>{};
+                text[id] = std::string(reinterpret_cast<const char*>(strings.data() + p), length); p += length;
+            }
+            return text;
+        };
+        auto text = readStrings(block(3, 1));
+        if (text.empty()) return {};
+        if (language != 1 && language >= 2 && language <= 6)
+            for (auto& [id, value] : readStrings(block(3, language)))
+                if (!value.empty()) text[id] = std::move(value);
+        size_t p;
         uint16_t count = Read16(table, 12);
         if (count > 1024 || 14ull + 36ull * count > table.size()) return {};
         std::vector<Definition> result;

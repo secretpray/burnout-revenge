@@ -1,3 +1,4 @@
+#include <user/localization.h>
 #include <game/title.h>
 // SpeedBreaker runtime. GPL-3.0-or-later (see COPYING).
 //
@@ -6,6 +7,7 @@
 // then start the game. The blocking work (the scan, the check, the install)
 // runs on a worker thread; this file only draws and reacts.
 #include <stdafx.h>
+#include <user/settings.h>
 #include "installer_screen.h"
 #include "ui.h"
 #include "burnout_setup.h"
@@ -249,9 +251,9 @@ namespace ui
         std::string Duration(double seconds)
         {
             if (seconds < 60)
-                return std::format("{} s", std::max(1, int(seconds + 0.5)));
+                return locale::Format("{} s", std::max(1, int(seconds + 0.5)));
             int minutes = int(seconds / 60 + 0.5);
-            return minutes < 60 ? std::format("{} min", minutes) : std::format("{} h {} min", minutes / 60, minutes % 60);
+            return minutes < 60 ? locale::Format("{} min", minutes) : locale::Format("{} h {} min", minutes / 60, minutes % 60);
         }
 
         // Folders the scan reads without asking. On macOS, Desktop,
@@ -853,9 +855,9 @@ namespace ui
         if (wide) br::Poster(ImGui::GetWindowPos(), {poster, size.y});
         ImGui::SetCursorPos({poster + pad, pad});
         ImGui::PushFont(nullptr, 18);
-        // Each page is laid out to fit: never a scroll bar.
+        // Translated text may wrap further; preserve access to the actions.
         ImGui::BeginChild("setup-content", {size.x - poster - pad * 2, size.y - pad * 2}, ImGuiChildFlags_NavFlattened,
-            ImGuiWindowFlags_NoScrollbar);
+            ImGuiWindowFlags_None);
         if (pageStarted == 0) pageStarted = ImGui::GetTime();
         bool picker;
         { std::lock_guard lock(s_dialogMutex); picker = s_dialogOpen; }
@@ -906,7 +908,7 @@ namespace ui
             gap(22);
             reveal([&] {
                 br::Heading(heading);
-                ImGui::TextWrapped("%s", line);
+                ImGui::TextWrapped("%s", locale::Text(line));
             });
         };
         auto footer = [&] {
@@ -922,10 +924,10 @@ namespace ui
                         (!ImGui::IsAnyItemActive() && ImGui::IsKeyPressed(ImGuiKey_M, false)))
                         setup_music::SetEnabled(!setup_music::Enabled());
                     ImGui::SameLine();
-                    ImGui::TextDisabled("   /   Mouse  /  Keyboard  /  Controller");
+                    ImGui::TextDisabled("%s", locale::Text("   /   Mouse  /  Keyboard  /  Controller"));
                 }
                 else
-                    ImGui::TextDisabled("Your own game copy is required.   /   Mouse  /  Keyboard  /  Controller");
+                    ImGui::TextDisabled("%s", locale::Text("Your own game copy is required.   /   Mouse  /  Keyboard  /  Controller"));
             });
         };
 
@@ -933,16 +935,37 @@ namespace ui
         {
         case Page::Choose:
         {
+            ImGui::SetNextItemWidth(std::min(250.0f * s, ImGui::GetContentRegionAvail().x));
+            ImGui::BeginDisabled(settings::EnvOverride(settings::Id::Language) != nullptr);
+            if (ImGui::BeginCombo("##setup-language", locale::names[int(locale::Current()) - 1]))
+            {
+                for (int id = 1; id <= 6; ++id)
+                    if (ImGui::Selectable(locale::names[id - 1], id == int(locale::Current())))
+                    {
+                        settings::Set(settings::Id::Language, id);
+                        settings::Save();
+                        locale::Select(id);
+                    }
+                ImGui::EndCombo();
+            }
+            ImGui::EndDisabled();
+            if (const char* env = settings::EnvOverride(settings::Id::Language))
+            {
+                ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+                ImGui::TextWrapped(locale::Text("%s controls this setting. Remove it to edit the saved choice: %s."), env,
+                    settings::FormatValue(settings::Id::Language, settings::GetStoredValue(settings::Id::Language)).c_str());
+                ImGui::PopStyleColor();
+            }
             header(1, "GET READY TO DRIVE.", "Bring your Xbox 360 copy. We'll take care of the setup.");
             gap(30);
             reveal([&] {
                 if (!notice.empty()) ImGui::TextWrapped("%s", notice.c_str());
                 br::Eyebrow("01  /  YOUR GAME");
-                ImGui::TextWrapped("Your original Xbox 360 disc image (.iso).");
+                ImGui::TextWrapped("%s", locale::Text("Your original Xbox 360 disc image (.iso)."));
                 gap(10);
                 if (button("CHOOSE ISO", true, 58)) Browse(false);
                 gap(6);
-                small([&] { ImGui::TextDisabled("Game files are checked before installation. Car packs and the install folder come next."); });
+                small([&] { ImGui::TextDisabled("%s", locale::Text("Game files are checked before installation. Car packs and the install folder come next.")); });
             });
             break;
         }
@@ -969,7 +992,7 @@ namespace ui
                 // An explicit native picker is clearer than a carousel of paths.
                 small([&] {
                     if (d.info.available != UINT64_MAX)
-                        ImGui::TextDisabled("%s required  /  %s available", install::FormatSize(d.info.required).c_str(),
+                        ImGui::TextDisabled(locale::Text("%s required  /  %s available"), install::FormatSize(d.info.required).c_str(),
                             install::FormatSize(d.info.available).c_str());
                     pathLine(destination);
                 });
@@ -983,7 +1006,7 @@ namespace ui
                 small([&] {
                     // The result and where from, on one line.
                     if (addonSource.empty())
-                        ImGui::TextDisabled("Choose your car packs now, or add them later in Settings.");
+                        ImGui::TextDisabled("%s", locale::Text("Choose your car packs now, or add them later in Settings."));
                     else
                     {
                         ImGui::TextUnformatted(addonMessage.c_str());
@@ -1012,12 +1035,12 @@ namespace ui
             float fraction = p.bytesTotal ? float(double(p.bytesDone) / double(p.bytesTotal)) : 0;
             ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY() + 24 * s, ImGui::GetWindowHeight() * .36f));
             reveal([&] {
-                br::Figure(std::format("{}%", int(fraction * 100)).c_str());
+                br::Figure(locale::Format("{}%", int(fraction * 100)).c_str());
                 gap(6);
                 br::HazardBar(fraction, 16 * s);
                 gap(4);
                 small([&] {
-                    ImGui::TextDisabled("%s / %s   |   %zu / %zu files", install::FormatSize(p.bytesDone).c_str(),
+                    ImGui::TextDisabled(locale::Text("%s / %s   |   %zu / %zu files"), install::FormatSize(p.bytesDone).c_str(),
                         install::FormatSize(p.bytesTotal).c_str(), p.filesDone, p.filesTotal);
                     if (!file.empty()) ImGui::TextDisabled("%s", DisplayPath(file, ImGui::GetContentRegionAvail().x).c_str());
                 });
@@ -1035,7 +1058,7 @@ namespace ui
             gap(32);
             reveal([&] {
                 br::Eyebrow("SETUP COMPLETE");
-                ImGui::TextUnformatted("Game files verified.");
+                ImGui::TextUnformatted(locale::Text("Game files verified."));
                 if (!addonSource.empty()) ImGui::TextWrapped("%s", addonMessage.c_str());
                 small([&] { pathLine(destination); });
             });
@@ -1043,7 +1066,7 @@ namespace ui
             reveal([&] {
                 if (button("START YOUR ENGINES", true, 58)) screen.finished = true;
                 gap(8);
-                small([&] { ImGui::TextDisabled("Settings in game: Back + Start  /  F1  /  Cmd+,"); });
+                small([&] { ImGui::TextDisabled("%s", locale::Text("Settings in game: Back + Start  /  F1  /  Cmd+,")); });
             });
             break;
         }
@@ -1222,7 +1245,7 @@ namespace ui
                     fprintf(stderr, "[installer] add-on folder %s: %s\n", folder->c_str(), st.addonMessage.c_str());
                     size_t copied = 0, skipped = 0;
                     if (std::sscanf(st.addonMessage.c_str(), "%zu pack(s) copied; %zu skipped", &copied, &skipped) == 2)
-                        st.addonMessage = copied ? std::format("{} car packs ready", copied) : "No compatible car packs found in this folder.";
+                        st.addonMessage = copied ? locale::Format("{} car packs ready", copied) : "No compatible car packs found in this folder.";
                 }
                 else
                     st.PickFolder(*folder);
@@ -1264,7 +1287,7 @@ namespace ui
             return;
         }
         TitleText("BurnoutRevenge");
-        ImGui::TextDisabled("First-time setup for %s (Xbox 360)", game::kTitle);
+        ImGui::TextDisabled(locale::Text("First-time setup for %s (Xbox 360)"), game::kTitle);
         ImGui::Spacing();
         ImGui::Separator();
         ImGui::Spacing();
@@ -1285,8 +1308,8 @@ namespace ui
         case Page::Choose:
         {
             const bool inert = PickerShown();  // nothing acts while a Files picker is up
-            ImGui::TextWrapped("The game is installed from your own copy: an Xbox 360 disc image (.iso) or the files "
-                               "extracted from one. No game data comes with this port.");
+            ImGui::TextWrapped("%s", locale::Text("The game is installed from your own copy: an Xbox 360 disc image (.iso) or the files "
+                               "extracted from one. No game data comes with this port."));
             if (!st.notice.empty())
             {
                 PushAccentText();
@@ -1312,7 +1335,7 @@ namespace ui
                     ImGui::TextDisabled("%s", kScanning);
                 else if (st.images.empty())
                 {
-                    ImGui::TextDisabled("No disc images found.");
+                    ImGui::TextDisabled("%s", locale::Text("No disc images found."));
                     ImGui::TextWrapped("%s", kWhereToPut);
                 }
                 bool focused = false;
@@ -1350,7 +1373,7 @@ namespace ui
                     draw->AddText(ImVec2(left, top), text, FileName(c.path).c_str());
                     draw->AddText(ImVec2(left, top + ImGui::GetFontSize() + lineGap), dim,
                         DisplayPath(c.path.parent_path(), right - left).c_str());
-                    std::string status = std::format("{}   {}", install::FormatSize(c.size), StatusText(c));
+                    std::string status = locale::Format("{}   {}", install::FormatSize(c.size), StatusText(c));
                     float w = ImGui::CalcTextSize(status.c_str()).x;
                     draw->AddText(ImVec2(right - w, top), ok ? ImGui::GetColorU32(ImGuiCol_PlotLines) : dim, status.c_str());
                     if (pick && ok && !inert)
@@ -1372,12 +1395,12 @@ namespace ui
             }
 
 #if !(defined(__APPLE__) && TARGET_OS_IOS)
-            ImGui::TextDisabled("Or type the path of an image or folder:");
+            ImGui::TextDisabled("%s", locale::Text("Or type the path of an image or folder:"));
             ImGui::SetNextItemWidth(-ImGui::CalcTextSize("Use").x - ImGui::GetStyle().FramePadding.x * 2 - ImGui::GetStyle().ItemSpacing.x);
             bool enter = ImGui::InputText("##path", st.typedPath, sizeof(st.typedPath), ImGuiInputTextFlags_EnterReturnsTrue);
             ImGui::SameLine();
             ImGui::BeginDisabled(st.typedPath[0] == 0);
-            if (ImGui::Button("Use") || (enter && st.typedPath[0]))
+            if (ImGui::Button(locale::Text("Use")) || (enter && st.typedPath[0]))
             {
                 std::string path = st.typedPath;
                 if (path.starts_with("~/"))
@@ -1395,11 +1418,11 @@ namespace ui
             if (mainButton("Browse for image...") && !inert)
                 Browse(false);
             ImGui::SameLine();
-            if (ImGui::Button("Browse for folder...") && !inert)
+            if (ImGui::Button(locale::Text("Browse for folder...")) && !inert)
                 Browse(true);
             ImGui::SameLine();
             ImGui::BeginDisabled(!st.scanned);
-            if (ImGui::Button("Rescan") && !inert)
+            if (ImGui::Button(locale::Text("Rescan")) && !inert)
             {
                 st.scanned = false;
                 st.images.clear();
@@ -1411,15 +1434,15 @@ namespace ui
 #if !(defined(__APPLE__) && TARGET_OS_IOS)
             ImGui::SameLine();
             ImGui::SetCursorPosX(ImGui::GetWindowContentRegionMax().x - ImGui::CalcTextSize("Quit").x - ImGui::GetStyle().FramePadding.x * 2);
-            if (ImGui::Button("Quit"))
+            if (ImGui::Button(locale::Text("Quit")))
                 quit = true;
 #endif
             break;
         }
 
         case Page::Checking:
-            ImGui::Text("Checking %s...", FileName(st.sourcePath).c_str());
-            ImGui::TextDisabled("Reading the game's version and file list.");
+            ImGui::Text(locale::Text("Checking %s..."), FileName(st.sourcePath).c_str());
+            ImGui::TextDisabled("%s", locale::Text("Reading the game's version and file list."));
             ImGui::ProgressBar(-float(ImGui::GetTime()), ImVec2(-1, 0), "");
             ButtonRowAtBottom();
             // A read that waits (a drive that stopped answering, a file still
@@ -1427,7 +1450,7 @@ namespace ui
             // leaves it to return on its own. Not focused, as on Installing:
             // A pressed twice on an image mustn't come straight back.
             st.focusPage = false;
-            if (ImGui::Button("Back"))
+            if (ImGui::Button(locale::Text("Back")))
             {
                 st.LeaveCheck();
                 st.Go(Page::Choose);
@@ -1437,15 +1460,15 @@ namespace ui
         case Page::Confirm:
         {
             PushAccentText();
-            ImGui::TextUnformatted("Ready to install");
+            ImGui::TextUnformatted(locale::Text("Ready to install"));
             PopAccentText();
             ImGui::Spacing();
             const auto& manifest = install::GameManifest();
-            ImGui::TextDisabled("From");
+            ImGui::TextDisabled("%s", locale::Text("From"));
             ImGui::TextWrapped("%s", HomeRelative(st.sourcePath).c_str());
             (void)manifest;
             ImGui::Spacing();
-            ImGui::TextDisabled("To");
+            ImGui::TextDisabled("%s", locale::Text("To"));
             const State::Destination& dest = st.destinations[st.chosen];
             auto describe = [](const State::Destination& d) {
                 std::string text = d.where.label;
@@ -1515,13 +1538,13 @@ namespace ui
             // The exact folder the game goes to, wrapped (not cut off) when long.
             ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
             if (unpicked)
-                ImGui::TextWrapped("Any folder: the game goes in it, or in a new folder inside it if it holds other files.");
+                ImGui::TextWrapped("%s", locale::Text("Any folder: the game goes in it, or in a new folder inside it if it holds other files."));
             else
                 ImGui::TextWrapped("%s", HomeRelative(d.where.path).c_str());
             ImGui::PopStyleColor();
             ImGui::Spacing();
             if (d.custom && st.pick == State::Pick::Waiting)
-                ImGui::TextDisabled("Waiting for the folder picker...");
+                ImGui::TextDisabled("%s", locale::Text("Waiting for the folder picker..."));
             else if (d.custom && st.pick == State::Pick::Unavailable)
             {
                 PushAccentText();
@@ -1547,27 +1570,27 @@ namespace ui
                     for (const std::string& note : d.choice.notes)
                         ImGui::TextWrapped("%s", note.c_str());
                 }
-                ImGui::TextDisabled("%s needed", install::FormatSize(d.info.required).c_str());
+                ImGui::TextDisabled(locale::Text("%s needed"), install::FormatSize(d.info.required).c_str());
                 if (d.info.replacing)
-                    ImGui::TextWrapped("Replaces the game already there. DLC and other files you added to it are kept.");
-                ImGui::TextWrapped("This takes a few minutes. Every file is checked against the known-good disc as it is copied.");
+                    ImGui::TextWrapped("%s", locale::Text("Replaces the game already there. DLC and other files you added to it are kept."));
+                ImGui::TextWrapped("%s", locale::Text("This takes a few minutes. Every file is checked against the known-good disc as it is copied."));
             }
             ButtonRowAtBottom();
             // The cursor: Install when it can, else "Choose a folder..." on
             // that entry, else Back (nowhere to install).
             ImGui::BeginDisabled(!d.check.Ok());
-            if (d.check.Ok() ? mainButton("Install") : ImGui::Button("Install"))
+            if (d.check.Ok() ? mainButton("Install") : ImGui::Button(locale::Text("Install")))
                 st.StartInstall();
             ImGui::EndDisabled();
             if (d.custom)
             {
                 ImGui::SameLine();
-                const char* label = st.customFolder ? "Choose another folder..." : "Choose a folder...";
+                const char* label = locale::Text(st.customFolder ? "Choose another folder..." : "Choose a folder...");
                 if (d.check.Ok() ? ImGui::Button(label) : mainButton(label))
                     st.RequestFolder();
             }
             ImGui::SameLine();
-            if (d.check.Ok() || d.custom ? ImGui::Button("Back") : mainButton("Back"))
+            if (d.check.Ok() || d.custom ? ImGui::Button(locale::Text("Back")) : mainButton("Back"))
                 st.Go(Page::Choose);
             break;
         }
@@ -1592,23 +1615,23 @@ namespace ui
             ImGui::Spacing();
             float fraction = p.bytesTotal ? float(double(p.bytesDone) / double(p.bytesTotal)) : 0.0f;
             ImGui::ProgressBar(fraction, ImVec2(-1, 28 * s));
-            std::string line = std::format("{} of {}", install::FormatSize(p.bytesDone), install::FormatSize(p.bytesTotal));
+            std::string line = locale::Format("{} of {}", install::FormatSize(p.bytesDone), install::FormatSize(p.bytesTotal));
             if (copyStart.time_since_epoch().count() != 0)
             {
                 double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - copyStart).count();
                 double rate = seconds > 1.0 ? double(p.bytesDone - copyStartBytes) / seconds : 0.0;
                 if (rate > 0)
                 {
-                    line += std::format("   {}/s", install::FormatSize(uint64_t(rate)));
+                    line += locale::Format("   {}/s", install::FormatSize(uint64_t(rate)));
                     if (p.bytesTotal > p.bytesDone)
                         line += "   about " + Duration(double(p.bytesTotal - p.bytesDone) / rate) + " left";
                 }
             }
             ImGui::TextUnformatted(line.c_str());
-            ImGui::TextDisabled("%s (%zu of %zu files)", file.c_str(), std::min(p.filesDone + 1, p.filesTotal), p.filesTotal);
+            ImGui::TextDisabled(locale::Text("%s (%zu of %zu files)"), file.c_str(), std::min(p.filesDone + 1, p.filesTotal), p.filesTotal);
 #if defined(__APPLE__) && TARGET_OS_IOS
             ImGui::Spacing();
-            ImGui::TextDisabled("Keep BurnoutRevenge open until it's done: iOS pauses apps in the background.");
+            ImGui::TextDisabled("%s", locale::Text("Keep BurnoutRevenge open until it's done: iOS pauses apps in the background."));
 #endif
             ButtonRowAtBottom();
             // Not focused by default: a stray A press mustn't throw away minutes of copying.
@@ -1638,18 +1661,18 @@ namespace ui
 
         case Page::Done:
             PushAccentText();
-            ImGui::TextUnformatted("Installed");
+            ImGui::TextUnformatted(locale::Text("Installed"));
             PopAccentText();
             ImGui::Spacing();
-            ImGui::TextWrapped("Every file matched the known-good disc. The game is in %s.", HomeRelative(st.destination).c_str());
-            ImGui::TextWrapped("You can delete the disc image now if you like; the game doesn't need it any more.");
+            ImGui::TextWrapped(locale::Text("Every file matched the known-good disc. The game is in %s."), HomeRelative(st.destination).c_str());
+            ImGui::TextWrapped("%s", locale::Text("You can delete the disc image now if you like; the game doesn't need it any more."));
             ImGui::Spacing();
 #if defined(__APPLE__) && TARGET_OS_IOS
-            ImGui::TextDisabled("In game, press View + Menu on a controller, or tap with three fingers, to open the settings.");
+            ImGui::TextDisabled("%s", locale::Text("In game, press View + Menu on a controller, or tap with three fingers, to open the settings."));
 #elif defined(__APPLE__)
-            ImGui::TextDisabled("In game, F1 or Cmd+, (or Back + Start on a controller) opens the settings.");
+            ImGui::TextDisabled("%s", locale::Text("In game, F1 or Cmd+, (or Back + Start on a controller) opens the settings."));
 #else
-            ImGui::TextDisabled("In game, F1 (or Back + Start on a controller) opens the settings.");
+            ImGui::TextDisabled("%s", locale::Text("In game, F1 (or Back + Start on a controller) opens the settings."));
 #endif
             ButtonRowAtBottom();
             if (mainButton("Start the game"))
@@ -1663,9 +1686,9 @@ namespace ui
             ImGui::Spacing();
             ImGui::TextWrapped("%s", st.result.message.c_str());
             if (!st.result.file.empty())
-                ImGui::TextDisabled("File: %s", st.result.file.c_str());
+                ImGui::TextDisabled(locale::Text("File: %s"), st.result.file.c_str());
             if (!st.result.foundHash.empty())
-                ImGui::TextDisabled("SHA-256: %s", st.result.foundHash.c_str());
+                ImGui::TextDisabled(locale::Text("SHA-256: %s"), st.result.foundHash.c_str());
             ButtonRowAtBottom();
             if (mainButton("Back"))
                 st.Go(Page::Choose);
@@ -1673,7 +1696,7 @@ namespace ui
             {
                 // Back to the Confirm page: maybe another drive this time.
                 ImGui::SameLine();
-                if (ImGui::Button("Try again"))
+                if (ImGui::Button(locale::Text("Try again")))
                 {
                     st.LoadDestinations();
                     st.Go(Page::Confirm);

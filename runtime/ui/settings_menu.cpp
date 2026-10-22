@@ -1,3 +1,7 @@
+#include <user/localization.h>
+#include <user/language_resources.h>
+#include <user/paths.h>
+#include <future>
 // SpeedBreaker runtime. GPL-3.0-or-later (see COPYING).
 //
 // The settings menu, built from settings::Options(): one page per category,
@@ -81,6 +85,51 @@ namespace ui
         std::optional<std::string> s_addonPicked;
         std::string s_addonMessage;
 
+        bool ActionRow(const char* id, const char* label, const char* value, float valueWidth, bool& described, bool enabled);
+        std::mutex s_languageMutex;
+        std::optional<std::string> s_languagePick;
+        bool s_languagePicker = false;
+        std::future<install::Result> s_languageImport;
+        std::string s_languageMessage;
+        bool s_describedLanguages = false;
+        void LanguageDiscPicked(void*, const char* const* paths, int)
+        {
+            std::lock_guard lock(s_languageMutex);
+            s_languagePicker = false;
+            if (paths && paths[0]) s_languagePick = paths[0];
+            else if (!paths) s_languageMessage = "The file picker couldn't open. Try again.";
+        }
+        void LanguageResourcesRow(float width)
+        {
+            std::optional<std::string> picked;
+            bool picking;
+            { std::lock_guard lock(s_languageMutex); picked.swap(s_languagePick); picking = s_languagePicker; }
+            if (picked && !s_languageImport.valid())
+                s_languageImport = std::async(std::launch::async, [path = *picked, data = GetUserPath()] { return locale::ImportResources(path, data); });
+            if (s_languageImport.valid() && s_languageImport.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
+            {
+                auto result = s_languageImport.get();
+                std::lock_guard lock(s_languageMutex);
+                s_languageMessage = result.message;
+                Toast(locale::Text(result.message.c_str()), 8.0);
+            }
+            const bool busy = picking || s_languageImport.valid();
+            ImGui::BeginDisabled(busy);
+            bool selected = ActionRow("language-resources", "Import Languages from Disc...", busy ? "Importing..." : "Choose ISO", width, s_describedLanguages, true);
+            ImGui::EndDisabled();
+            if (selected)
+            {
+                if (const char* test = std::getenv("BURNOUT_TEST_PICK_LANGUAGE_ISO"); test && *test)
+                { std::lock_guard lock(s_languageMutex); s_languagePick = test; }
+                else
+                {
+                    { std::lock_guard lock(s_languageMutex); s_languagePicker = true; }
+                    static constexpr SDL_DialogFileFilter filters[] = {{"Xbox 360 disc image", "iso"}};
+                    SDL_ShowOpenFileDialog(LanguageDiscPicked, nullptr, GetWindow(), filters, 1, nullptr, false);
+                }
+            }
+        }
+
         void AddonFolderPicked(void*, const char* const* files, int)
         {
             std::lock_guard lock(s_addonPickerMutex);
@@ -101,14 +150,14 @@ namespace ui
             if (!shown) return true;
             burnout::DialogFrame();
             ImGui::PushFont(burnout::DisplayFont(), 34.0f);
-            ImGui::TextUnformatted("ADD-ONS");
+            ImGui::TextUnformatted(locale::Text("ADD-ONS"));
             ImGui::PopFont();
-            ImGui::TextWrapped("Connected this session: %zu", game::BurnoutAddons().size());
+            ImGui::TextWrapped(locale::Text("Connected this session: %zu"), game::BurnoutAddons().size());
             for (const auto& addon : game::BurnoutAddons()) ImGui::BulletText("%s", addon.name.c_str());
-            if (game::BurnoutAddons().empty()) ImGui::TextWrapped("No car packs connected yet.");
+            if (game::BurnoutAddons().empty()) ImGui::TextWrapped("%s", locale::Text("No car packs connected yet."));
             ImGui::Spacing();
-            ImGui::TextWrapped("Auto-import Add-ons searches XBOX360/454107DC/00000002 on mounted drives at launch. You can also choose a folder below. Newly imported packs connect after you restart the game.");
-            ImGui::TextWrapped("Installed folder: %s", game::BurnoutAddonFolder().string().c_str());
+            ImGui::TextWrapped("%s", locale::Text("Auto-import Add-ons searches XBOX360/454107DC/00000002 on mounted drives at launch. You can also choose a folder below. Newly imported packs connect after you restart the game."));
+            ImGui::TextWrapped(locale::Text("Installed folder: %s"), game::BurnoutAddonFolder().string().c_str());
             bool picking;
             std::optional<std::string> picked;
             std::string message;
@@ -211,9 +260,10 @@ namespace ui
         // The game's menus set their labels and values in capitals.
         std::string Upper(const char* text)
         {
+            text = locale::Text(text);
             std::string upper(text);
             for (char& c : upper)
-                if (c >= 'a' && c <= 'z')
+                if (locale::Current() == locale::Language::English && c >= 'a' && c <= 'z')
                     c = char(c - 'a' + 'A');
             return upper;
         }
@@ -227,7 +277,7 @@ namespace ui
         std::string KeyLabel(double stored)
         {
             if (stored == double(settings::keynames::kNone))
-                return kNoKey;
+                return locale::Text(kNoKey);
             if (!(stored >= 1 && stored < double(SDL_SCANCODE_COUNT)))
                 return "?";
             SDL_Scancode sc = SDL_Scancode(int(stored));
@@ -273,7 +323,7 @@ namespace ui
         // a key" or "none"; a row has two and a gap.
         float KeyCellWidth()
         {
-            float width = std::max(ImGui::CalcTextSize(kPressAKey).x, ImGui::CalcTextSize(kNoKey).x);
+            float width = std::max(ImGui::CalcTextSize(locale::Text(kPressAKey)).x, ImGui::CalcTextSize(locale::Text(kNoKey)).x);
             for (const auto& o : settings::Options())
                 if (o.type == settings::Type::Key)
                     width = std::max(width, ImGui::CalcTextSize(KeyLabel(settings::GetStoredValue(o.id)).c_str()).x);
@@ -384,7 +434,14 @@ namespace ui
             else
                 burnout::RowRule(draw, min.x, max.x, max.y - 2 * Scale());
             const ImU32 color = !enabled ? ImGui::GetColorU32(ImGuiCol_TextDisabled) : focused ? kRowWhite : kRowOrange;
-            draw->AddText(ImVec2(pos.x, CentredTextTop(mid)), color, Upper(label).c_str());
+            const std::string text = Upper(label);
+            const float width = std::max(1.0f, ImGui::GetContentRegionAvail().x - LabelInset());
+            const float size = ImGui::GetFontSize();
+            const ImVec2 measured = ImGui::CalcTextSize(text.c_str());
+            const float fit = measured.x > width ? std::max(size * .72f, size * width / measured.x) : size;
+            draw->PushClipRect(pos, {pos.x + width, max.y}, true);
+            draw->AddText(ImGui::GetFont(), fit, {pos.x, mid - fit * .5f}, color, text.c_str());
+            draw->PopClipRect();
             return mid;
         }
 
@@ -398,7 +455,7 @@ namespace ui
             const ImVec2 at = ImGui::GetCursorScreenPos();
             const float right = at.x + ImGui::GetContentRegionAvail().x;
             ImGui::PushFont(burnout::DisplayFont(), 46.0f);
-            const ImVec2 title = ImGui::CalcTextSize("SETTINGS");
+            const ImVec2 title = ImGui::CalcTextSize(locale::Text("SETTINGS"));
             ImGui::PopFont();
             ImGui::PushFont(burnout::LabelFont(), 21.0f);
             const char* sub = "[BURNOUT REVENGE FOR MAC]";
@@ -410,8 +467,8 @@ namespace ui
             const ImVec2 text(burnout::TitleBand(draw, ImVec2(at.x, bandTop), ImVec2(at.x + std::max(title.x, subSize.x) + 40 * s, bandBottom)),
                 at.y);
             ImGui::PushFont(burnout::DisplayFont(), 46.0f);
-            draw->AddText(ImVec2(text.x + 2 * s, text.y + 2 * s), IM_COL32(0, 0, 0, 200), "SETTINGS");
-            draw->AddText(text, kRowWhite, "SETTINGS");
+            draw->AddText(ImVec2(text.x + 2 * s, text.y + 2 * s), IM_COL32(0, 0, 0, 200), locale::Text("SETTINGS"));
+            draw->AddText(text, kRowWhite, locale::Text("SETTINGS"));
             ImGui::PopFont();
             ImGui::PushFont(burnout::LabelFont(), 21.0f);
             draw->AddText(ImVec2(text.x + 4 * s, subTop), kRowOrange, sub);
@@ -432,9 +489,10 @@ namespace ui
         {
             float s = Scale();
             const float rowHeight = RowHeight();
-            double stored = settings::GetStoredValue(o.id);
+            double stored = settings::GetMenuValue(o.id);
+            // Overrides show their effective value and cannot be edited this run.
             // Game Mode always runs fullscreen: shown, not changeable.
-            const bool locked = (o.id == Id::Fullscreen && video::FullscreenLocked()) ||
+            const bool locked = settings::EnvOverride(o.id) || (o.id == Id::Fullscreen && video::FullscreenLocked()) ||
                 ((o.id == Id::Sharpening || o.id == Id::AntiAliasing) && video::UsesMetalFx()) ||
                 (o.type == settings::Type::Enum && o.entries.size() == 1);
             if (locked && (o.id == Id::Fullscreen || o.id == Id::AntiAliasing))
@@ -454,13 +512,14 @@ namespace ui
             bool hovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenOverlappedByItem);
             if (focused || (hovered && s_described == Id::Count))
                 s_described = o.id;
-            const float mid = RowLabel(labelPos, o.label);
+            const float mid = RowLabel(labelPos, locale::Text(o.label));
 
             // Markers after the label: set by the environment, waits for a restart.
             {
-                float x = labelPos.x + ImGui::CalcTextSize(Upper(o.label).c_str()).x + 10.0f * s;
+                float x = labelPos.x + ImGui::CalcTextSize(Upper(locale::Text(o.label)).c_str()).x + 10.0f * s;
                 ImDrawList* draw = ImGui::GetWindowDrawList();
                 auto marker = [&](const char* text, ImU32 color) {
+                    text = locale::Text(text);
                     ImGui::PushFont(nullptr, 15.0f);
                     ImVec2 size = ImGui::CalcTextSize(text);
                     float y = CentredTextTop(mid);
@@ -580,7 +639,7 @@ namespace ui
             bool focused = ImGui::IsItemFocused();
             if (focused || (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenOverlappedByItem) && s_described == Id::Count))
                 s_described = e.id;
-            const float mid = RowLabel(labelPos, o.label);
+            const float mid = RowLabel(labelPos, locale::Text(o.label));
 
             if (focused && s_slotRow != e.id)
             {
@@ -636,7 +695,7 @@ namespace ui
                 const bool waitingHere = s_waiting == ids[i];
                 const bool chosen = focused && s_slot == i;
                 const double stored = settings::GetStoredValue(ids[i]);
-                const std::string text = waitingHere ? kPressAKey : KeyLabel(stored);
+                const std::string text = waitingHere ? locale::Text(kPressAKey) : KeyLabel(stored);
                 const ImVec2 size = ImGui::CalcTextSize(text.c_str());
                 ImU32 color;
                 if (waitingHere)
@@ -743,13 +802,13 @@ namespace ui
             const hid::wheel::Reading now = hid::wheel::Last();
             std::string text = axes.steer < 0
                 ? "Steering: none"
-                : std::format("Steering axis {}{}: {:+.0f}%", axes.steer,
+                : locale::Format("Steering axis {}{}: {:+.0f}%", axes.steer,
                       settings::GetBool(Id::InvertSteering) ? " inverted" : "", double(now.steer) * 100.0);
             struct Row { const char* name; int axis; float value; };
             for (const Row& row : { Row{ "Throttle", axes.throttle, now.throttle }, Row{ "Brake", axes.brake, now.brake },
                                     Row{ "Clutch", axes.clutch, now.clutch } })
-                text += row.axis < 0 ? std::format("   {}: none", row.name)
-                                     : std::format("   {} {}: {:.0f}%", row.name, row.axis, double(row.value) * 100.0);
+                text += row.axis < 0 ? locale::Format("   {}: none", row.name)
+                                     : locale::Format("   {} {}: {:.0f}%", row.name, row.axis, double(row.value) * 100.0);
             return text;
         }
 
@@ -758,7 +817,7 @@ namespace ui
             // While it runs, the value column counts the steps off: the
             // names are too long for it, and the help line has them.
             const std::string value = s_calibrating
-                ? std::format("{}/{}", size_t(s_calStep) + 1, hid::wheel::kStepCount)
+                ? locale::Format("{}/{}", size_t(s_calStep) + 1, hid::wheel::kStepCount)
                 : std::string("Start");
             const bool activated = ActionRow("wheel-calibrate", "Calibrate", value.c_str(), valueWidth, s_describedCal);
             if (!s_calibrating)
@@ -888,7 +947,7 @@ namespace ui
                 count = user::my_music::Scan(user::my_music::Folder(), platform::audio_file::IsMusicFile).size();
                 scanned = now;
             }
-            return count == 0 ? "Empty" : std::format("{} {}", count, count == 1 ? "file" : "files");
+            return count == 0 ? "Empty" : locale::Format("{} {}", count, locale::Text(count == 1 ? "file" : "files"));
         }
 
         void MusicFolderRow(float valueWidth)
@@ -1021,25 +1080,25 @@ namespace ui
             if (s_category == Category::Achievements) { AchievementHelp(); return; }
             if (s_describedGamertag)
             {
-                ImGui::TextWrapped("Your name online. Each player needs a different one: the lobby knows players by it. "
-                                   "Changes apply after restarting the game.");
+                ImGui::TextWrapped("%s", locale::Text("Your name online. Each player needs a different one: the lobby knows players by it. "
+                                   "Changes apply after restarting the game."));
                 return;
             }
             if (s_describedServerAddress)
             {
-                ImGui::TextWrapped("The host name or IPv4 address of your own server (burnout-lobby, which comes with the "
-                                   "game's source). Set Server to My Server to use it. Changes apply after restarting the game.");
+                ImGui::TextWrapped("%s", locale::Text("The host name or IPv4 address of your own server (burnout-lobby, which comes with the "
+                                   "game's source). Set Server to My Server to use it. Changes apply after restarting the game."));
                 return;
             }
             if (s_describedCheck)
             {
                 std::lock_guard lock(s_checkMutex);
                 if (s_checking)
-                    ImGui::TextWrapped("Asking %s...", online::ChosenServer().c_str());
+                    ImGui::TextWrapped(locale::Text("Asking %s..."), online::ChosenServer().c_str());
                 else if (s_checkResult && s_checkedServer == online::ChosenServer())
                     ImGui::TextWrapped("%s", s_checkResult->text.c_str());
                 else
-                    ImGui::TextWrapped("Ask the chosen server whether it is up, as signing in does. Nothing is sent but the question.");
+                    ImGui::TextWrapped("%s", locale::Text("Ask the chosen server whether it is up, as signing in does. Nothing is sent but the question."));
                 return;
             }
             if (s_describedMusicFolder)
@@ -1049,10 +1108,10 @@ namespace ui
                 if (const char* home = std::getenv("HOME"); home && *home && folder.starts_with(home))
                     folder = "~" + folder.substr(std::strlen(home));
                 if (settings::GetInt(Id::Music) != int32_t(settings::MusicSource::MyMusic))
-                    ImGui::TextWrapped("Set Music to My Music to use your own files from %s.", folder.c_str());
+                    ImGui::TextWrapped(locale::Text("Set Music to My Music to use your own files from %s."), folder.c_str());
                 else
-                    ImGui::TextWrapped("Put MP3, AAC, ALAC, FLAC, WAV or AIFF files (subfolders too) in %s. "
-                                       "A opens the folder.", folder.c_str());
+                    ImGui::TextWrapped(locale::Text("Put MP3, AAC, ALAC, FLAC, WAV or AIFF files (subfolders too) in %s. "
+                                       "A opens the folder."), folder.c_str());
                 return;
             }
             if (s_describedSaveBackups)
@@ -1060,18 +1119,25 @@ namespace ui
                 ImGui::TextWrapped("%s", SaveBackupsHelp());
                 return;
             }
+            if (s_describedLanguages)
+            {
+                ImGui::TextWrapped("%s", locale::Text("Import translations from your own European Xbox 360 disc image. Only language resources are copied; the game executable and saves stay as they are. Choose Language above and restart to apply."));
+                std::lock_guard lock(s_languageMutex);
+                if (!s_languageMessage.empty()) ImGui::TextWrapped("%s", locale::Text(s_languageMessage.c_str()));
+                return;
+            }
             if (s_describedAbout)
             {
                 // GPL-3.0 section 5(d): the interface shows the legal
                 // notices (NOTICE, THIRD_PARTY_NOTICES.md), on this row.
-                ImGui::TextWrapped("%s %s. Free software under the GPL-3.0-or-later, with no warranty; third-party "
-                                   "licenses come with the game.", game::kApplication, report::VersionString());
-                ImGui::TextDisabled("Copyright (C) 2026 project(u) and SpeedBreaker contributors. Not affiliated with Electronic Arts or Apple.");
+                ImGui::TextWrapped(locale::Text("%s %s. Free software under the GPL-3.0-or-later, with no warranty; third-party "
+                                   "licenses come with the game."), game::kApplication, report::VersionString());
+                ImGui::TextDisabled("%s", locale::Text("Copyright (C) 2026 project(u) and SpeedBreaker contributors. Not affiliated with Electronic Arts or Apple."));
                 return;
             }
             if (s_describedAddons)
             {
-                ImGui::TextWrapped("View connected Burnout Revenge car packs or import your own Add-on folder. New packs connect on the next launch.");
+                ImGui::TextWrapped("%s", locale::Text("View connected Burnout Revenge car packs or import your own Add-on folder. New packs connect on the next launch."));
                 return;
             }
             if (s_describedUpdate)
@@ -1082,11 +1148,11 @@ namespace ui
             if (s_describedBugReport)
             {
 #if defined(__APPLE__) && TARGET_OS_IOS
-                ImGui::TextWrapped("Saves the recent logs, crash and hang reports, your settings, a system summary and a screenshot "
-                                   "in one .zip in the Files app (BurnoutRevenge folder). Nothing is uploaded: send the file yourself.");
+                ImGui::TextWrapped("%s", locale::Text("Saves the recent logs, crash and hang reports, your settings, a system summary and a screenshot "
+                                   "in one .zip in the Files app (BurnoutRevenge folder). Nothing is uploaded: send the file yourself."));
 #else
-                ImGui::TextWrapped("Saves the recent logs, crash and hang reports, your settings, a system summary and a screenshot "
-                                   "in one .zip on the Desktop (or the game's data folder). Nothing is uploaded: send the file yourself.");
+                ImGui::TextWrapped("%s", locale::Text("Saves the recent logs, crash and hang reports, your settings, a system summary and a screenshot "
+                                   "in one .zip on the Desktop (or the game's data folder). Nothing is uploaded: send the file yourself."));
 #endif
                 std::string message = report::BugReportMessage();
                 const bool saved = report::GetBugReportState() == report::BugReportState::Saved;
@@ -1099,7 +1165,7 @@ namespace ui
                     if (saved && cut == std::string::npos && (cut = message.rfind(": ")) != std::string::npos)
                         cut++;  // iOS: "Saved to the Files app, BurnoutRevenge folder: <name>"
                     if (cut != std::string::npos)
-                        message = saved ? "Saved: " + message.substr(cut + 1) : "Couldn't save the bug report: " + message.substr(cut + 2);
+                        message = saved ? std::string(locale::Text("Saved: ")) + message.substr(cut + 1) : std::string(locale::Text("Couldn't save the bug report: ")) + message.substr(cut + 2);
                 }
                 if (saved)
                 {
@@ -1118,19 +1184,19 @@ namespace ui
                     const hid::wheel::Candidate c = hid::wheel::Watch();
                     PushAccentText();
                     if (!c.found)
-                        ImGui::Text("%zu of %zu, %s. %s. B stops here, keeping what you've set.", size_t(s_calStep) + 1,
-                            hid::wheel::kStepCount, hid::wheel::StepName(s_calStep), hid::wheel::StepAsk(s_calStep));
+                        ImGui::Text(locale::Text("%zu of %zu, %s. %s. B stops here, keeping what you've set."), size_t(s_calStep) + 1,
+                            hid::wheel::kStepCount, locale::Text(hid::wheel::StepName(s_calStep)), locale::Text(hid::wheel::StepAsk(s_calStep)));
                     else if (hid::wheel::StepIsButton(s_calStep))
-                        ImGui::Text("%s: button %d. A keeps it, or press another.", hid::wheel::StepName(s_calStep), c.button);
+                        ImGui::Text(locale::Text("%s: button %d. A keeps it, or press another."), locale::Text(hid::wheel::StepName(s_calStep)), c.button);
                     else
-                        ImGui::Text("%s: axis %d at %+d, %.0f%% of its travel. A keeps it, or do it again.",
-                            hid::wheel::StepName(s_calStep), c.axis, int(c.full), double(c.moved) * 100.0);
+                        ImGui::Text(locale::Text("%s: axis %d at %+d, %.0f%% of its travel. A keeps it, or do it again."),
+                            locale::Text(hid::wheel::StepName(s_calStep)), c.axis, int(c.full), double(c.moved) * 100.0);
                     PopAccentText();
                 }
                 else
-                    ImGui::TextWrapped("Teaches the game your wheel: both ends of its turn, each pedal, and a button for "
+                    ImGui::TextWrapped("%s", locale::Text("Teaches the game your wheel: both ends of its turn, each pedal, and a button for "
                                        "every control. It asks for one at a time and waits for A to keep what it saw. Only "
-                                       "a wheel that comes out wrong needs this.");
+                                       "a wheel that comes out wrong needs this."));
                 ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
                 ImGui::TextWrapped("%s", WheelReadings().c_str());
                 ImGui::PopStyleColor();
@@ -1150,24 +1216,24 @@ namespace ui
                 {
                     PushAccentText();
                     if (s_refused != SDL_SCANCODE_UNKNOWN)
-                        ImGui::Text("%s can't be used here. Press another key; Esc or B cancels.", RefusedName(s_refused).c_str());
+                        ImGui::Text(locale::Text("%s can't be used here. Press another key; Esc or B cancels."), RefusedName(s_refused).c_str());
                     else
-                        ImGui::Text("Press the key for %s. Esc or B cancels.", o.label);
+                        ImGui::Text(locale::Text("Press the key for %s. Esc or B cancels."), locale::Text(o.label));
                     PopAccentText();
                     ImGui::TextDisabled(" ");
                     return;
                 }
-                ImGui::TextWrapped("%s", o.description);
+                ImGui::TextWrapped("%s", locale::Text(o.description));
                 // The keyboard's keys for what the legend names in
                 // controller terms (Y, X); and a key on several controls is
                 // fine (the defaults share the arrows), but say which, in
                 // case it wasn't meant.
                 std::string also = SharedWith(e);
-                ImGui::TextDisabled("Enter sets the key, Backspace clears it, Delete restores the row.%s%s%s",
+                ImGui::TextDisabled(locale::Text("Enter sets the key, Backspace clears it, Delete restores the row.%s%s%s"),
                     also.empty() ? "" : "  Also: ", also.c_str(), also.empty() ? "" : ".");
                 return;
             }
-            ImGui::TextWrapped("%s", o.description);
+            ImGui::TextWrapped("%s", locale::Text(o.description));
             if ((o.id == Id::Scaling || o.id == Id::Sharpening || (o.id == Id::AntiAliasing && video::UsesMetalFx())) &&
                 !video::UpscalingNote().empty())
             {
@@ -1176,31 +1242,31 @@ namespace ui
             }
             if (o.id == Id::Fullscreen && video::FullscreenLocked())
             {
-                ImGui::TextDisabled("Always on in Game Mode: Steam sets the resolution (Properties > Game Resolution).");
+                ImGui::TextDisabled("%s", locale::Text("Always on in Game Mode: Steam sets the resolution (Properties > Game Resolution)."));
                 return;
             }
             // The window's own fullscreen button (or the system) changed it for
             // this session; the setting still decides how the game starts.
             if (o.id == Id::Fullscreen && video::FullscreenWindowDiffers() && !settings::EnvOverride(o.id))
             {
-                ImGui::TextDisabled("The window is %s for now. The game starts %s, as set here.",
+                ImGui::TextDisabled(locale::Text("The window is %s for now. The game starts %s, as set here."),
                     video::WindowFullscreen() ? "fullscreen" : "windowed", settings::GetBool(Id::Fullscreen) ? "fullscreen" : "windowed");
                 return;
             }
             // The experiment's finer scale wins over Screen Resolution's.
             if (float scale = video::PresentScaleOverride(); o.id == Id::PresentScale && scale > 0.0f)
-                ImGui::TextDisabled("BURNOUT_PRESENT_SCALE sets %.2f for this run.", double(scale));
+                ImGui::TextDisabled(locale::Text("BURNOUT_PRESENT_SCALE sets %.2f for this run."), double(scale));
             else if (const char* env = settings::EnvOverride(o.id))
-                ImGui::TextDisabled("%s sets this for this run: %s. The choice here is saved for later runs.", env,
-                    settings::FormatValue(o.id, settings::GetValue(o.id)).c_str());
+                ImGui::TextDisabled(locale::Text("%s controls this setting. Remove it to edit the saved choice: %s."), env,
+                    settings::FormatValue(o.id, settings::GetStoredValue(o.id)).c_str());
             else if (settings::RestartPending(o.id))
             {
                 PushAccentText();
-                ImGui::TextUnformatted("Takes effect the next time the game starts.");
+                ImGui::TextUnformatted(locale::Text("Takes effect the next time the game starts."));
                 PopAccentText();
             }
             else if (o.apply == settings::Apply::Restart)
-                ImGui::TextDisabled("Changes take effect the next time the game starts.");
+                ImGui::TextDisabled("%s", locale::Text("Changes take effect the next time the game starts."));
             else if (std::string note = o.id == Id::FrameRate ? video::AutoFrameRateNote() : std::string(); !note.empty())
                 ImGui::TextDisabled("%s", note.c_str());  // what Auto runs at now
             // The wheel the page is about - and, for the two rows that need
@@ -1210,10 +1276,10 @@ namespace ui
             {
                 const std::string name = hid::wheel::Name();
                 if ((o.id == Id::ForceFeedback || o.id == Id::CenteringForce) && !hid::wheel::HasForceFeedback())
-                    ImGui::TextDisabled("%s: this system can't drive its motors, so this does nothing. Steering, the pedals and "
-                                        "the buttons all work.", name.empty() ? "This wheel" : name.c_str());
+                    ImGui::TextDisabled(locale::Text("%s: this system can't drive its motors, so this does nothing. Steering, the pedals and "
+                                        "the buttons all work."), name.empty() ? "This wheel" : name.c_str());
                 else if (!name.empty())
-                    ImGui::TextDisabled("%s is connected.", name.c_str());
+                    ImGui::TextDisabled(locale::Text("%s is connected."), name.c_str());
                 else
                     ImGui::TextDisabled(" ");
             }
@@ -1299,6 +1365,7 @@ namespace ui
         s_describedUpdate = false;
         s_describedAddons = false;
         s_describedAbout = false;
+        s_describedLanguages = false;
         s_describedSaveBackups = false;
         s_describedGamertag = false;
         s_describedServerAddress = false;
@@ -1383,13 +1450,13 @@ namespace ui
                         valueWidth = std::max(valueWidth, ImGui::CalcTextSize("9999 FILES").x);
                     if (category == Category::Online)
                         for (const char* text : { "Checking...", "Not set", "WWWWWWWWWWWW" })
-                            valueWidth = std::max(valueWidth, ImGui::CalcTextSize(text).x);
+                            valueWidth = std::max(valueWidth, ImGui::CalcTextSize(locale::Text(text)).x);
                     if (category == Category::Advanced)
                         for (const char* text : { "Saving...", "Checking...", "Restore pending", UpdateRowValue() })
                             valueWidth = std::max(valueWidth, ImGui::CalcTextSize(Upper(text).c_str()).x);
                     if (category == Category::Wheel)
                         for (const char* text : { "START", "17/17" })
-                            valueWidth = std::max(valueWidth, ImGui::CalcTextSize(text).x);
+                            valueWidth = std::max(valueWidth, ImGui::CalcTextSize(locale::Text(text)).x);
                     valueWidth += 2 * kSpaceM * s;
                     float arrow = ImGui::GetFrameHeight();
                     ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, cellPadding);
@@ -1418,8 +1485,9 @@ namespace ui
                             OnlineRows(valueWidth);
                         if (category == Category::Advanced)
                         {
+                            LanguageResourcesRow(valueWidth);
                             BugReportRow(valueWidth);
-                            std::string count = std::format("{} connected", game::BurnoutAddons().size());
+                            std::string count = locale::Format("{} connected", game::BurnoutAddons().size());
                             if (ActionRow("burnout-addons", "Burnout Revenge Add-ons", count.c_str(), valueWidth, s_describedAddons))
                                 s_openAddons = true;
                             if (ActionRow("save-backups", "Save Backups", SaveBackupsRowValue().c_str(), valueWidth, s_describedSaveBackups))
@@ -1461,14 +1529,14 @@ namespace ui
             if (o.category == s_category && (!o.hidden || hiddenCounts) && !settings::IsDefault(o.id))
                 anyChanged = true;
         ImGui::BeginDisabled(!anyChanged || s_category == Category::Achievements);
-        if (ImGui::Button("RESET PAGE###Reset page"))
+        if (ImGui::Button(locale::Text("RESET PAGE###Reset page")))
         {
             menu_sounds::Play(menu_sounds::Sound::Select);
             ImGui::OpenPopup("reset");
         }
         ImGui::EndDisabled();
         ImGui::SameLine();
-        if (ImGui::Button("CLOSE###Close"))
+        if (ImGui::Button(locale::Text("CLOSE###Close")))
         {
             menu_sounds::Play(menu_sounds::Sound::Back);
             CloseSettings();
@@ -1477,7 +1545,7 @@ namespace ui
         // Last, after Close: Down from the rows lands on the footer's first
         // button, so Quit Game takes a Right more, and then asks.
         ImGui::SameLine();
-        if (ImGui::Button("QUIT GAME###Quit Game") && s_quit.Choose() == quit::Outcome::Asking)
+        if (ImGui::Button(locale::Text("QUIT GAME###Quit Game")) && s_quit.Choose() == quit::Outcome::Asking)
         {
             fprintf(stderr, "[ui] Quit Game: asking\n");
             ImGui::OpenPopup(kQuitPopup);
@@ -1510,7 +1578,7 @@ namespace ui
             burnout::DialogFrame();
             popup = true;
             const float width = burnout::kDialogWidth * s;
-            burnout::DialogText(std::format("Reset every {} setting to its default?", settings::CategoryName(s_category)).c_str(), width);
+            burnout::DialogText(locale::Format("Reset every {} setting to its default?", locale::Text(settings::CategoryName(s_category))).c_str(), width);
             ImGui::Dummy(ImVec2(0, 10 * s));
             if (burnout::DialogOption("Reset", width))
             {

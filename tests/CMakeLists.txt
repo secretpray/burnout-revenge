@@ -55,10 +55,17 @@ target_link_options(bit_copy_test PRIVATE -fsanitize=address)
 # (apu/xmp_playlist.h, header only; Burnout's EA Trax).
 sb_test(xmp_playlist_test)
 sb_test(notification_queue_test)
+sb_test(localization_test SOURCES ${RT}/user/localization.cpp ${RT}/user/language_resources.cpp
+    ${RT}/user/settings.cpp ${RT}/user/portable.cpp ${RT}/install/disc_source.cpp
+    ${RT}/install/sha256.cpp ${RT}/install/manifest.cpp ${RT}/install/result.cpp
+    ARGS ${CMAKE_CURRENT_BINARY_DIR})
+target_compile_definitions(localization_test PRIVATE BR_GAME_BURNOUT=1 BR_MANIFEST_FILE="burnout_manifest.inc")
+target_include_directories(localization_test SYSTEM PRIVATE ${ROOT}/tools/XenonRecomp/thirdparty/tomlplusplus/include)
+
 sb_test(achievements_test SOURCES ${RT}/user/achievements.cpp ${RT}/user/save_commit.cpp ARGS ${CMAKE_BINARY_DIR})
 target_compile_options(achievements_test PRIVATE -fsanitize=address)
 target_link_options(achievements_test PRIVATE -fsanitize=address)
-sb_test(kernel_compat_test SOURCES ${RT}/kernel/imports_rtl.cpp ${RT}/kernel/xmsg.cpp ${RT}/user/online.cpp
+sb_test(kernel_compat_test SOURCES ${RT}/kernel/imports_rtl.cpp ${RT}/kernel/xmsg.cpp ${RT}/user/online.cpp ${RT}/user/localization.cpp
     ${RT}/user/settings.cpp ${RT}/user/achievements.cpp ${RT}/user/save_commit.cpp)
 target_include_directories(kernel_compat_test PRIVATE ${RT}/kernel ${RT}/thirdparty/o1heap ${BR_PPC_DIR}
     ${ROOT}/tools/XenonRecomp/XenonUtils ${ROOT}/tools/XenonRecomp/thirdparty/simde)
@@ -284,7 +291,7 @@ sb_test(key_map_test)
 sb_test(wheel_map_test)
 # Check for Updates' logic: versions, GitHub's JSON, curl's output and the
 # release notes (update/check.cpp, self-contained).
-sb_test(update_check_test SOURCES ${RT}/update/check.cpp)
+sb_test(update_check_test SOURCES ${RT}/update/check.cpp ${RT}/user/localization.cpp)
 # Settings > Quit Game: where it is offered (not on iPhone or iPad) and its
 # confirmation (ui/quit_game.h, header only); the runtime's code around it
 # is read: the button and prompt gated, the focus on Cancel, B and Escape
@@ -334,3 +341,6 @@ if(APPLE AND NOT IOS AND BR_GAME STREQUAL "burnout")
             "VK_DRIVER_FILES=$<TARGET_FILE_DIR:${BR_RUNTIME_TARGET}>/vulkan/icd.d/MoltenVK_icd.json")
     endif()
 endif()
+
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_test(NAME localization_catalog COMMAND ${Python3_EXECUTABLE} ${ROOT}/scripts/check_localization.py)

@@ -5,6 +5,7 @@
 // RFC 3629 (UTF-8), RFC 9112 (HTTP/1.1 messages, as curl prints them),
 // GitHub's REST API for releases.
 #include "check.h"
+#include <user/localization.h>
 
 #include <algorithm>
 #include <cstring>
@@ -1221,8 +1222,8 @@ namespace update
         r.url = kReleasesPage;
         auto fail = [&r](Outcome outcome, std::string message, std::string log) {
             r.outcome = outcome;
-            r.headline = "Couldn't check for updates";
-            r.message = std::move(message);
+            r.headline = locale::Text("Couldn't check for updates");
+            r.message = locale::Text(message.c_str());
             r.log = "check failed: " + log;
             return r;
         };
@@ -1234,7 +1235,7 @@ namespace update
         case Transport::Offline:
             return fail(Outcome::Offline, "No connection to GitHub. Check that this device is online.", "offline" + detail);
         case Transport::Timeout:
-            return fail(Outcome::Timeout, std::format("GitHub didn't answer within {} seconds. Try again later.", int(kTimeoutSeconds)),
+            return fail(Outcome::Timeout, locale::Format("GitHub didn't answer within {} seconds. Try again later.", int(kTimeoutSeconds)),
                 "timed out" + detail);
         case Transport::Secure:
             return fail(Outcome::Offline, "Couldn't connect to GitHub securely. Check the date and time.",
@@ -1247,7 +1248,7 @@ namespace update
             return fail(Outcome::Unavailable,
                 fetched.detail.empty() ? "Checking for updates isn't available here yet." : CleanLine(fetched.detail, 200), "not available" + detail);
         case Transport::Failed:
-            return fail(Outcome::Offline, std::format("The check couldn't be made{}. Try again later.", detail), "failed" + detail);
+            return fail(Outcome::Offline, locale::Format("The check couldn't be made{}. Try again later.", detail), "failed" + detail);
         }
 
         const HttpResponse& response = fetched.response;
@@ -1272,9 +1273,11 @@ namespace update
                 else if (seconds(Header(response, "retry-after"), retry) && retry > 0)
                     minutes = (retry + 59) / 60;
                 minutes = std::min<int64_t>(minutes, 24 * 60);
-                std::string when = minutes > 0 ? std::format("in {} minute{}", minutes, minutes == 1 ? "" : "s") : "later";
+                std::string when = minutes > 0
+                    ? (locale::Current() == locale::Language::English ? std::format("in {} minute{}", minutes, minutes == 1 ? "" : "s")
+                        : locale::Format("in {} min", minutes)) : locale::Text("later");
                 return fail(Outcome::RateLimited,
-                    std::format("GitHub's limit of 60 checks an hour is used up. Try again {}.", when),
+                    locale::Format("GitHub's limit of 60 checks an hour is used up. Try again {}.", when),
                     std::format("rate-limited (HTTP {}, try again {})", response.status, when));
             }
         }
@@ -1286,7 +1289,7 @@ namespace update
             std::string said = answer.message.empty() ? "" : ": " + CleanLine(answer.message, 160);
             return fail(Outcome::ServerError,
                 response.status == 404 ? "GitHub found no release of BurnoutRevenge (HTTP 404)."
-                                       : std::format("GitHub answered with an error (HTTP {}). Try again later.", response.status),
+                                       : locale::Format("GitHub answered with an error (HTTP {}). Try again later.", response.status),
                 std::format("HTTP {}{}", response.status, said));
         }
 
@@ -1301,7 +1304,7 @@ namespace update
         if (!ParseSemver(release.tag, latest))
             return fail(Outcome::Unreadable, kUnreadable, "unreadable answer: the tag \"" + CleanLine(release.tag, 40) + "\" isn't a version");
         if (!runningOk)
-            return fail(Outcome::Unreadable, std::format("This build's version ({}) can't be compared with releases.", r.current),
+            return fail(Outcome::Unreadable, locale::Format("This build's version ({}) can't be compared with releases.", r.current),
                 "this build's version \"" + r.current + "\" isn't a version");
 
         // Drafts and pre-releases are never offered (the "latest" release is
@@ -1312,9 +1315,9 @@ namespace update
         {
             r.outcome = Outcome::UpToDate;
             r.latest = ignored ? "" : FormatSemver(latest);
-            r.headline = std::format("You're up to date (v{})", r.current);
-            r.message = !ignored && newer < 0 ? std::format("The newest release is v{}; this build is newer.", r.latest)
-                                               : "This is the newest release of BurnoutRevenge.";
+            r.headline = locale::Format("You're up to date (v{})", r.current);
+            r.message = !ignored && newer < 0 ? locale::Format("The newest release is v{}; this build is newer.", r.latest)
+                                               : locale::Text("This is the newest release of BurnoutRevenge.");
             r.log = ignored ? std::format("up to date: running v{}; the latest, {}, is a draft or pre-release (ignored)", r.current,
                                   CleanLine(release.tag, 40))
                             : std::format("up to date: running v{}, the latest release is v{}", r.current, r.latest);
@@ -1325,8 +1328,8 @@ namespace update
         r.url = SafePageUrl(release.url);
         r.name = CleanLine(release.name, 120);
         r.notes = CleanNotes(release.body);
-        r.headline = std::format("v{} is available", r.latest);
-        r.message = std::format("You have v{}.", r.current);
+        r.headline = locale::Format("v{} is available", r.latest);
+        r.message = locale::Format("You have v{}.", r.current);
         r.log = std::format("v{} is available (running v{}): {}", r.latest, r.current, r.url);
         return r;
     }
