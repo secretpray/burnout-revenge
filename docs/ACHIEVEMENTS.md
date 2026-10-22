@@ -46,28 +46,14 @@ returns a snapshot, including stored flags and times, so the game can see what
 has already been earned. The profile's Gamerscore and achievement count reflect
 that same record. Notification and render work stay on the UI thread.
 
-## Validation
+## Tests
 
-`achievements_test` uses synthetic metadata, no game files: truncated and invalid
-catalogues, concurrent duplicates, local user isolation, reload, burst notices,
-corrupt-file preservation, failed-write rollback/retry and the guest string and
-details layout. `kernel_compat_test` exercises the actual XMsg dispatcher both
-offline and online, including invalid batches and overlapped completion.
+From a configured build directory, run:
 
-In-game verification results are recorded with the candidate; completing all
-36 original conditions and play between physical Macs are separate checks.
+```sh
+ctest -R '^(achievements_test|kernel_compat_test)$' --output-on-failure
+```
 
-The development candidate passed the full 78-test suite. With a copied completed
-career and an empty achievement record, the game itself sent 18 original
-milestone awards (610 G); the record survived restart, and re-enumeration did not
-repeat the notifications. No runtime command granted IDs. In a two-copy LAN
-race, queued notifications appeared over the game's image while the game moved
-from menus into its race introduction; both copies subsequently drove in the
-race without an achievement UI taking input. A new online-only achievement
-condition was not completed in this bounded run. Unlocking all 36 and physical
-Mac-to-Mac play remain unverified.
-
-The settings panel is 1040 logical pixels wide when the window allows it
-(previously 900). Smaller windows keep the panel inside their work area and
-scroll the tabs instead of squeezing their names. The earned count and
-Gamerscore stay above the scrolling list.
+The tests use synthetic metadata and scratch profiles. They check catalogue
+bounds, concurrent duplicate requests, persistence, corruption, failed writes,
+guest enumeration and synchronous/asynchronous XGI calls without game files.

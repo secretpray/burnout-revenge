@@ -7,13 +7,13 @@ work only in solo World Tour driving events. Career progress is saved through
 the game's normal path, so a result earned with a Code stays in your career. Our
 code never edits your save file.
 
-| Code | What it does | Checked in the game |
-| --- | --- | --- |
-| Infinite Boost | The player's boost bar is full at level 4 (720 in a Race); turning it off restores the earlier level | Race and Road Rage: level 4, 720/720 while A is held; AI cars are unaffected |
-| Infinite Time | The event timer does not run down; the game's own time bonuses still apply. Turning it off resumes from the frozen value | Road Rage: ~60 s held through 50+ s of driving; turned off from the menu mid-event, the countdown continued from the same value and the event finished normally |
-| Quick Money | Every Traffic Attack award is at least $30,000 | Traffic Attack: a 3,000 Traffic Check paid 30,000; the HUD reached $2,220,000 against a $1,250,000 gold target |
-| Quick Takedowns | After your first real Takedown the event counts 99; later Takedowns add normally | Road Rage results: **100 Takedowns, GOLD, AWESOME** |
-| Easy Boost | A Near Miss fills the current boost bar; Near Miss and drift need less speed and distance | Race: the bar went from 0/240 to 240/240 on the first Near Miss |
+| Code | What it does |
+| --- | --- |
+| Infinite Boost | Keeps the player's boost bar full at level 4; turning it off restores the earlier level |
+| Infinite Time | Stops the event countdown while preserving the game's time bonuses; turning it off resumes the countdown |
+| Quick Money | Raises every Traffic Attack award to at least $30,000 |
+| Quick Takedowns | Sets the event count to 99 after the first real Takedown; later Takedowns add normally |
+| Easy Boost | Fills the current bar on a Near Miss and lowers the Near Miss and drift thresholds |
 
 ![Road Rage results with Quick Takedowns](screenshots/codes-takedowns-gold.jpg)
 
@@ -48,11 +48,6 @@ does, and checked in the game.
 | Max TakeDowns: write 99 every tick | per-event statistics, stride 0xC8: `+0x70` is the total shown in the results, `+0x9C` is the count the goal, medal and HUD read | after a real player Takedown (`sub_8212F168`; the mode handlers `sub_82134B80` and `sub_82136498`) both are raised to 99 |
 | Inf Boost: write 500.0 every tick | the car's boost object: level `+88`, capacity `+92`, stock `+96` | the game's own infinite-boost branch and level 4 from the game's tables |
 
-The first Quick Takedowns version raised only `+0x70`: the internal count was 99,
-the HUD showed 1 and the results showed "105 Takedowns, medal NONE". The HUD
-copies `+0x9C` and the medal compares it with the thresholds, so both counters
-are raised now.
-
 ## Implementation and checks
 
 USA XEX only. The original functions are always called; a Code changes values
@@ -65,29 +60,4 @@ including when the stack unwinds.
 AddressSanitizer: online, local modes, every Crash controller, AI, unknown
 sessions, invalid bar capacities, setting changes, the timer turned off,
 restoring the flag and thresholds after an exception, and both Takedown
-counters. The full CTest suite passes (77/77). In the game each Code was tried
-alone on a copy of a 100% profile.
-
-Not checked in the game: Burnout Clips with a forced Code (covered by the ABI
-test only) and play between two physical Macs.
-
-## Bonus cars (research, not a Code)
-
-- **Madden Van** unlocks the stock way: World Tour, Driver Details, Special
-  Features, Madden NFL 06 Trailer. On an early profile with no Madden save the
-  game showed "Congratulations! You've unlocked the Madden Van!". Using the car in
-  a race and keeping it after a restart were not checked.
-
-  ![The game's own Madden Van unlock message](screenshots/codes-madden-unlock.png)
-
-- **Dominator Assassin** and the Burnout 3 / Madden save conditions listed on
-  GameFAQs are marked Xbox/PS2 there and are not assumed to work on the Xbox 360
-  disc.
-- **Marketplace unlocks** (Alienware, Dolby, Monster, Plantronics, SpikeTV,
-  Yellowcard; the 2006 announcement is at
-  <https://news.xbox.com/en-us/2006/04/14/burnout-revenge-car-unlocks/>): the packages
-  contain only a 15-byte `Content.txt` marker and no models or textures, so the
-  data is in the game. With the six packages the cars are selectable. An offline
-  "unlock without packages" is not implemented: replacing the game's ownership
-  check by "true" is unsafe because some of its functions already return true
-  for unknown IDs.
+counters.

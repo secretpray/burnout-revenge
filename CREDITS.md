@@ -37,7 +37,7 @@
   Settings > Graphics > Vehicle Detail (its `car_lod`), players by controller
   with failover (`rrv_pad_slots.h`, here `hid/pad_slots.h` for four users),
   crash-safe saves (its memory card's temporary file, fsync and rename, here
-  `user/save_commit.h`) and the load-time measurement (`docs/LOADING.md`).
+  `user/save_commit.h`) and the load-time analysis.
   The code here is our own. https://github.com/danisandoval/fukami
 - **Takedawn**, xenophobentx (MIT; Burnout 3): research behind Vehicle Detail
   (Burnout 3's model switch distances), save import, the race HUD at a wide
@@ -59,8 +59,7 @@ project name in source license headers is retained deliberately.
 input lifecycle, graphics preparation and interpolation approaches, and
 [Fukami](https://github.com/danisandoval/fukami) (`2ecb281`, v1.1.0) for car
 detail, controller slots, safe saves and loading. No source blocks are copied
-from them. See the pinned revisions and boundaries in
-[the adoption plan](docs/EXTERNAL_PORTS_PLAN.md).
+from them. Component-specific source notices and licenses remain with the code.
 
 The offline [Codes](docs/CODES.md) follow the behavior of the Xbox 360 trainers by
 RETROBYTE (Aurora) and TeamXPG (losparo / XPGObyto). They were read only to learn

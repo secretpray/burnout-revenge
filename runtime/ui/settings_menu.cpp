@@ -221,7 +221,7 @@ namespace ui
         // A key's name for a cell: on this keyboard's layout ("Z" on a
         // French Mac for the position the file calls "w") when that is
         // Latin, else SDL's name of the position ("W" for that key under a
-        // Cyrillic layout, which would show "Ц", and keep showing it after
+        // Cyrillic layout, which would show U+0426, and keep showing it after
         // a switch back: the menu reads the layout, not the key), else the
         // file's. "none" for no key. Main thread.
         std::string KeyLabel(double stored)

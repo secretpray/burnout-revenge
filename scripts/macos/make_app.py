@@ -558,6 +558,7 @@ def main():
     configured_game = cache_value('BR_GAME') or 'burnout'
     if configured_game != GAME:
         raise SystemExit(f'make_app.py: {BUILD} is configured for {configured_game}, not {GAME}')
+    subprocess.run([sys.executable, os.path.join(ROOT, 'scripts/check_release_hygiene.py')], check=True)
     version, commit, dirty = build_identity()
     if dirty:
         print(f'make_app.py: warning: the build is {commit}-dirty (uncommitted changes): not for release', file=sys.stderr)

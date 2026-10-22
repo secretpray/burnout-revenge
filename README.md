@@ -212,7 +212,33 @@ in your career.
 Fair play is enforced inside the game's own code, not just in the menu: every Code
 is rejected in local Multiplayer, Crash, Burnout Clips, for AI cars and in any run
 with Online Play enabled. To use them, turn Online Play off and restart the game.
-Details, limits and how each Code was checked: [docs/CODES.md](docs/CODES.md).
+Details and limits: [docs/CODES.md](docs/CODES.md).
+
+## Xbox 360 achievements
+
+The original **36 achievements, worth 1,000 G**, now unlock through normal play.
+Open **Settings > Achievements** to browse them: locked icons are grey, earned
+icons are in full colour, and the bottom of the page shows the selected
+achievement's conditions and unlock date. The wider settings menu gives the tabs
+more room, with scrolling on smaller windows.
+
+<p align="center">
+  <img src="docs/screenshots/settings-achievements.jpg" alt="Achievements page with earned colour icons, locked grey icons, Gamerscore, and the selected achievement's conditions and unlock date" width="85%">
+  <br>
+  <sub>Settings > Achievements: original icons, conditions and local Gamerscore.</sub>
+</p>
+
+An unlock displays a six-second notification during the game without pausing it
+or taking control away. Achievements and their unlock dates are saved locally
+between launches; repeated game requests do not repeat the notification. Names,
+conditions and artwork come from your own game disc. They do not sync with an
+Xbox Live, Steam or RetroAchievements account.
+
+<p align="center">
+  <img src="docs/screenshots/achievement-unlocked.jpg" alt="Server Surfer achievement unlocking for 5 G during an online Crash Battle event" width="85%">
+  <br>
+  <sub>A natural Server Surfer unlock during an online Crash Battle event.</sub>
+</p>
 
 ## Quick start
 
@@ -316,12 +342,11 @@ Every key can be changed in Settings > Controls.
   copies on one Mac and over the community server, not yet between Macs on
   different networks. Global rankings, TrueSkill and Scoreboards are unavailable.
   See [docs/ONLINE.md](docs/ONLINE.md).
-- 14 rarely used system functions (friends and gamer-card screens, Live
-  sessions, exception unwinding) are still stubs; none was reached offline in
-  any menu or mode tested.
+- Some uncommon console services and exception-handling paths are unsupported.
+  Xbox Live friends, reputation and gamer-picture services are unavailable.
 - Live frame generation is not enabled.
 
-More detail: [rendering notes](docs/RENDERING.md), [image quality measurements](docs/IMAGE_QUALITY.md).
+More detail: [rendering notes](docs/RENDERING.md), [picture settings](docs/IMAGE_QUALITY.md).
 
 ## Origins and license
 
