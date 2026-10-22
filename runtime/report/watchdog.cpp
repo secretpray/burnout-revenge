@@ -123,7 +123,7 @@ namespace report
             std::vector<void*> frames;
         };
 
-        std::vector<ThreadSample> SampleThreads()
+        std::vector<ThreadSample> SampleThreads(bool includeGuest = true)
         {
             static std::once_flag installed;
             std::call_once(installed, [] {
@@ -169,7 +169,7 @@ namespace report
                     sample.pc = s.pc;
                     sample.frames.assign(s.frames, s.frames + std::clamp(s.frameCount, 0, kMaxFrames));
                 }
-                if (s.guest)
+                if (includeGuest && s.guest)
                 {
                     // Racy (the thread runs on), but the stack stays: a
                     // context goes away only through SetThreadGuestContext,
@@ -481,6 +481,17 @@ namespace report
                 }).detach();
             }
         }
+    }
+
+    std::string DescribeThreadStacks()
+    {
+        std::string text;
+        for (const ThreadSample& s : SampleThreads(false))
+        {
+            text += "  " + s.name + (s.answered ? ":\n" : ": didn't answer\n");
+            text += FormatStack(s.pc, s.frames);
+        }
+        return text;
     }
 
     void RegisterThread(const char* name)

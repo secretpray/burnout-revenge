@@ -117,6 +117,9 @@ namespace report
     // GuestThreadContext: the thread's guest registers (lr, r1) go into
     // crash and hang reports. nullptr when it ends.
     void SetThreadGuestContext(PPCContext* ctx);
+    // Developer diagnostics: sampled native stacks only. Threads keep running;
+    // this is neither a quiescence barrier nor a checkpoint of their registers.
+    std::string DescribeThreadStacks();
     // Once the game's entry point is running. Also arms the test switches:
     //   BURNOUT_TEST_CRASH=<s>[:abort]  crash in VdSwap (the game's render
     //                                 thread) <s> seconds after launch;

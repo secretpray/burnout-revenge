@@ -87,6 +87,20 @@ target_include_directories(codes_test PRIVATE ${RT}/kernel ${RT}/thirdparty/o1he
     ${ROOT}/tools/XenonRecomp/XenonUtils ${ROOT}/tools/XenonRecomp/thirdparty/simde)
 target_compile_options(codes_test PRIVATE -fsanitize=address)
 target_link_options(codes_test PRIVATE -fsanitize=address)
+sb_test(rewind_probe_test SOURCES ${RT}/game/rewind_probe.cpp)
+target_include_directories(rewind_probe_test PRIVATE ${RT}/kernel ${RT}/thirdparty/o1heap ${BR_PPC_DIR}
+    ${ROOT}/tools/XenonRecomp/XenonUtils ${ROOT}/tools/XenonRecomp/thirdparty/simde)
+target_compile_options(rewind_probe_test PRIVATE -fsanitize=address)
+target_link_options(rewind_probe_test PRIVATE -fsanitize=address)
+add_test(NAME rewind_probe_enabled_test COMMAND rewind_probe_test enabled)
+sb_test(rewind_trial_test SOURCES ${RT}/game/rewind_trial.cpp)
+target_include_directories(rewind_trial_test PRIVATE ${RT}/kernel ${RT}/thirdparty/o1heap ${BR_PPC_DIR}
+    ${ROOT}/tools/XenonRecomp/XenonUtils ${ROOT}/tools/XenonRecomp/thirdparty/simde)
+target_compile_options(rewind_trial_test PRIVATE -fsanitize=address)
+target_link_options(rewind_trial_test PRIVATE -fsanitize=address)
+foreach(mode disabled online buffer event mode)
+    add_test(NAME rewind_trial_${mode}_test COMMAND rewind_trial_test ${mode})
+endforeach()
 sb_test(burnout_addon_package_test)
 # Burnout's XAudio voice mix (apu/voice_mix.h, header only) against the
 # recompiled function's arithmetic; replays a recording from the game when
