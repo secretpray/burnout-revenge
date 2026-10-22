@@ -12,6 +12,7 @@
 #include <stdafx.h>
 #include "ui.h"
 #include "quit_game.h"
+#include "achievements.h"
 #include "burnout_setup.h"  // the game's look: its faces, hazard dashes, button glyphs
 #include "menu_sounds.h"    // and its clicks
 #include "save_backups.h"
@@ -1017,6 +1018,7 @@ namespace ui
 
         void HelpLine()
         {
+            if (s_category == Category::Achievements) { AchievementHelp(); return; }
             if (s_describedGamertag)
             {
                 ImGui::TextWrapped("Your name online. Each player needs a different one: the lobby knows players by it. "
@@ -1224,7 +1226,7 @@ namespace ui
     {
         float s = Scale();
         ImGuiViewport* viewport = ImGui::GetMainViewport();
-        ImVec2 size(std::min(viewport->WorkSize.x - 2 * kSpaceL * s, 900.0f * s), std::min(viewport->WorkSize.y - 2 * kSpaceL * s, 640.0f * s));
+        ImVec2 size(std::min(viewport->WorkSize.x - 2 * kSpaceL * s, 1040.0f * s), std::min(viewport->WorkSize.y - 2 * kSpaceL * s, 640.0f * s));
         ImGui::SetNextWindowPos(viewport->GetWorkCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
         ImGui::SetNextWindowSize(size, ImGuiCond_Always);
         constexpr ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
@@ -1314,7 +1316,7 @@ namespace ui
         // Tabs in the labels' face, the chosen one lit yellow.
         ImGui::PushStyleColor(ImGuiCol_TabHovered, ImVec4(1, 1, 1, 0.06f));
         ImGui::PushStyleColor(ImGuiCol_TabSelected, ImVec4(0.96f, 0.71f, 0.15f, 0.16f));
-        const bool tabs = ImGui::BeginTabBar("pages", ImGuiTabBarFlags_NoTooltip);
+        const bool tabs = ImGui::BeginTabBar("pages", ImGuiTabBarFlags_NoTooltip | ImGuiTabBarFlags_FittingPolicyScroll);
         if (tabs)
         {
             for (int c = 0; c < kCategories; c++)
@@ -1351,6 +1353,8 @@ namespace ui
                 // and last rows too, where the list's edge cut it. The list
                 // keeps room for it, and starts that much higher so the rows
                 // stay where they were.
+                if (category == Category::Achievements)
+                    DrawAchievementSummary();
                 const ImVec2 cellPadding(kSpaceM * s, 2.0f * s);
                 const float overhang = std::ceil(std::max(0.0f, ImGui::GetStyle().ItemSpacing.y * 0.5f - cellPadding.y + s));
                 ImGui::SetCursorPosY(ImGui::GetCursorPosY() - overhang);
@@ -1364,7 +1368,9 @@ namespace ui
                 ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(1, 1, 1, 0.04f));
                 ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(0.96f, 0.71f, 0.15f, 0.10f));
                 ImGui::PushStyleColor(ImGuiCol_NavCursor, ImVec4(0, 0, 0, 0));
-                if (rows)
+                if (rows && category == Category::Achievements)
+                    DrawAchievements(focusFirst);
+                if (rows && category != Category::Achievements)
                 {
                     float valueWidth = 0.0f;
                     if (category == Category::Controls)
@@ -1454,7 +1460,7 @@ namespace ui
         for (const auto& o : settings::Options())
             if (o.category == s_category && (!o.hidden || hiddenCounts) && !settings::IsDefault(o.id))
                 anyChanged = true;
-        ImGui::BeginDisabled(!anyChanged);
+        ImGui::BeginDisabled(!anyChanged || s_category == Category::Achievements);
         if (ImGui::Button("RESET PAGE###Reset page"))
         {
             menu_sounds::Play(menu_sounds::Sound::Select);

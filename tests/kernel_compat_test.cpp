@@ -16,6 +16,9 @@
 #include <functional>
 #include <thread>
 #include <unordered_set>
+#include "achievement_fixture.h"
+#include <unistd.h>
+namespace ui { void Toast(std::string, double) {} }
 
 uint32_t XMsgSystemProcessCall(uint32_t, uint32_t, uint32_t, uint32_t);
 uint32_t XMsgStartIORequest(uint32_t, uint32_t, XXOVERLAPPED*, uint32_t, uint32_t);
@@ -338,13 +341,42 @@ static void TestSessionSearch()
     puts("session search: empty header, bounds, reused buffer and overlapped completion");
 }
 
+static void TestAchievements()
+{
+    auto database = achievementfixture::Database();
+    auto root = std::filesystem::temp_directory_path() / ("br-achievement-abi-" + std::to_string(getpid()));
+    std::filesystem::create_directories(root);
+    assert(achievements::Current().Initialize(database, root / "achievements.txt"));
+    auto send = [](uint32_t bytes = 8) { return XMsgSystemProcessCall(0xFB, 0x000B0008, 0x100, bytes); };
+    At<be<uint32_t>>(0x100)[0] = 2; At<be<uint32_t>>(0x100)[1] = 0x200;
+    At<be<uint32_t>>(0x200)[0] = 0; At<be<uint32_t>>(0x200)[1] = 58;
+    At<be<uint32_t>>(0x200)[2] = 0; At<be<uint32_t>>(0x200)[3] = 59;
+    assert(send() == 0 && send(0) == 0);
+    assert(achievements::Current().Entries()[0].unlocked && achievements::Current().Entries()[1].unlocked);
+    assert(achievements::Current().PopNotice()->id == 58);
+    assert(achievements::Current().PopNotice()->id == 59 && !achievements::Current().HasNotices());
+    assert(send(4) == 0x80070057);
+    At<be<uint32_t>>(0x200)[0] = 4; assert(send() == 0x80070057);
+    At<be<uint32_t>>(0x200)[0] = 0; At<be<uint32_t>>(0x200)[1] = 999;
+    assert(send() == 0x80070057);
+    At<be<uint32_t>>(0x100)[0] = 145; assert(send() == 0x80070057);
+    At<be<uint32_t>>(0x100)[0] = 1; At<be<uint32_t>>(0x200)[1] = 58;
+    XXOVERLAPPED overlap{};
+    assert(XMsgStartIORequest(0xFB, 0x000B0008, &overlap, 0x100, 8) == 997 && overlap.Error == 0);
+    std::filesystem::remove_all(root);
+}
+
 int main()
 {
-    setenv("BURNOUT_ONLINE", "1", 1);
+    setenv("BURNOUT_ONLINE", "0", 1);
     g_memory.base = memory.data();
+    TestAchievements();
+    completed = 0;
+    setenv("BURNOUT_ONLINE", "1", 1);
     TestRtl();
     TestXmp();
     TestMyMusic();
     TestSessionSearch();
+    TestAchievements();
     puts("kernel_compat_test: real RTL exports and XMsg dispatcher passed");
 }

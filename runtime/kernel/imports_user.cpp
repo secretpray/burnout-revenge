@@ -9,6 +9,7 @@
 #include <kernel/overlapped.h>
 #include <user/online.h>
 #include <user/paths.h>
+#include <user/achievements.h>
 
 #include <fstream>
 #include <map>
@@ -208,6 +209,19 @@ uint32_t XamUserReadProfileSettings(uint32_t titleId, uint32_t userIndex, uint32
             {
                 out->from = 1;
                 out->data.u32 = it->second;
+                if (id == 0x10040006 || id == 0x10040013 || id == 0x10040038 || id == 0x10040039)
+                {
+                    uint32_t count = 0, score = 0;
+                    const bool ours = !xuids || uint64_t(xuids[r]) == kXuid || uint64_t(xuids[r]) == online::Xuid();
+                    if (ours)
+                    {
+                        const auto entries = achievements::Current().Entries(0);
+                        const auto& definitions = achievements::Current().Definitions();
+                        for (size_t n = 0; n < entries.size(); ++n)
+                            if (entries[n].unlocked) { ++count; score += definitions[n].score; }
+                    }
+                    out->data.u32 = (id == 0x10040006 || id == 0x10040038) ? score : count;
+                }
             }
             else if (type == BINARY || type == WSTRING)
             {

@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.1.20
+
+- Settings > Achievements: the 36 original Xbox 360 achievements (1000 G),
+  with requirements for the selected entry, earned dates and local Gamerscore.
+  Locked icons are grey; earned icons are in color. Names and artwork come
+  from your own copy of the game.
+- The game awards achievements under its original conditions, offline and
+  online. New awards appear over play without taking input, are saved
+  immediately and are not announced again after a restart. Progress is local;
+  there is no Xbox Live, Steam or RetroAchievements account synchronization.
+- A wider settings menu gives the tabs more room. Small windows scroll the
+  tabs instead of shortening their names.
+
 ## v0.1.19
 
 - Settings > Codes: five offline modifiers for solo World Tour, all off by

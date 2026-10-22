@@ -149,7 +149,7 @@ namespace settings
     // Key: a key code of user/key_names.h (0: no key), saved by its name
     // there ("w", "left_shift", "none"); the menu takes it from a key press.
     enum class Type : uint8_t { Bool, Int, Float, Enum, Key };
-    enum class Category : uint8_t { Display, Graphics, Audio, Input, Wheel, Controls, Online, Codes, Advanced, Count };
+    enum class Category : uint8_t { Display, Graphics, Audio, Input, Wheel, Controls, Online, Codes, Achievements, Advanced, Count };
     enum class Apply : uint8_t { Live, Restart };
 
     // Values of the enum options (GetInt returns them).

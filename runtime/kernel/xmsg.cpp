@@ -1,25 +1,17 @@
 // SpeedBreaker runtime. GPL-3.0-or-later (see COPYING).
 //
-// XAM message apps (XMsg*). Only XMP (0xFA, the system music player, which
-// games ask about custom soundtracks) is implemented, following Xenia's
-// kernel/xam/apps/xmp_app.cc message by message. Most Wanted's playlists
-// aren't played (it keeps its own music). Burnout Revenge plays EA Trax
-// through it: its title playlist's songs (eatrax/NN.wma) play one after
-// another (apu/music.cpp, mixed into the XAudio output), in the playback
-// and repeat modes it sets (apu/xmp_playlist.h), with Pause, Continue, Next,
-// Previous, Stop and GetInfo; each song change is an XN_XMP_STATECHANGED,
-// as is the playlist's end (idle). With Audio -> Music set to My Music the
-// player's own files (user/my_music.h) play in the playlist's place. XGI (0xFB: achievements,
-// sessions, stats) and XLiveBase (0xFC) messages fail with X_E_FAIL and a log
-// line, as Xenia's unknown messages do; add them as the game needs them.
-// Online (BURNOUT_ONLINE, user/online.h) XLiveBase answers as a console
-// signed in to Live, and XOnlineGetServiceInfo names the lobby server; XGI's
-// presence and achievement writes succeed (XgiOnline, XLiveBaseOnline below,
-// after the ReXGlue SDK's xlivebase_app/xgi_app in Xerenge's fork, BSD).
+// XAM message apps (XMsg*). XMP (0xFA) drives EA Trax and My Music,
+// including playlists, fades, pause/resume and XN_XMP_* notifications.
+// XGI achievement writes (0xFB/0x000B0008) record the game's awards locally,
+// both offline and online. Other XGI and XLiveBase (0xFC) services use the
+// online handlers below when enabled, and fail explicitly when unknown.
+// Contracts checked against Xenia and Xerenge's BSD ReXGlue SDK fork.
 #include <stdafx.h>
 #include "function.h"
 #include "overlapped.h"
 #include "xam.h"
+#include <user/achievements.h>
+namespace ui { void Toast(std::string text, double seconds); }
 
 #include <cpu/guest_thread.h>
 #include "vfs.h"
@@ -461,8 +453,8 @@ namespace
         }
     }
 
-    // XGI (0xFB) online: the presence context and properties, and achievement
-    // writes, accepted (the game sets its rich presence every 10 s); and the
+    // XGI (0xFB) online: the presence context and properties are accepted
+    // (the game sets its rich presence every 10 s); and the
     // Xbox Live session a game of the lobby's runs in. Its creation, as host
     // (XSESSION_CREATE_HOST), makes the session's XSESSION_INFO - this
     // console's XNADDR, a new XNKID and XNKEY - which the host's lobby game
@@ -475,7 +467,6 @@ namespace
         {
         case 0x000B0006:  // XGIUserSetContextEx
         case 0x000B0007:  // XGIUserSetPropertyEx
-        case 0x000B0008:  // XGIUserWriteAchievements
             return X_E_SUCCESS;
         case 0x000B0010:  // XGISessionCreateImpl(session, flags, public, private, xuid, info*, nonce*)
         {
@@ -542,6 +533,35 @@ namespace
 
     uint32_t Dispatch(uint32_t app, uint32_t message, uint32_t buffer, uint32_t length)
     {
+        // This is a local profile operation, including when Live is disabled.
+        // XGI_WRITEACHIEVEMENT = {count, X_USER_ACHIEVEMENT*}; each item is
+        // {local user index, achievement id} (Xenia Canary's xgi_app.cc).
+        if (app == 0xFB && message == 0x000B0008)
+        {
+            if (!buffer || (length && length != 8) || buffer > 0xFFFFFFF7) return X_E_INVALIDARG;
+            auto* args = Guest<be<uint32_t>>(buffer);
+            const uint32_t count = args[0], items = args[1];
+            if (!count || count > 144 || !items || uint64_t(items) + uint64_t(count) * 8 > 0x100000000ull)
+                return X_E_INVALIDARG;
+            // Validate the entire batch before changing any profile.
+            const auto& definitions = achievements::Current().Definitions();
+            for (uint32_t i = 0; i < count; ++i)
+            {
+                auto* item = Guest<be<uint32_t>>(items + i * 8);
+                if (uint32_t(item[0]) >= 4 || std::none_of(definitions.begin(), definitions.end(),
+                    [&](auto& d) { return d.id == uint32_t(item[1]); })) return X_E_INVALIDARG;
+            }
+            for (uint32_t i = 0; i < count; ++i)
+            {
+                auto* item = Guest<be<uint32_t>>(items + i * 8);
+                if (!achievements::Current().Earn(item[0], item[1]))
+                {
+                    ui::Toast(achievements::Current().Error(), 12.0);
+                    return X_E_FAIL;
+                }
+            }
+            return X_E_SUCCESS;
+        }
         if (app == 0xFA)
             return XmpDispatch(message, buffer, length);
         if (online::Enabled() && (app == 0xFB || app == 0xFC))

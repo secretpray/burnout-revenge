@@ -57,6 +57,7 @@
 #include <file.h>
 #include <image.h>
 #include <xex.h>
+#include <user/achievements.h>
 
 extern std::unordered_map<size_t, const char*> XamExports;
 extern std::unordered_map<size_t, const char*> XboxKernelExports;
@@ -559,6 +560,27 @@ int main(int argc, char** argv)
             xexPath.string().c_str(), image.base, image.size, PPC_IMAGE_BASE, PPC_IMAGE_SIZE);
         return 1;
     }
+    // SPA data is part of this player's decrypted executable. Copy only its
+    // catalogue/art into host storage, before guest threads can change memory.
+    std::span<const uint8_t> achievementData;
+    if (auto* resource = static_cast<const Xex2ResourceInfo*>(getOptHeaderPtr(file.data(), XEX_HEADER_RESOURCE_INFO)))
+    {
+        const uint32_t headerSize = resource->sizeOfHeader;
+        for (uint32_t offset = 4; offset + 16 <= headerSize; offset += 16)
+        {
+            auto* item = reinterpret_cast<const uint8_t*>(resource) + offset;
+            const uint32_t address = achievements::Read32({item, 16}, 8), length = achievements::Read32({item, 16}, 12);
+            if (memcmp(item, "454107DC", 8) == 0 && address >= image.base &&
+                uint64_t(address) - image.base + length <= image.size)
+                achievementData = { image.data.get() + address - image.base, length };
+        }
+    }
+    if (!achievements::Current().Initialize(achievementData, GetUserPath() / "achievements.txt"))
+    {
+        fprintf(stderr, "[achievements] %s\n", achievements::Current().Error().c_str());
+        ui::Toast(achievements::Current().Error(), 12.0);
+    }
+    fprintf(stderr, "[achievements] loaded %zu definitions\n", achievements::Current().Definitions().size());
     memcpy(g_memory.Translate(image.base), image.data.get(), image.size);
     fprintf(stderr, "[loader] image %08zX-%08zX, entry %08zX\n", image.base, image.base + image.size, image.entry_point);
 

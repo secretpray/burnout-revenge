@@ -1,6 +1,8 @@
 // SpeedBreaker runtime. GPL-3.0-or-later (see COPYING). See ui.h.
 #include <stdafx.h>
 #include "ui.h"
+#include "achievements.h"
+#include <user/achievements.h>
 #include "cursor_idle.h"
 #include "guest_keyboard.h"
 #include "burnout_setup.h"
@@ -538,7 +540,10 @@ namespace ui
             info.Device = s_target.device;
             info.QueueFamily = s_target.queueFamily;
             info.Queue = s_target.queue;
-            info.DescriptorPoolSize = IMGUI_IMPL_VULKAN_MINIMUM_SAMPLED_IMAGE_POOL_SIZE + 8;
+            // 36 achievements have separate color and grey textures, in addition
+            // to the poster and font atlases. The old eight-image reserve
+            // exhausted the pool when the Achievements page first opened.
+            info.DescriptorPoolSize = IMGUI_IMPL_VULKAN_MINIMUM_SAMPLED_IMAGE_POOL_SIZE + 128;
             // Buffers and textures are recycled after ImageCount UI frames;
             // the presenter keeps 2 frames in flight.
             info.MinImageCount = 2;
@@ -719,6 +724,7 @@ namespace ui
             ImGui_ImplVulkan_Shutdown();
         }
         ImGui_ImplSDL3_Shutdown();
+        ReleaseAchievementArt();
         burnout::ReleaseArt();
         menu_sounds::Shutdown();
         ImGui::DestroyContext();
@@ -1045,7 +1051,7 @@ namespace ui
         if (s_settingsOpen || s_modal)
             return true;
         std::lock_guard lock(s_toastMutex);
-        return !s_toast.empty() || !s_toastQueue.empty();
+        return !s_toast.empty() || !s_toastQueue.empty() || AchievementNoticePending();
     }
 
     bool BeginFrame()
@@ -1072,7 +1078,8 @@ namespace ui
             toastText = CurrentToastLocked();
         }
         bool toast = !toastText.empty();
-        if (!s_modal && !s_settingsOpen && !perf && !toast)
+        bool achievementNotice = AchievementNoticeVisible();
+        if (!s_modal && !s_settingsOpen && !perf && !toast && !achievementNotice)
             return false;
         ImGui_ImplVulkan_NewFrame();
         ImGui_ImplSDL3_NewFrame();
@@ -1140,6 +1147,8 @@ namespace ui
         }
         if (toast)
             DrawToast(toastText);
+        if (achievementNotice)
+            DrawAchievementNotice();
         ImGui::Render();
         ImDrawData* data = ImGui::GetDrawData();
         s_frameBuilt = data && data->CmdLists.Size > 0;  // (CmdListsCount is obsolete in 1.92)

@@ -55,8 +55,11 @@ target_link_options(bit_copy_test PRIVATE -fsanitize=address)
 # (apu/xmp_playlist.h, header only; Burnout's EA Trax).
 sb_test(xmp_playlist_test)
 sb_test(notification_queue_test)
+sb_test(achievements_test SOURCES ${RT}/user/achievements.cpp ${RT}/user/save_commit.cpp ARGS ${CMAKE_BINARY_DIR})
+target_compile_options(achievements_test PRIVATE -fsanitize=address)
+target_link_options(achievements_test PRIVATE -fsanitize=address)
 sb_test(kernel_compat_test SOURCES ${RT}/kernel/imports_rtl.cpp ${RT}/kernel/xmsg.cpp ${RT}/user/online.cpp
-    ${RT}/user/settings.cpp)
+    ${RT}/user/settings.cpp ${RT}/user/achievements.cpp ${RT}/user/save_commit.cpp)
 target_include_directories(kernel_compat_test PRIVATE ${RT}/kernel ${RT}/thirdparty/o1heap ${BR_PPC_DIR}
     ${ROOT}/tools/XenonRecomp/XenonUtils ${ROOT}/tools/XenonRecomp/thirdparty/simde)
 target_compile_options(kernel_compat_test PRIVATE -fsanitize=address)

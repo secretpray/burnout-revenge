@@ -55,9 +55,9 @@
 <sub>Unedited screenshots from this port on an M1 Pro. The game content in them belongs to its owners.</sub>
 
 > [!TIP]
-> **New in v0.1.19: offline Codes.** Infinite Boost, Infinite Time, Quick Money,
-> Quick Takedowns and Easy Boost for your solo World Tour career, one switch each in
-> Settings > Codes. [See how they work](#offline-codes).
+> **New in v0.1.20: Xbox 360 achievements.** The original 36 achievements,
+> earned dates and Gamerscore in Settings, with new awards shown during play.
+> [Details](docs/ACHIEVEMENTS.md).
 
 **TL;DR**
 
@@ -147,6 +147,14 @@
   orange rows and yellow bands, its running chevrons and button hints. Every
   change applies live, and each row explains itself.
 - Dialogs, notices and the "What's new" note look like the game's own prompts.
+
+**Achievements**
+
+- Settings > Achievements lists the 36 original Xbox 360 achievements (1000 G),
+  with grey locked icons, color earned icons and requirements for the selected
+  entry. New awards appear during play and are kept across launches.
+- Local progress, using the game's own award requests and artwork from your
+  disc. See [Achievements](docs/ACHIEVEMENTS.md) for account and import details.
 
 **Setup and saves**
 
@@ -269,6 +277,7 @@ Open with **F1**, **Cmd+,** or **Back + Start**. LB/RB (Q/E) switch pages.
 | Wheel | Shown while a steering wheel is plugged in: Steering Wheel, Steering Range, Invert Steering, Steering Deadzone, Steering Response, Force Feedback, Centering Force, Calibrate |
 | Controls | Two keys for each Xbox 360 control |
 | Online | Online Play, Server (Xerenge Community, My Server, LAN), Gamertag, Server Address, Check Server ([online play](docs/ONLINE.md)) |
+| Achievements | Original Xbox 360 list, requirements, earned dates and local Gamerscore ([details](docs/ACHIEVEMENTS.md)) |
 | Codes | Infinite Boost, Infinite Time, Quick Money, Quick Takedowns, Easy Boost; solo World Tour only, off by default ([Codes](#offline-codes)) |
 | Advanced | Asynchronous Shaders, Performance Overlay, Auto-import Add-ons, Skip Intro Movies, Save Bug Report, Check for Updates, Add-ons, Save Backups, About |
 

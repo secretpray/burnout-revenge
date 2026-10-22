@@ -14,6 +14,7 @@
 #include <kernel/function.h>
 #include <fstream>
 #include <cstdlib>
+#include "achievement_wire.h"
 
 namespace
 {
@@ -48,6 +49,7 @@ struct XamListener : KernelObject
 
 struct XamEnumeratorBase : KernelObject
 {
+    virtual size_t RequiredSize() const { return 0; }
     virtual uint32_t Next(void* buffer)
     {
         return -1;
@@ -289,6 +291,11 @@ uint32_t XamContentCreateEnumerator(uint32_t dwUserIndex, uint32_t DeviceID, uin
 uint32_t XamEnumerate(uint32_t hEnum, uint32_t dwFlags, void* pvBuffer, uint32_t cbBuffer, be<uint32_t>* pcItemsReturned, XXOVERLAPPED* pOverlapped)
 {
     auto* enumerator = GetKernelObject<XamEnumeratorBase>(hEnum);
+    if (pvBuffer && cbBuffer < enumerator->RequiredSize())
+    {
+        if (pcItemsReturned) *pcItemsReturned = 0;
+        return XamComplete(pOverlapped, 122, 0x8007007A); // ERROR_INSUFFICIENT_BUFFER
+    }
     const auto count = enumerator->Next(pvBuffer);
 
     if (count == -1)
@@ -305,22 +312,49 @@ uint32_t XamEnumerate(uint32_t hEnum, uint32_t dwFlags, void* pvBuffer, uint32_t
     return XamComplete(pOverlapped, ERROR_SUCCESS, 0, count);
 }
 
-// There is no local achievement database yet. Return a real, closeable
-// empty enumerator; XamEnumerate reports ERROR_NO_MORE_FILES to the game.
+// Each enumerator owns its snapshot: opening the menu or earning another
+// achievement cannot invalidate the game's enumeration in progress.
+struct AchievementEnumerator : XamEnumeratorBase
+{
+    uint32_t fetch = 0, flags = 0;
+    size_t position = 0;
+    std::vector<achievements::Definition> definitions;
+    std::vector<achievements::Entry> entries;
+    size_t RequiredSize() const override { return achievements::EnumerationSize(fetch, flags); }
+    uint32_t Next(void* buffer) override
+    {
+        size_t count = std::min(size_t(fetch), entries.size() - position);
+        if (!count) return uint32_t(-1);
+        if (buffer)
+            achievements::WriteDetails({static_cast<uint8_t*>(buffer), RequiredSize()}, g_memory.MapVirtual(buffer), flags, fetch,
+                std::span(definitions).subspan(position, count), std::span(entries).subspan(position, count));
+        position += count;
+        return uint32_t(count);
+    }
+};
+
 PPC_FUNC(__imp__XamUserCreateAchievementEnumerator)
 {
     const uint32_t user = ctx.r4.u32, count = ctx.r8.u32;
     const uint32_t sizePtr = ctx.r9.u32, handlePtr = ctx.r10.u32;
     if (user >= 4 || count == 0 || count > 65536 || !sizePtr || !handlePtr)
     {
-        ctx.r3.u64 = 87;  // ERROR_INVALID_PARAMETER
+        ctx.r3.u64 = 87;
         return;
     }
-    auto* enumerator = CreateKernelObject<XamEnumeratorBase>();
-    const uint32_t entrySize = 36 + ((ctx.r6.u32 & 7) ? 464 : 0);
-    PPC_STORE_U32(sizePtr, entrySize * count);
+    auto* enumerator = CreateKernelObject<AchievementEnumerator>();
+    enumerator->fetch = count; enumerator->flags = ctx.r6.u32;
+    // 0 means this title. Other titles have no records on this console.
+    if (ctx.r3.u32 == 0 || ctx.r3.u32 == 0x454107DC)
+    {
+        enumerator->definitions = achievements::Current().Definitions();
+        enumerator->entries = achievements::Current().Entries(user);
+        enumerator->position = std::min(size_t(ctx.r7.u32), enumerator->entries.size());
+    }
+    PPC_STORE_U32(sizePtr, uint32_t(enumerator->RequiredSize()));
     PPC_STORE_U32(handlePtr, GetKernelHandle(enumerator));
-    fprintf(stderr, "[xam] achievement enumeration: empty local database\n");
+    fprintf(stderr, "[achievements] enumerate user %u, offset %zu, count %u, flags %08X\n",
+        user, enumerator->position, count, enumerator->flags);
     ctx.r3.u64 = 0;
 }
 

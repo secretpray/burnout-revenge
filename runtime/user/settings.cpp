@@ -1348,6 +1348,7 @@ namespace settings
         case Category::Wheel: return "Wheel";
         case Category::Online: return "Online";
         case Category::Codes: return "Codes";
+        case Category::Achievements: return "Achievements";
         case Category::Advanced: return "Advanced";
         default: return "";
         }
