@@ -345,7 +345,24 @@ The USA disc contains English game text. To use another game language, choose
 **Import Languages from Disc...** in Advanced and select your own European Xbox
 360 ISO. The **Europe (Fr,De,It)** disc contains the Japanese, German, French,
 Spanish and Italian text resources; **Europe (En,Es,Nl,Sv,Fi)** also supplies
-Spanish. To apply a game translation:
+Spanish. These are the disc editions tested with this port, identified directly
+from each disc's `default.xex` execution info:
+
+| Xbox 360 edition | Title ID | Media ID | XEX version | Use in this port |
+|---|---|---|---|---|
+| USA | `454107DC` | `223759FA` | `0.0.0.4` | Required base game; English text |
+| Europe (Fr,De,It) | `454107DC` | `213B2D4C` | `0.0.0.1` | Import Japanese, German, French, Spanish and Italian text |
+| Europe (En,Es,Nl,Sv,Fi) | `454107DC` | `29FD0247` | `0.0.0.7` | Alternative source for Spanish text |
+
+Use the **USA base game** above, then import from **Europe (Fr,De,It),
+Media ID `213B2D4C`**, for all five tested additional game languages.
+All three editions share the same Title ID; use the Media ID to distinguish them.
+The importer checks the original executable's SHA-256 hash and the language
+files' paths, sizes and SHA-256 hashes, so a
+matching Title ID or renamed ISO alone does not establish compatibility.
+Dutch, Swedish and Finnish are not selectable languages in this port.
+
+To apply a game translation:
 
 1. Open **Settings > Advanced > Import Languages from Disc...**.
 2. Select your own European Xbox 360 ISO and wait for the import confirmation.
