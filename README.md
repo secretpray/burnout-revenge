@@ -337,16 +337,16 @@ Open with **F1**, **Cmd+,** or **Back + Start**. LB/RB (Q/E) switch pages.
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/settings-display.jpg" alt="Settings, Display page: Fullscreen, V-Sync, Frame Rate, Aspect Ratio, Brightness, Xbox 360 Display Gamma"><br><sub>Display.</sub></td>
-    <td width="50%"><img src="docs/screenshots/settings-graphics.jpg" alt="Settings, Graphics page scrolled to Vehicle Detail set to Far, with its description"><br><sub>Graphics, Vehicle Detail.</sub></td>
+    <td width="50%"><img src="docs/screenshots/settings-menu-display.jpg" alt="v0.1.22 Display settings with Fullscreen, V-Sync, Frame Rate, Aspect Ratio and HUD placement"><br><sub>Display: window, frame rate and HUD.</sub></td>
+    <td width="50%"><img src="docs/screenshots/settings-menu-graphics.jpg" alt="v0.1.22 Graphics settings with anti-aliasing, upscaling, sharpening, anisotropic filtering and mipmaps"><br><sub>Graphics: anti-aliasing and upscaling.</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshots/settings-audio-my-music.jpg" alt="Settings, Audio page: Music set to My Music, Music Folder with 2 files"><br><sub>Audio, with My Music.</sub></td>
-    <td width="50%"><img src="docs/screenshots/settings-input.jpg" alt="Settings, Input page: Button Prompts set to Auto"><br><sub>Input, Button Prompts.</sub></td>
+    <td width="50%"><img src="docs/screenshots/settings-menu-audio.jpg" alt="v0.1.22 Audio settings with master volume, mute controls and the EA Trax or My Music choice"><br><sub>Audio: volume and music.</sub></td>
+    <td width="50%"><img src="docs/screenshots/settings-menu-input.jpg" alt="v0.1.22 Input settings with stick and trigger deadzones, vibration, button prompts and the DualSense driver"><br><sub>Input: deadzones, vibration and button prompts.</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshots/settings-codes.jpg" alt="Settings, Codes page with Quick Takedowns selected"><br><sub>Codes, solo career only.</sub></td>
-    <td width="50%"></td>
+    <td width="50%"><img src="docs/screenshots/settings-menu-codes.jpg" alt="v0.1.22 Codes settings with five optional solo World Tour modifiers"><br><sub>Codes: optional solo career modifiers.</sub></td>
+    <td width="50%"><img src="docs/screenshots/settings-menu-rewind.jpg" alt="v0.1.22 Rewind settings with separate configurable controller combinations for 10, 20 and 30 seconds"><br><sub>Rewind: configurable 10/20/30-second shortcuts.</sub></td>
   </tr>
 </table>
 
