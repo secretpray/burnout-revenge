@@ -31,6 +31,8 @@
 #include <SDL3/SDL.h>
 
 #include <deque>
+#include <game/rewind_ring.h>
+#include <hid/rewind_shortcuts.h>
 
 namespace ui
 {
@@ -70,11 +72,36 @@ namespace ui
         std::string s_toast;  // showing; empty: none
         std::chrono::steady_clock::time_point s_toastFrom{}, s_toastUntil{};
         std::deque<QueuedToast> s_toastQueue;
+        std::string s_rewindNotice;
+        std::chrono::steady_clock::time_point s_rewindNoticeUntil{};
+        unsigned s_pendingRewindSeconds{}; // main thread
+
+        void RewindFeedback(std::string text,double seconds=3.0)
+        {
+            std::lock_guard lock(s_toastMutex);
+            const auto now=std::chrono::steady_clock::now();
+            // Rewind feedback replaces its previous phase immediately. Keep
+            // unrelated notices queued with their remaining display time.
+            if (!s_toast.empty())
+            {
+                const double remaining=std::chrono::duration<double>(s_toastUntil-now).count();
+                if (remaining>0)
+                {
+                    if(s_toastQueue.size()>=4) s_toastQueue.pop_back();
+                    s_toastQueue.push_front({std::move(s_toast),remaining});
+                }
+                s_toast.clear();
+            }
+            s_rewindNotice=std::move(text);
+            s_rewindNoticeUntil=now+std::chrono::milliseconds(int64_t(seconds*1000));
+        }
 
         // Under s_toastMutex: the toast to show now ("" for none).
         const std::string& CurrentToastLocked()
         {
             auto now = std::chrono::steady_clock::now();
+            if (!s_rewindNotice.empty() && now<s_rewindNoticeUntil) return s_rewindNotice;
+            s_rewindNotice.clear();
             if (!s_toast.empty() && now >= s_toastUntil)
                 s_toast.clear();
             if (s_toast.empty() && !s_toastQueue.empty())
@@ -100,7 +127,12 @@ namespace ui
             // as it keeps from the bottom), so the bug report's one line fits
             // on the Deck's 1280x800 too (at 80% of the width it took two).
             const float maxWidth = viewport->WorkSize.x - 2 * kSpaceL * s;
-            ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0), ImVec2(maxWidth, FLT_MAX));
+            ImGui::PushFont(burnout::LabelFont(), 24.0f);
+            const float wrapWidth=std::max(1.f,maxWidth-8*kSpaceL*s);
+            const auto extent=ImGui::CalcTextSize(text.c_str(),nullptr,false,wrapWidth);
+            // Auto-resize uses the previous frame's text size. A rewind
+            // result must fit on its first frame, even after a shorter notice.
+            ImGui::SetNextWindowSize({std::min(maxWidth,std::ceil(extent.x)+8*kSpaceL*s),std::ceil(extent.y)+2*kSpaceS*s});
             // A slim bar: one line of it fits under the settings panel
             // (16:9 and 16:10), so a toast over the open menu hides none of it.
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(kSpaceL * s, kSpaceS * s));
@@ -119,15 +151,14 @@ namespace ui
                 burnout::NoticeBand(ImGui::GetWindowDrawList(), at, ImVec2(at.x + ImGui::GetWindowWidth(), at.y + ImGui::GetWindowHeight()));
                 // (A window-local x: the text wraps where the window's
                 // right padding starts at its widest.)
-                ImGui::PushTextWrapPos(maxWidth - 4 * kSpaceL * s);
-                ImGui::PushFont(burnout::LabelFont(), 24.0f);  // the game's description face
+                ImGui::PushTextWrapPos(4*kSpaceL*s+wrapWidth);
                 ImGui::TextUnformatted(text.c_str());
-                ImGui::PopFont();
                 ImGui::PopTextWrapPos();
             }
             ImGui::End();
             ImGui::PopStyleVar(2);
             ImGui::PopStyleColor(3);
+            ImGui::PopFont();
         }
 
         float s_appliedScale = 0.0f;
@@ -757,6 +788,8 @@ namespace ui
         if (!s_ready)
             return;
         bool forward = s_capturing.load(std::memory_order_relaxed);
+        if (s_settingsOpen && SettingsMenuRecordingChord() &&
+            (e.type==SDL_EVENT_GAMEPAD_BUTTON_DOWN || e.type==SDL_EVENT_GAMEPAD_BUTTON_UP)) return;
         switch (e.type)
         {
         case SDL_EVENT_KEY_DOWN:
@@ -773,6 +806,13 @@ namespace ui
             }
             if (s_settingsOpen && SettingsMenuTakesKey(e.key))
                 return;  // a Controls row took it: ImGui doesn't act on it too
+            if (!s_modal && !s_settingsOpen && !e.key.repeat && !(e.key.mod&SDL_KMOD_GUI) && settings::GetBool(settings::Id::RewindEnabled))
+            {
+                std::array<uint16_t,6> keys{};
+                for (unsigned i=0;i<keys.size();++i) keys[i]=uint16_t(settings::GetInt(settings::Id(unsigned(settings::Id::KeyRewind10)+i)));
+                if (unsigned seconds=hid::rewind::KeySeconds(uint16_t(e.key.scancode),keys))
+                { TriggerRewind(seconds);return; }
+            }
             break;
         }
         case SDL_EVENT_KEY_UP:
@@ -1060,11 +1100,22 @@ namespace ui
         if (s_settingsOpen || s_modal)
             return true;
         std::lock_guard lock(s_toastMutex);
-        return !s_toast.empty() || !s_toastQueue.empty() || AchievementNoticePending();
+        return !s_rewindNotice.empty() || !s_toast.empty() || !s_toastQueue.empty() || AchievementNoticePending();
     }
 
     bool BeginFrame()
     {
+        game::rewind::ring::SetEnabled(settings::GetBool(settings::Id::RewindEnabled));
+        uint32_t codes=0;
+        for (unsigned i=0;i<5;++i) if (settings::GetBool(settings::Id(unsigned(settings::Id::InfiniteBoost)+i))) codes|=1u<<i;
+        game::rewind::ring::SetWorldOptions(codes);
+        if (const int result=game::rewind::ring::TakeOutcome())
+        {
+            s_pendingRewindSeconds=0;
+            RewindFeedback(result>0 ? locale::Format("Rewound {:.1f} seconds.",float(result)/1000.f):locale::Text("Rewind could not be applied."));
+        }
+        else if(s_pendingRewindSeconds && game::rewind::ring::GetStatus().state==game::rewind::ring::State::Restoring)
+            RewindFeedback(locale::Format("Rewinding {} seconds...",s_pendingRewindSeconds),.5);
         s_frameBuilt = false;
         if (!s_ready)
             return false;
@@ -1230,6 +1281,25 @@ namespace ui
         fprintf(stderr, "[ui] settings menu closed\n");
         if (settings::Dirty() && !settings::Save())
             Toast(settings::LastError());
+    }
+
+    bool TriggerRewind(unsigned seconds)
+    {
+        if (game::rewind::ring::Request(seconds))
+        {
+            s_pendingRewindSeconds=seconds;
+            if (SettingsOpen()) { CloseSettings();RewindFeedback(locale::Text("Resume play to apply Rewind."),8.0); }
+            else RewindFeedback(locale::Format("Rewinding {} seconds...",seconds));
+            return true;
+        }
+        const auto status=game::rewind::ring::GetStatus();
+        const unsigned bit=seconds==10 ? 1:seconds==20 ? 2:seconds==30 ? 4:0;
+        if ((status.readyMask&bit) || status.state==game::rewind::ring::State::Restoring)
+        { RewindFeedback(locale::Text("Rewind in progress."),2.0);return false; }
+        if (status.state==game::rewind::ring::State::Collecting || status.state==game::rewind::ring::State::Ready)
+            RewindFeedback(locale::Format("Rewind needs {} seconds of history. Available: {} seconds.",seconds,status.seconds),3.0);
+        else RewindFeedback(locale::Text("Rewind is unavailable in this mode or while saving."),3.0);
+        return false;
     }
 
     bool SettingsOpen()

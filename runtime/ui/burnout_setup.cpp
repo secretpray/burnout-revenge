@@ -318,17 +318,18 @@ namespace ui::burnout
         return text;
     }
 
-    float ButtonGlyph(ImDrawList* draw, ImVec2 at, float height, const char* button)
+    float ButtonGlyph(ImDrawList* draw, ImVec2 at, float height, const char* button,bool controllerOnly)
     {
         // The buttons the game's prompts show too (hid::PromptGlyphs: the
         // Button Prompts setting, Auto the device used last): Xbox 360's
         // lettered discs, PlayStation's shapes (L1/R1 for the shoulders), or
         // the keyboard's keys as caps.
         const float s = Scale();
-        const hid::Glyphs set = hid::PromptGlyphs();
+        hid::Glyphs set=hid::PromptGlyphs();
+        if (controllerOnly && set==hid::Glyphs::Keyboard) set=hid::ControllerGlyphs();
         std::string label = button;
         if (set == hid::Glyphs::PlayStation)
-            label = label == "LB" ? "L1" : label == "RB" ? "R1" : label;
+            label = label == "LB" ? "L1" : label == "RB" ? "R1" : label == "LS" ? "L3" : label == "RS" ? "R3" : label;
         else if (set == hid::Glyphs::Keyboard)
             label = label == "A" ? "ENTER" : label == "B" ? "ESC" : label == "X" ? "DEL" : label == "Y" ? "BKSP"
                 : label == "LB" ? "Q" : label == "RB" ? "E" : label == "D-PAD" ? "ARROWS" : label;

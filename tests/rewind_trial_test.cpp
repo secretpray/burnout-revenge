@@ -12,13 +12,13 @@ PPC_EXTERN_FUNC(sub_82346C68);
 Memory::Memory() {}
 Memory g_memory;
 Heap g_userHeap;
-static bool live{};
+static bool live{},preparing{};
 static unsigned allocations{}, frees{}, restores{}, originals{};
 static constexpr uint32_t kRecorder=0x82AFE440, kHeader=0x40000000, kPayload=kHeader+76, kScratch=0x70000000;
 static constexpr uint32_t kEvent=0x8287EC90, kInput=0x50000000, kSnapshots=0x51000000;
 static PPCContext expected;
 namespace online { bool Enabled() { return live; } }
-namespace game::rewind::ring { void AtBoundary(PPCContext&, uint8_t*, uint32_t) {} }
+namespace game::rewind::ring { bool Preparing(uint32_t recorder) { return preparing && recorder==kRecorder; } void AtBoundary(PPCContext&, uint8_t*, uint32_t) {} }
 uint32_t GuestThread::GetCurrentThreadId() { return 1; }
 void* Heap::Alloc(size_t size) { assert(size <= 0x10000); ++allocations; return g_memory.base+kScratch; }
 void Heap::Free(void* p) { assert(p == g_memory.base+kScratch); ++frees; }
@@ -43,12 +43,12 @@ static void Map(uint32_t address, size_t size)
 {
     assert(mprotect(g_memory.base+address,size,PROT_READ|PROT_WRITE)==0);
 }
-static void Call()
+static void Call(uint32_t receiver=kRecorder)
 {
-    PPCContext ctx{}; ctx.r3.u32=kRecorder; ctx.r4.u64=0xAABBCCDD12345678;
+    PPCContext ctx{}; ctx.r3.u32=receiver; ctx.r4.u64=0xAABBCCDD12345678;
     ctx.r1.u32=0x70100000; ctx.lr=0x8210EF58; expected=ctx;
     sub_82346C68(ctx,g_memory.base);
-    expected.r3.u64=0xFEEDBEEFDEADBEEF;
+    if(!preparing || receiver!=kRecorder) expected.r3.u64=0xFEEDBEEFDEADBEEF;
     assert(std::memcmp(&ctx,&expected,sizeof(ctx))==0);
 }
 int main(int argc,char** argv)
@@ -57,6 +57,13 @@ int main(int argc,char** argv)
     setenv("BURNOUT_REWIND_TRIAL",mode=="disabled" ? "0" : "2",1);
     g_memory.base=static_cast<uint8_t*>(mmap(nullptr,PPC_MEMORY_SIZE,PROT_NONE,MAP_PRIVATE|MAP_ANON,-1,0));
     assert(g_memory.base!=MAP_FAILED);
+    if(mode=="preparing")
+    {
+        preparing=true;Call();assert(!originals && !allocations && !restores);
+        Call(kRecorder+4);assert(originals==1);
+        preparing=false;Call();assert(originals==2 && !allocations && !restores);
+        assert(munmap(g_memory.base,PPC_MEMORY_SIZE)==0);return 0;
+    }
     if(mode=="disabled")
     {
         game::rewind::trial::Captured(g_memory.base,1,2,3); Call();

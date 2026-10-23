@@ -3,6 +3,7 @@
 #include <stdafx.h>
 #include "rewind_probe.h"
 #include "rewind_trial.h"
+#include "rewind_ring.h"
 #include <apu/audio.h>
 #include <cpu/guest_thread.h>
 #include <gpu/command_processor.h>
@@ -82,6 +83,13 @@ namespace
             float firstClock{}, lastClock{}, originClock{};
         };
         static thread_local Series s;
+        static thread_local uint32_t lastEvent=0,lastController=0;
+        if (b.phase==5 && (lastEvent!=b.event || lastController!=b.controller))
+        {
+            lastEvent=b.event;lastController=b.controller;
+            fprintf(stderr,"[rewind-probe] mode event=%08X controller=%08X session=%08X flags=%08X special=%u players=%u variant=%u\n",
+                b.event,b.controller,b.session,PPC_LOAD_U32(kClockFlags),b.specialMode,b.localPlayers,b.crashVariant);
+        }
         if (!CanObserve(b)) { s = {}; return; }
         const uint32_t flags = PPC_LOAD_U32(kClockFlags);
         static thread_local uint32_t lastFlags = 0xFFFFFFFF;
@@ -127,6 +135,7 @@ namespace
 extern "C" PPC_FUNC(__imp__sub_8211FA28);
 PPC_FUNC(sub_8211FA28)
 {
+    const uint32_t gameObject=ctx.r3.u32;
     static thread_local bool failed = false;
     if (Enabled() && !failed)
     {
@@ -138,6 +147,7 @@ PPC_FUNC(sub_8211FA28)
         }
     }
     __imp__sub_8211FA28(ctx, base);
+    if (gameObject==game::rewind::kGame) game::rewind::ring::AtWorldBoundary(ctx,base);
 }
 
 // Native Replay uses a game-owned serializer, rather than raw RAM copies.

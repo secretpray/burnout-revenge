@@ -46,6 +46,8 @@ if(APPLE)
     target_link_libraries(audio_file_test PRIVATE "-framework AudioToolbox" "-framework Foundation" "-framework CoreFoundation")
 endif()
 sb_test(rumble_focus_test)
+sb_test(rewind_shortcuts_test)
+sb_test(rewind_gate_test)
 # The XMA decoder's bit copies (apu/bit_copy.h, header only), with
 # AddressSanitizer: no byte outside the bits copied is read or written.
 sb_test(bit_copy_test)
@@ -98,15 +100,20 @@ target_include_directories(rewind_trial_test PRIVATE ${RT}/kernel ${RT}/thirdpar
     ${ROOT}/tools/XenonRecomp/XenonUtils ${ROOT}/tools/XenonRecomp/thirdparty/simde)
 target_compile_options(rewind_trial_test PRIVATE -fsanitize=address)
 target_link_options(rewind_trial_test PRIVATE -fsanitize=address)
-foreach(mode disabled online buffer event mode)
+foreach(mode disabled online buffer event mode preparing)
     add_test(NAME rewind_trial_${mode}_test COMMAND rewind_trial_test ${mode})
 endforeach()
+sb_test(rewind_copy_test SOURCES ${RT}/game/rewind_copy.cpp)
+target_include_directories(rewind_copy_test PRIVATE ${RT}/kernel ${RT}/thirdparty/o1heap ${BR_PPC_DIR}
+    ${ROOT}/tools/XenonRecomp/XenonUtils ${ROOT}/tools/XenonRecomp/thirdparty/simde)
+target_compile_options(rewind_copy_test PRIVATE -fsanitize=address)
+target_link_options(rewind_copy_test PRIVATE -fsanitize=address)
 sb_test(rewind_ring_test SOURCES ${RT}/game/rewind_ring.cpp)
 target_include_directories(rewind_ring_test PRIVATE ${RT}/kernel ${RT}/thirdparty/o1heap ${BR_PPC_DIR}
     ${ROOT}/tools/XenonRecomp/XenonUtils ${ROOT}/tools/XenonRecomp/thirdparty/simde)
 target_compile_options(rewind_ring_test PRIVATE -fsanitize=address)
 target_link_options(rewind_ring_test PRIVATE -fsanitize=address)
-foreach(mode disabled invalid trial thread online replay event buffer budget failed lifecycle)
+foreach(mode finished crash_special crash_party camera_wait camera_wait_save camera_wait_timeout driving_target no_driving_target disabled invalid trial thread online replay event buffer budget failed lifecycle user rollback save track track_timeout track_save track_options track_event contract_common_bad contract_crash contract_crash_early contract_crash_bad contract_crash_parent_bad contract_crash_nested_bad contract_crash_pointer_bad contract_crash_globals_bad contract_traffic contract_traffic_bad contract_lap contract_lap_bad contract_eliminator contract_eliminator_bad contract_eliminator_cache contract_eliminator_actor_bad contract_eliminator_late contract_eliminator_late_bad contract_score_bad)
     add_test(NAME rewind_ring_${mode}_test COMMAND rewind_ring_test ${mode})
 endforeach()
 sb_test(burnout_addon_package_test)
@@ -118,6 +125,10 @@ sb_test(voice_mix_test)
 target_compile_options(voice_mix_test PRIVATE -ffp-contract=off)
 # Where guest memory and the upload ring go (gpu/memory_plan.h, header only).
 sb_test(memory_plan_test)
+# Release/decommit through the real PageHeap, including partial host pages.
+sb_test(vmem_host_pages_test SOURCES ${RT}/kernel/vmem.cpp)
+target_include_directories(vmem_host_pages_test PRIVATE ${RT}/kernel ${RT}/thirdparty/o1heap ${BR_PPC_DIR}
+    ${ROOT}/tools/XenonRecomp/XenonUtils ${ROOT}/tools/XenonRecomp/thirdparty/simde)
 sb_test(zpd_report_test)
 # The resolve shader's 24-bit depth pack (gpu/depth24_glsl.h), header only;
 # renderer.cpp is read to check its resolve shader uses it.

@@ -15,7 +15,7 @@ namespace ui::burnout
     // with its letter ("A", "B", "X", "Y"), or a dark pill for "LB", "RB",
     // "D-PAD". Drawn at `at` (top left), `height` tall; returns its width
     // (only that with no `draw`).
-    float ButtonGlyph(ImDrawList* draw, ImVec2 at, float height, const char* button);
+    float ButtonGlyph(ImDrawList* draw, ImVec2 at, float height, const char* button, bool controllerOnly=false);
     // Two rows of yellow dashes on dark, from a.x to b.x at heights a.y and b.y.
     void HazardDashes(ImDrawList* draw, ImVec2 a, ImVec2 b);
     // The game's chosen row: a yellow line above and below (a.y, b.y),

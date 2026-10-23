@@ -3,6 +3,7 @@
 #include <stdafx.h>
 #include "input.h"
 #include "key_map.h"
+#include "rewind_shortcuts.h"
 #include "pad_slots.h"
 #include "rumble_focus.h"
 #include "virtual_wheel.h"
@@ -33,6 +34,7 @@ static_assert(settings::keynames::Code("a") == SDL_SCANCODE_A && settings::keyna
 
 namespace
 {
+    std::atomic<uint16_t> s_rewindConsumed{0};
     constexpr uint32_t ERROR_SUCCESS = 0;
     constexpr uint32_t ERROR_DEVICE_NOT_CONNECTED = 0x48F;
 
@@ -751,6 +753,8 @@ namespace
 
 namespace hid
 {
+    namespace { uint16_t s_rawRewindButtons{};rewind::ChordSet s_rewindChord; }
+    uint16_t RawButtons() { return s_rawRewindButtons; }
     void Initialize()
     {
 #if defined(BR_GAME_BURNOUT) && defined(__APPLE__) && !TARGET_OS_IOS
@@ -843,6 +847,9 @@ namespace hid
         }
         return s_glyphs;
     }
+
+    Glyphs ControllerGlyphs()
+    { return s_gamepads[0] ? GlyphsOf(SDL_GetGamepadID(s_gamepads[0])):Glyphs::Xbox; }
 
     Glyphs PublishedGlyphs()
     {
@@ -1067,6 +1074,8 @@ namespace hid
                 ApplyDeadzone(rx, ry, deadzone);
             }
             const float rawLt = lt, rawRt = rt;
+            const uint16_t rawButtons=uint16_t(p.buttons|(padBack ? XAMINPUT_GAMEPAD_BACK:0));
+            uint16_t keyboardButtons=0;
 
             // Keyboard, player 1's (digital; replaces the controller's
             // value for what it touches): each control's key is Settings >
@@ -1082,11 +1091,15 @@ namespace hid
                 bool pressed[keymap::kControls] = {};
                 auto down = [&](settings::Id id) {
                     int code = settings::GetInt(id);  // 0: no key
+                    if (settings::GetBool(settings::Id::RewindEnabled))
+                        for (unsigned i=0;i<6;++i)
+                            if (code && code==settings::GetInt(settings::Id(unsigned(settings::Id::KeyRewind10)+i))) return false;
                     return code > 0 && code < SDL_SCANCODE_COUNT && k[code];
                 };
                 for (size_t i = 0; i < keymap::kControls; i++)
                     pressed[i] = down(keymap::kEntries[i].id) || down(keymap::kEntries[i].id2);
                 keymap::Resolved r = keymap::Resolve(pressed);
+                keyboardButtons=r.buttons;
                 p.buttons |= r.buttons;
                 if (r.rightTrigger)
                     rt = 1.0f;
@@ -1118,6 +1131,20 @@ namespace hid
             Pad scripted = p;
             if (user == 0)
                 ApplyScript(scripted);
+            if (user==0)
+            {
+                s_rawRewindButtons=uint16_t(rawButtons|(scripted.buttons&~keyboardButtons));
+                const bool active=settings::GetBool(settings::Id::RewindEnabled);
+                const std::array<uint16_t,3> masks={uint16_t(settings::GetInt(settings::Id::RewindChord10)),
+                    uint16_t(settings::GetInt(settings::Id::RewindChord20)),uint16_t(settings::GetInt(settings::Id::RewindChord30))};
+                // Explicit virtual-pad scripts run unattended in an isolated
+                // test profile; a real controller still requires game focus.
+                const bool focused=SDL_GetKeyboardFocus()!=nullptr || (s_anyVirtualPad && !s_script.empty());
+                const auto chord=s_rewindChord.Update(masks,s_rawRewindButtons,blocked||!active||!focused,double(SDL_GetTicksNS())/1e9);
+                p.buttons&=~chord.consume;
+                s_rewindConsumed.store(chord.consume,std::memory_order_relaxed);
+                if (chord.seconds) ui::TriggerRewind(chord.seconds);
+            }
             if (scripted.buttons || scripted.leftTrigger || scripted.rightTrigger || scripted.lx || scripted.ly || scripted.rx ||
                 scripted.ry || !s_inputSeen)
             {
@@ -1204,6 +1231,7 @@ namespace
         Pad p = s_pads[user];
         if (user == 0 && !s_scriptSuppressed)
             ApplyScript(p, true);
+        if (user==0) p.buttons&=~s_rewindConsumed.load(std::memory_order_relaxed);
         return p;
     }
 

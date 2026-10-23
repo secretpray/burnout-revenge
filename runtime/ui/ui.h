@@ -130,6 +130,7 @@ namespace ui
 
     void OpenSettings();
     void CloseSettings();  // saves any change
+    bool TriggerRewind(unsigned seconds);
     bool SettingsOpen();
 
     // Screens (settings_menu.cpp, perf_overlay.cpp, installer_screen.cpp).
@@ -141,6 +142,7 @@ namespace ui
     // cancelled it, or this is a repeat or the release of a key it took or
     // refused, so ImGui must not see it.
     bool SettingsMenuTakesKey(const SDL_KeyboardEvent& key);
+    bool SettingsMenuRecordingChord();
     void DrawPerfOverlay();
 
     // Settings > Advanced > Check for Updates (update_dialog.cpp, the check

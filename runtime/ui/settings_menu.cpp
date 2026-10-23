@@ -34,6 +34,9 @@
 #include <user/my_music.h>
 #include <user/online.h>
 #include <user/online_identity.h>
+#include <game/rewind_ring.h>
+#include <hid/input.h>
+#include <hid/rewind_shortcuts.h>
 #include <SDL3/SDL_dialog.h>
 #include <SDL3/SDL_misc.h>  // SDL_OpenURL: Music Folder in Finder
 #include <atomic>
@@ -80,6 +83,20 @@ namespace ui
         std::string s_checkedServer;  // the server the result is about
         bool s_describedMusicFolder = false;
         bool s_openAddons = false;
+        bool s_rewindHelp=false,s_chordHelp=false,s_chordRecording=false,s_chordArmed=false;
+        uint16_t s_chordPeak=0;
+        Id s_chordSetting=Id::Count;
+        std::string s_chordMessage;
+        constexpr hid::keymap::Entry kRewindKeys[]={
+            {hid::keymap::Control::Count,Id::KeyRewind10,Id::KeyRewind10_2,hid::keymap::Role::Button},
+            {hid::keymap::Control::Count,Id::KeyRewind20,Id::KeyRewind20_2,hid::keymap::Role::Button},
+            {hid::keymap::Control::Count,Id::KeyRewind30,Id::KeyRewind30_2,hid::keymap::Role::Button}};
+        const hid::keymap::Entry& KeyEntry(Id id)
+        {
+            if (id>=Id::KeyRewind10 && id<=Id::KeyRewind30_2)
+                return kRewindKeys[(unsigned(id)-unsigned(Id::KeyRewind10))/2];
+            return hid::keymap::EntryOf(id);
+        }
         std::mutex s_addonPickerMutex;
         bool s_addonPickerOpen = false;
         std::optional<std::string> s_addonPicked;
@@ -228,6 +245,7 @@ namespace ui
 
         int PageDelta()
         {
+            if (s_chordRecording) return 0;
             int delta = 0;
             if (ImGui::IsKeyPressed(ImGuiKey_GamepadL1, false) || ImGui::IsKeyPressed(ImGuiKey_Q, false))
                 delta--;
@@ -304,9 +322,11 @@ namespace ui
         {
             const double mine[2] = { settings::GetStoredValue(e.id), settings::GetStoredValue(e.id2) };
             std::string text;
-            for (const auto& other : hid::keymap::kEntries)
+            for (const auto& option : settings::Options())
             {
-                if (other.control == e.control)
+                if (option.type!=settings::Type::Key) continue;
+                const auto& other=KeyEntry(option.id);
+                if (option.id!=other.id || other.id==e.id)
                     continue;
                 const double theirs[2] = { settings::GetStoredValue(other.id), settings::GetStoredValue(other.id2) };
                 bool shared = false;
@@ -764,6 +784,88 @@ namespace ui
             return activated;
         }
 
+        std::string RewindStateText()
+        {
+            const auto status=game::rewind::ring::GetStatus();
+            using game::rewind::ring::State;
+            if (!settings::GetBool(Id::RewindEnabled)) return locale::Text("Turn on Rewind to collect history.");
+            if (status.state==State::Restoring) return locale::Text("Rewind in progress.");
+            if (status.state==State::Saving) return locale::Text("History resets while the game saves.");
+            if (status.state==State::Failed) return locale::Text("Rewind stopped after an error. Turn it off and on to try again.");
+            if (status.state==State::Unsupported || status.state==State::Disabled) return locale::Text("Unavailable here. Start a supported solo World Tour event.");
+            return locale::Format("Available history: {} seconds. New history replaces the discarded future.",status.seconds);
+        }
+
+        void RewindRows(float width)
+        {
+            const auto status=game::rewind::ring::GetStatus();
+            const unsigned seconds=unsigned(settings::GetInt(Id::RewindDuration));
+            const bool ready=settings::GetBool(Id::RewindEnabled) && (status.readyMask&(1u<<(seconds/10-1)));
+            // Keep the row focusable so controller users can read why it is
+            // unavailable; activation never queues an invalid request.
+            if (ActionRow("rewind-now","Rewind Now",ready ? "Ready":"Not ready",width,s_rewindHelp,true) && ready)
+                TriggerRewind(seconds);
+            constexpr std::array ids{Id::RewindChord10,Id::RewindChord20,Id::RewindChord30};
+            bool anyEditable=false;
+            for (const auto id:ids)
+            {
+                bool rowHelp=false;
+                const auto mask=uint16_t(settings::GetInt(id));
+                const bool valid=hid::rewind::ValidChord(mask),locked=settings::EnvOverride(id);
+                if (ActionRow(settings::Info(id).key,settings::Info(id).label,(s_chordRecording && s_chordSetting==id) ? "Release to set":locked ? "ENV":valid ? "":"Not set",width,rowHelp,!locked))
+                { s_chordSetting=id;s_chordRecording=true;s_chordArmed=false;s_chordPeak=0;s_chordMessage.clear(); }
+                if (!(s_chordRecording && s_chordSetting==id) && valid && !locked)
+                {
+                    constexpr std::pair<uint16_t,const char*> buttons[]={
+                        {0x100,"LB"},{0x200,"RB"},{0x4000,"X"},{0x8000,"Y"},{0x2000,"B"},{0x1000,"A"},
+                        {0x40,"LS"},{0x80,"RS"},{0x20,"BACK"},{0x10,"START"},{1,"UP"},{2,"DOWN"},{4,"LEFT"},{8,"RIGHT"}};
+                    const float h=ImGui::GetFrameHeight()*.8f,gap=12.f*Scale();
+                    float total=0;unsigned count=0;
+                    for (auto [bit,name]:buttons) if (mask&bit) { total+=burnout::ButtonGlyph(nullptr,{},h,name,true);++count; }
+                    total+=gap*float(count-1);
+                    const auto min=ImGui::GetItemRectMin(),size=ImGui::GetItemRectSize();
+                    ImVec2 at{min.x+(size.x-total)/2,min.y+(size.y-h)/2};
+                    auto* draw=ImGui::GetWindowDrawList();
+                    unsigned drawn=0;
+                    for (auto [bit,name]:buttons) if (mask&bit)
+                    {
+                        if (drawn++) { draw->AddText({at.x+2.f*Scale(),at.y},kRowWhite,"+");at.x+=gap; }
+                        at.x+=burnout::ButtonGlyph(draw,at,h,name,true);
+                    }
+                }
+                s_chordHelp|=rowHelp;
+                anyEditable|=!locked;
+            }
+            if (s_chordRecording)
+            {
+                const uint16_t held=hid::RawButtons();
+                if (!held) s_chordArmed=true;
+                if (s_chordArmed)
+                {
+                    if (std::popcount(held)>std::popcount(s_chordPeak)) s_chordPeak=held;
+                    if (!held && s_chordPeak)
+                    {
+                        bool overlaps=false;
+                        for (const auto id:ids) if (id!=s_chordSetting)
+                        {
+                            const auto other=uint16_t(settings::GetInt(id));
+                            if (hid::rewind::ValidChord(other) && ((s_chordPeak&other)==other || (s_chordPeak&other)==s_chordPeak)) overlaps=true;
+                        }
+                        if (overlaps) s_chordMessage=locale::Text("This shortcut overlaps another duration. Clear or change the other shortcut first.");
+                        else if (hid::rewind::ValidChord(s_chordPeak))
+                            LogChange(settings::Info(s_chordSetting),settings::GetStoredValue(s_chordSetting),settings::Set(s_chordSetting,s_chordPeak));
+                        else s_chordMessage=locale::Text("Use two or three buttons. Back + Start is reserved for Settings.");
+                        s_chordRecording=false;
+                    }
+                }
+            }
+            bool clearHelp=false;
+            if (ActionRow("rewind-chord-clear","Clear Controller Shortcuts","Clear",width,clearHelp,anyEditable) && !s_chordRecording)
+                for (const auto id:ids) if (!settings::EnvOverride(id))
+                    LogChange(settings::Info(id),settings::GetStoredValue(id),settings::Set(id,0));
+            s_chordHelp|=clearHelp;
+        }
+
         // Settings > Wheel > Calibrate. The wheels we know say which axis
         // each pedal is, and where the axes rest tells a pedal from the
         // wheel itself (hid/wheel_map.h) - but three identical springs on a
@@ -1077,6 +1179,15 @@ namespace ui
 
         void HelpLine()
         {
+            if (s_chordHelp || s_chordRecording)
+            {
+                ImGui::TextWrapped("%s",locale::Text(s_chordRecording ? "Release all buttons, hold two or three together, then release to save. Esc cancels.":
+                    "Hold your shortcut for 0.3 seconds during play to rewind once. Release every shortcut button before using it again. Individual buttons keep their normal actions."));
+                if (!s_chordMessage.empty()) ImGui::TextWrapped("%s",s_chordMessage.c_str());
+                return;
+            }
+            if (s_rewindHelp)
+            { ImGui::TextWrapped("%s",RewindStateText().c_str());return; }
             if (s_category == Category::Achievements) { AchievementHelp(); return; }
             if (s_describedGamertag)
             {
@@ -1211,7 +1322,7 @@ namespace ui
             const settings::Option& o = settings::Info(s_described);
             if (o.type == settings::Type::Key)
             {
-                const hid::keymap::Entry& e = hid::keymap::EntryOf(o.id);
+                const hid::keymap::Entry& e = KeyEntry(o.id);
                 if (s_waiting == e.id || s_waiting == e.id2)
                 {
                     PushAccentText();
@@ -1366,6 +1477,8 @@ namespace ui
         s_describedAddons = false;
         s_describedAbout = false;
         s_describedLanguages = false;
+        s_rewindHelp=s_chordHelp=false;
+        if (s_category!=Category::Rewind) s_chordRecording=false;
         s_describedSaveBackups = false;
         s_describedGamertag = false;
         s_describedServerAddress = false;
@@ -1379,7 +1492,7 @@ namespace ui
         // For the B check at the end: B's nav cancel (in ImGui's NewFrame,
         // before this) takes the waiting row's focus, and KeyRow then ends
         // the wait before that check could see it.
-        const bool wasWaiting = s_waiting != Id::Count;
+        const bool wasWaiting = s_waiting != Id::Count || s_chordRecording;
         // Tabs in the labels' face, the chosen one lit yellow.
         ImGui::PushStyleColor(ImGuiCol_TabHovered, ImVec4(1, 1, 1, 0.06f));
         ImGui::PushStyleColor(ImGuiCol_TabSelected, ImVec4(0.96f, 0.71f, 0.15f, 0.16f));
@@ -1422,6 +1535,12 @@ namespace ui
                 // stay where they were.
                 if (category == Category::Achievements)
                     DrawAchievementSummary();
+                if (category==Category::Rewind)
+                {
+                    ImGui::PushFont(burnout::LabelFont(),kTextFontSize);
+                    ImGui::TextWrapped("%s",RewindStateText().c_str());
+                    ImGui::PopFont();
+                }
                 const ImVec2 cellPadding(kSpaceM * s, 2.0f * s);
                 const float overhang = std::ceil(std::max(0.0f, ImGui::GetStyle().ItemSpacing.y * 0.5f - cellPadding.y + s));
                 ImGui::SetCursorPosY(ImGui::GetCursorPosY() - overhang);
@@ -1457,6 +1576,7 @@ namespace ui
                     if (category == Category::Wheel)
                         for (const char* text : { "START", "17/17" })
                             valueWidth = std::max(valueWidth, ImGui::CalcTextSize(locale::Text(text)).x);
+                    if (category==Category::Rewind) valueWidth=std::max(valueWidth,250.f*s);
                     valueWidth += 2 * kSpaceM * s;
                     float arrow = ImGui::GetFrameHeight();
                     ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, cellPadding);
@@ -1474,9 +1594,16 @@ namespace ui
                             for (const auto& o : settings::Options())
                                 if (o.category == category && !o.hidden)
                                 {
-                                    OptionRow(o, valueWidth, focusFirst);
+                                    if (o.type==settings::Type::Key)
+                                    {
+                                        const auto& entry=KeyEntry(o.id);
+                                        if (o.id!=entry.id) continue;
+                                        KeyRow(entry,valueWidth,focusFirst);
+                                    }
+                                    else OptionRow(o, valueWidth, focusFirst);
                                     focusFirst = false;
                                 }
+                        if (category==Category::Rewind) RewindRows(valueWidth);
                         if (category == Category::Audio)
                             MusicFolderRow(valueWidth);
                         if (category == Category::Wheel)
@@ -1524,7 +1651,7 @@ namespace ui
         bool anyChanged = false;
         // The Wheel page's pedal axes are hidden options, and Reset page
         // does put them back, so they count as a change of the page.
-        const bool hiddenCounts = s_category == Category::Wheel;
+        const bool hiddenCounts = s_category == Category::Wheel || s_category==Category::Rewind;
         for (const auto& o : settings::Options())
             if (o.category == s_category && (!o.hidden || hiddenCounts) && !settings::IsDefault(o.id))
                 anyChanged = true;
@@ -1583,7 +1710,7 @@ namespace ui
             if (burnout::DialogOption("Reset", width))
             {
                 for (const auto& o : settings::Options())
-                    if (o.category == s_category && !o.hidden)
+                    if (o.category == s_category && (!o.hidden || s_category==Category::Rewind))
                     {
                         double from = settings::GetStoredValue(o.id);
                         LogChange(o, from, settings::Reset(o.id));
@@ -1625,7 +1752,7 @@ namespace ui
         {
             menu_sounds::Play(menu_sounds::Sound::Back);
             if (wasWaiting)
-                EndWait();
+            { EndWait();s_chordRecording=false; }
             else if (s_calibrating)
             {
                 fprintf(stderr, "[settings] menu: calibrate: stopped at %s\n", hid::wheel::StepName(s_calStep));
@@ -1645,6 +1772,7 @@ namespace ui
 
     void ResetSettingsMenu()
     {
+        s_chordRecording=false;s_chordMessage.clear();
         s_opened = true;
         menu_sounds::Play(menu_sounds::Sound::Select);
         EndWait();  // a wait the menu was closed under is over
@@ -1661,6 +1789,8 @@ namespace ui
 
     bool SettingsMenuTakesKey(const SDL_KeyboardEvent& key)
     {
+        if (s_chordRecording && key.down && key.scancode==SDL_SCANCODE_ESCAPE)
+        { s_chordRecording=false;return true; }
         // The key a wait took or refused stays down a moment longer. ImGui never saw
         // it go down, so its OS repeats would read as fresh presses (Enter
         // would start a new wait, an arrow would move the cursor): they and
@@ -1700,6 +1830,8 @@ namespace ui
         EndWait();
         return true;
     }
+
+    bool SettingsMenuRecordingChord() { return s_chordRecording; }
 
     void ForgetQuitPrompt()
     {

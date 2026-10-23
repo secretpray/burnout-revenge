@@ -50,8 +50,9 @@ int main()
             continue;
         }
         keys++;
-        CHECK(std::string_view(o.table) == "keys", "%s.%s: a Key option lives in [keys]", o.table, o.key);
-        CHECK(o.category == Category::Controls, "%s: on the Controls page", o.key);
+        const bool rewind=o.category==Category::Rewind;
+        CHECK(std::string_view(o.table) == (rewind ? "rewind":"keys"), "%s.%s: a Key option lives in its control table", o.table, o.key);
+        CHECK(o.category == Category::Controls || rewind, "%s: on a keyboard binding page", o.key);
         CHECK(o.apply == Apply::Live && !o.hidden, "%s: live and shown", o.key);
         CHECK(o.env == nullptr, "%s: no environment variable", o.key);
         CHECK(names.insert(o.key).second, "%s: one row per key", o.key);
@@ -59,7 +60,7 @@ int main()
             "%s: the default is a key, or none", o.key);
         CHECK(o.min == 0 && o.max == 0 && o.step == 0 && o.entries.empty(), "%s: no range", o.key);
     }
-    CHECK(keys == 48, "%d Key options", keys);
+    CHECK(keys == 54, "%d Key options", keys);
     CHECK(std::string_view(CategoryName(Category::Controls)) == "Controls", "the category's name");
 
     // The defaults: v0.1.4's keys (the arrows steer as well as A and D, and

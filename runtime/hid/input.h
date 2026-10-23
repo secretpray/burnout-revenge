@@ -61,6 +61,7 @@
 
 namespace hid
 {
+    uint16_t RawButtons(); // player 1, before UI capture and the keyboard map
     // Main thread, after SDL video is up.
     void Initialize();
     // Main thread, as the game itself starts (after the installer, if it
@@ -92,6 +93,7 @@ namespace hid
     // Starts from what is connected: a PlayStation controller, another
     // controller, else the keyboard. Main thread.
     enum class Glyphs { Xbox, PlayStation, Keyboard };
+    Glyphs ControllerGlyphs();
     Glyphs LastGlyphs();
     // The same choice, readable from any thread (the renderer's game
     // prompts, gpu/pad_glyphs.h): updated as the main thread sees input and

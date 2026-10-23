@@ -1,13 +1,15 @@
+// Host-page reset adapted from SpeedBreaker 0.1.8 (86cfaa4a6b25), GPL-3.0-or-later.
 // SpeedBreaker runtime. GPL-3.0-or-later (see COPYING).
 //
 // Guest virtual/physical memory, modelled on Xenia's heaps:
 //   0x00010000-0x3FFFFFFF  virtual, 4 KB pages
 //   0x40000000-0x7EFFFFFF  virtual, 64 KB pages (X_MEM_LARGE_PAGES)
 //   0xA0000000-0xBFFFFFFF  physical, one window for every page size
-// The 360 mirrors physical memory at 0xA0000000/0xC0000000/0xE0000000; we
-// keep a single window (as Unleashed Recompiled does) until the GPU needs
-// the others. Physical address = guest address & 0x1FFFFFFF.
+// The 360 mirrors physical memory at 0xA0000000/0xC0000000/0xE0000000.
+// memory.cpp maps those windows to one shared object. Physical address =
+// guest address & 0x1FFFFFFF (with eWindowShift applied to the E window).
 #pragma once
+#include <cstddef>
 #include <cstdint>
 #include <mutex>
 #include <vector>
@@ -40,6 +42,19 @@ namespace vmem
         uint32_t protect;
     };
 
+    // Remaps [host, host+bytes) to fresh zero-filled pages: whole host pages,
+    // an address and length aligned to them. False when it failed.
+    using RemapFn = bool (*)(void* host, size_t bytes);
+    bool RemapAnon(void* host, size_t bytes);  // mmap(MAP_FIXED | MAP_ANON | MAP_PRIVATE)
+    // Returns [host, host+bytes) to zero: the whole host pages (`hostPage`, a
+    // power of two) inside it remapped (lazy and cheap even for hundreds of
+    // megabytes; cleared in place if that fails), the partial head and tail
+    // cleared in place. Never a host page reaching outside the range: mmap
+    // rounds a MAP_FIXED length up to whole host pages, so on a 16 KB host
+    // remapping a 4 KB-page heap's range ending inside a host page zeroed the
+    // guest pages after it, possibly another allocation's.
+    void ResetHostRange(void* host, size_t bytes, size_t hostPage, RemapFn remap);
+
     class PageHeap
     {
     public:
@@ -67,6 +82,9 @@ namespace vmem
         // Not enforced on the host.
         uint32_t UsedPages();
         bool SetProtect(uint32_t addr, uint32_t size, uint32_t protect, uint32_t* oldProtect);
+        // Tests (vmem_host_pages_test): the host page size and remap that
+        // ResetHostPages uses instead of the host's own and RemapAnon.
+        void SetHostPagesForTest(size_t hostPage, RemapFn remap) { m_hostPage = hostPage; m_remap = remap; }
 
     private:
         enum : uint8_t { FREE = 0, RESERVED = 1, COMMITTED = 2 };
@@ -83,6 +101,8 @@ namespace vmem
         void ResetHostPages(uint32_t firstPage, uint32_t count);
 
         uint32_t m_base, m_size, m_pageSize;
+        size_t m_hostPage{};
+        RemapFn m_remap{};
         std::vector<Page> m_pages;
         std::mutex m_mutex;
     };

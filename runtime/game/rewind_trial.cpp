@@ -199,6 +199,9 @@ extern "C" PPC_FUNC(__imp__sub_82346C68);
 PPC_FUNC(sub_82346C68)
 {
     const uint32_t recorder = ctx.r3.u32;
+    // The rewind owns this seek; the native updater would otherwise load a
+    // different checkpoint from its own Replay list while track data changes.
+    if (game::rewind::ring::Preparing(recorder)) return;
     __imp__sub_82346C68(ctx, base);
     game::rewind::trial::AtBoundary(ctx, base, recorder);
     game::rewind::ring::AtBoundary(ctx, base, recorder);

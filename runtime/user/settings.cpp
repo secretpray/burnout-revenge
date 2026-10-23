@@ -222,6 +222,12 @@ namespace settings
         {
             return KeyOption(id, key, label, "A second key for the same control, or none.", token);
         }
+        constexpr EnumEntry kRewindDurations[]={{10,"10","10 seconds"},{20,"20","20 seconds"},{30,"30","30 seconds"}};
+        constexpr Option RewindKey(Id id,const char* key,const char* label,const char* token)
+        {
+            auto option=KeyOption(id,key,label,"Rewind during play without opening Settings. Enter sets a key; Backspace clears it. Two keys may be assigned to each duration.",token);
+            option.category=Category::Rewind;option.table="rewind";return option;
+        }
 
         // A stored or offered value as a key code: kUnknown unless it's a
         // whole number the key table knows (none included).
@@ -502,6 +508,32 @@ namespace settings
               .table = "codes", .key = "easy_boost", .label = "Easy Boost",
               .description = "Earn a full current boost bar from a Near Miss. Lower the speed and distance required for Near Miss and drift boost in solo World Tour. Disabled with Online Play and in Multiplayer.",
               .env = "BURNOUT_EASY_BOOST", .defaultValue = 0 },
+            { .id=Id::RewindEnabled,.category=Category::Rewind,.type=Type::Bool,.apply=Apply::Live,
+              .table="rewind",.key="enabled",.label="Rewind",
+              .description="Keep up to 30 seconds of event history in memory. Solo World Tour only; unavailable online, in Multiplayer and clips. History clears after loading, saving or changing Codes.",
+              .env="BURNOUT_REWIND_ENABLED",.defaultValue=0 },
+            { .id=Id::RewindDuration,.category=Category::Rewind,.type=Type::Enum,.apply=Apply::Live,
+              .table="rewind",.key="duration",.label="Menu Rewind",
+              .description="Duration for Rewind Now in this menu. Controller and keyboard shortcuts have their own durations.",
+              .env="BURNOUT_REWIND_SECONDS",.defaultValue=10,.entries=kRewindDurations },
+            { .id=Id::RewindChord10,.category=Category::Rewind,.type=Type::Int,.apply=Apply::Live,.hidden=true,
+              .table="rewind",.key="chord_10",.label="Controller: 10 seconds",
+              .description="A custom combination of two or three controller buttons. Back + Start is reserved for Settings.",
+              .env="BURNOUT_REWIND_CHORD_10",.defaultValue=0x0300,.min=0,.max=65535,.step=1 },
+            { .id=Id::RewindChord20,.category=Category::Rewind,.type=Type::Int,.apply=Apply::Live,.hidden=true,
+              .table="rewind",.key="chord_20",.label="Controller: 20 seconds",
+              .description="A custom combination of two or three controller buttons. Back + Start is reserved for Settings.",
+              .env="BURNOUT_REWIND_CHORD_20",.defaultValue=0x00C0,.min=0,.max=65535,.step=1 },
+            { .id=Id::RewindChord30,.category=Category::Rewind,.type=Type::Int,.apply=Apply::Live,.hidden=true,
+              .table="rewind",.key="chord_30",.label="Controller: 30 seconds",
+              .description="A custom combination of two or three controller buttons. Back + Start is reserved for Settings.",
+              .env="BURNOUT_REWIND_CHORD_30",.defaultValue=0x0180,.min=0,.max=65535,.step=1 },
+            RewindKey(Id::KeyRewind10,"key_10","Rewind 10 seconds","f2"),
+            RewindKey(Id::KeyRewind10_2,"key_10_2","Rewind 10 seconds","none"),
+            RewindKey(Id::KeyRewind20,"key_20","Rewind 20 seconds","f3"),
+            RewindKey(Id::KeyRewind20_2,"key_20_2","Rewind 20 seconds","none"),
+            RewindKey(Id::KeyRewind30,"key_30","Rewind 30 seconds","f4"),
+            RewindKey(Id::KeyRewind30_2,"key_30_2","Rewind 30 seconds","none"),
             // Advanced
             { .id = Id::Language, .category = Category::Advanced, .type = Type::Enum, .apply = Apply::Restart,
               .table = "general", .key = "language", .label = "Language",
@@ -1356,6 +1388,7 @@ namespace settings
         case Category::Wheel: return "Wheel";
         case Category::Online: return "Online";
         case Category::Codes: return "Codes";
+        case Category::Rewind: return "Rewind";
         case Category::Achievements: return "Achievements";
         case Category::Advanced: return "Advanced";
         default: return "";

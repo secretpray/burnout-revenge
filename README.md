@@ -17,6 +17,8 @@
   &nbsp;·&nbsp;
   <a href="#highlights">Highlights</a>
   &nbsp;·&nbsp;
+  <a href="#rewind">Rewind</a>
+  &nbsp;·&nbsp;
   <a href="#offline-codes">Codes</a>
   &nbsp;·&nbsp;
   <a href="#languages">Languages</a>
@@ -57,10 +59,8 @@
 <sub>Unedited screenshots from this port on an M1 Pro. The game content in them belongs to its owners.</sub>
 
 > [!TIP]
-> **New in v0.1.21: six languages.** English, Japanese, German, French,
-> Spanish and Italian for the port menus and game text. Choose your language
-> in Settings; import game translations from your own European disc image.
-> [Setup and screenshots](#languages).
+> **New in v0.1.22: Rewind 10, 20 or 30 seconds** in solo World Tour. Configure keyboard keys and controller combinations, with an
+> on-screen notice showing the actual time restored. [Controls and screenshots](#rewind).
 
 **TL;DR**
 
@@ -73,7 +73,7 @@
 - [Download](https://github.com/secretpray/burnout-revenge/releases/latest) the DMG, drag the app to
   Applications, open it and choose your disc image. It checks and installs the
   game, then you play.
-- Optional offline [Codes](#offline-codes) for the solo career, and Xbox Live
+- Optional [Rewind](#rewind) for solo World Tour, and offline [Codes](#offline-codes) for the solo career, and Xbox Live
   play again through community or your own servers.
 - Menus and game text in **English, Japanese, German, French, Spanish and Italian**.
   [Language setup](#languages) explains the optional European disc import.
@@ -187,6 +187,55 @@
 - Skip Intro Movies (on by default): the title screen in about 8 seconds.
 - Save Bug Report gathers the logs and settings into one file; Check for
   Updates asks GitHub for a newer release.
+
+## Rewind
+
+Enable **Settings > Rewind** to keep driving history in memory, then rewind
+without opening the menu. This experimental option is **off by default** and
+available in **solo World Tour Race, Road Rage, Traffic Attack, Burning Lap,
+Eliminator and Crash**.
+
+| Rewind | Keyboard | PlayStation | Xbox |
+|---|---|---|---|
+| 10 seconds | F2 | L1 + R1 | LB + RB |
+| 20 seconds | F3 | L3 + R3 | LS + RS |
+| 30 seconds | F4 | L1 + R3 | LB + RS |
+
+Each duration has its own editable controller combination and two keyboard
+bindings. Select a controller row, release the buttons, then hold and release
+two or three buttons to assign them. During play, hold the combination for
+**0.3 seconds** and release it fully before another request. Conflicting
+combinations are rejected. L2/R2 (gas and brake) are excluded.
+
+<p align="center">
+  <img src="docs/screenshots/rewind-controller-shortcuts.jpg" alt="Rewind settings with configurable controller rows: 10 seconds L1 + R1, 20 seconds L3 + R3, 30 seconds L1 + R3; help explains holding for 0.3 seconds and releasing fully" width="85%">
+  <br>
+  <sub>Assign a separate controller combination to each rewind duration.</sub>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/rewind-settings.jpg" alt="Rewind enabled in Settings, with editable F2, F3 and F4 keyboard bindings for 10, 20 and 30 seconds" width="85%">
+  <br>
+  <sub>Keyboard shortcuts are configurable too; Menu Rewind has its own duration.</sub>
+</p>
+
+A notice appears when a request starts, then shows **the actual time restored**
+or the reason it could not be applied. In road events, targets inside a wreck/
+Aftertouch use the preceding driving checkpoint; requests made during that
+crash camera wait until driving resumes. This can rewind farther than the selected duration.
+
+<p align="center">
+  <img src="docs/screenshots/rewind-in-game.jpg" alt="Race continuing at 151 mph on the road after Aftertouch, with the bottom notice Rewound 17.0 seconds" width="100%">
+  <br>
+  <sub>Aftertouch request completed: the notice reports the actual 17.0-second rewind.</sub>
+</p>
+
+History starts collecting five seconds into road events and one second into
+Crash, and holds up to 30 seconds. Wait for enough history before using a shortcut. Saving, loading, event changes
+and changes to Codes clear it. Online, local Multiplayer, clips and finished
+events are excluded. Single buttons retain their game actions before a complete
+combination is held, so choose combinations that suit your controls.
+[Details, validation and limits](docs/REWIND_EXPERIMENT.md).
 
 ## Offline Codes
 
@@ -312,6 +361,7 @@ Open with **F1**, **Cmd+,** or **Back + Start**. LB/RB (Q/E) switch pages.
 | Online | Online Play, Server (Xerenge Community, My Server, LAN), Gamertag, Server Address, Check Server ([online play](docs/ONLINE.md)) |
 | Achievements | Original Xbox 360 list, requirements, earned dates and local Gamerscore ([details](docs/ACHIEVEMENTS.md)) |
 | Codes | Infinite Boost, Infinite Time, Quick Money, Quick Takedowns, Easy Boost; solo World Tour only, off by default ([Codes](#offline-codes)) |
+| Rewind | 10/20/30-second history, editable keyboard and controller shortcuts; [controls and current limits](docs/REWIND_EXPERIMENT.md#working-controls) |
 | Advanced | Language, Import Languages from Disc, Asynchronous Shaders, Performance Overlay, Auto-import Add-ons, Skip Intro Movies, Save Bug Report, Check for Updates, Add-ons, Save Backups, About |
 
 A good start on an M1 Pro: 1.5x internal resolution (1080p), SMAA, Bicubic,

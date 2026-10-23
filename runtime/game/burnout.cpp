@@ -11,6 +11,9 @@
 #include <apu/xma_mmio.h>
 #include <apu/voice_mix.h>
 #include "frame_time.h"
+#include "rewind_probe.h"
+#include "rewind_ring.h"
+#include <report/report.h>
 
 #include <unordered_set>
 
@@ -62,6 +65,24 @@ PPC_FUNC(sub_82353BA8)
     const double fov = ctx.f1.f64;
     const uint32_t caller = uint32_t(ctx.lr);
     __imp__sub_82353BA8(ctx, base);
+    static const bool audit=[] {const char* v=std::getenv("BURNOUT_REWIND_AUDIT");return v && std::string_view(v)=="1";}();
+    if(audit)
+    {
+        game::rewind::ring::AuditCamera(camera);
+        static thread_local std::unordered_map<uint32_t,double> next;
+        const double now=report::SessionSeconds();
+        if(now>=next[camera])
+        {
+            next[camera]=now+.1;
+            const uint32_t frame=PPC_LOAD_U32(camera+104);
+            fprintf(stderr,"[rewind-audit] camera session=%.6f clock=%.6f camera=%08X frame=%08X fov=%.8g",
+                now,std::bit_cast<float>(PPC_LOAD_U32(game::rewind::kWorldClock)),camera,frame,fov);
+            if(frame)
+                for(uint32_t offset:{16u,32u,36u,40u,44u,48u,52u,56u})
+                    fprintf(stderr," f%u=%.8g",offset,std::bit_cast<float>(PPC_LOAD_U32(frame+offset)));
+            fprintf(stderr,"\n");
+        }
+    }
     if (!s_hooksSeen.load(std::memory_order_relaxed))
         s_hooksSeen.store(true, std::memory_order_relaxed);
 

@@ -11,6 +11,7 @@
 #include <report/report.h>
 #include <user/paths.h>
 #include <user/save_commit.h>
+#include <game/rewind_gate.h>
 #include "dispatcher.h"
 #include "function.h"
 #include "vfs.h"
@@ -128,6 +129,7 @@ struct FileObject final : Waitable
     // A save opened for writing (user/save_commit.h): `path` is its staging
     // copy, which replaces this one when the handle closes.
     std::filesystem::path commitTo;
+    bool rewindSaveWrite=false;
     // Directory enumeration.
     std::vector<std::filesystem::path> entries;
     size_t nextEntry = 0;
@@ -147,6 +149,7 @@ struct FileObject final : Waitable
         }
         if (fd >= 0)
             close(fd);
+        if (rewindSaveWrite) game::rewind::gate::EndWrite();
     }
 
     bool IsSignaledLocked() const override { return true; }
@@ -313,6 +316,8 @@ uint32_t NtCreateFile(be<uint32_t>* handleOut, uint32_t desiredAccess, XOBJECT_A
         }
         if (staging)
         {
+            game::rewind::gate::BeginWrite();
+            file->rewindSaveWrite=true;
             std::string error;
             file->fd = savecommit::Begin(*staging, resolved->host, !(flags & O_TRUNC), error);
             if (file->fd >= 0)

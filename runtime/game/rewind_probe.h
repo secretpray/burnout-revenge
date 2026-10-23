@@ -12,7 +12,7 @@ namespace game::rewind
     // Record/playback clock flags tested by sub_8210B3C8 / sub_820F9848.
     // Road Rage live: 01 00 00 00; native Replay: 01 01 00 00.
     inline constexpr uint32_t kClockFlags = 0x82AB6F80 + 0x476E4;
-    // Native sub_823456A8 unconditionally enters read-only Replay after loading.
+    // Native sub_823456A8 unconditionally enters Replay after loading.
     // The serializer itself shares this mode with sub_82344708.
     inline constexpr uint32_t kWorldPlayback = 0x82AB6F80 + 0x25BFFB;
     static_assert(kGame + 0x73F58 == codes::kSession);

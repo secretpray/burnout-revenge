@@ -19,6 +19,7 @@ static int originals{}, inventories{};
 static PPCContext expected;
 namespace online { bool Enabled() { return live; } }
 namespace game::rewind::trial { void Captured(uint8_t*, uint32_t, uint32_t, uint32_t) {} }
+namespace game::rewind::ring { void AtWorldBoundary(PPCContext&,uint8_t*) {} }
 namespace gpu { std::string DescribeState() { return "test GPU"; } }
 namespace apu { std::string DescribeState() { return "test audio"; } }
 namespace report

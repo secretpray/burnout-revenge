@@ -8,6 +8,9 @@
 #include "ui.h"
 
 #include <gpu/renderer.h>
+#include <report/report.h>
+#include <cstdio>
+#include <cstdlib>
 
 #include <imgui.h>
 
@@ -24,10 +27,23 @@ namespace ui
 
     void NoteGameFrame()
     {
+        struct FrameLog
+        {
+            // Quit uses _Exit; keep the optional diagnostic tail below a few seconds.
+            FILE* file{};char buffer[4096]{};
+            FrameLog()
+            {
+                if (const char* path=std::getenv("BURNOUT_REWIND_FRAME_LOG");path && *path)
+                { file=fopen(path,"w");if(file){setvbuf(file,buffer,_IOFBF,sizeof(buffer));fputs("seconds,frame_ms\n",file);} }
+            }
+            ~FrameLog() { if(file) fclose(file); }
+        };
+        static FrameLog log;
         auto now = std::chrono::steady_clock::now();
         if (s_lastFrame.time_since_epoch().count() != 0)
         {
             float ms = std::chrono::duration<float, std::milli>(now - s_lastFrame).count();
+            if(log.file) fprintf(log.file,"%.6f,%.4f\n",report::SessionSeconds(),double(ms));
             s_frameMs[s_frameNext] = std::min(ms, 250.0f);
             s_frameNext = (s_frameNext + 1) % kHistory;
             s_frameCount = std::min(s_frameCount + 1, kHistory);

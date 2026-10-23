@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+## v0.1.22
+
+- Fix guest memory release/decommit on hosts with pages larger than 4 KiB
+  clearing adjacent allocations. Physical memory mirrors remain shared.
+- Experimental Rewind for solo World Tour Race, Road Rage, Traffic Attack,
+  Burning Lap, Eliminator and Crash, off by default.
+  Settings > Rewind provides 10/20/30-second requests, editable keyboard bindings
+  and separate controller combinations for each duration. Hold a combination for
+  0.3 seconds and release it fully before another request. Ambiguous combinations
+  are refused. Immediate notices show progress, actual restored time or the
+  reason a request is unavailable. In road events, targets inside a wreck/Aftertouch
+  use the preceding driving checkpoint; requests during the crash camera wait for
+  driving to resume. Streamed track collision is prepared before restoring cars.
+  See [current controls and limits](docs/REWIND_EXPERIMENT.md).
+
 ## v0.1.21
 
 - Six interface languages: English, Japanese, German, French, Spanish and Italian.

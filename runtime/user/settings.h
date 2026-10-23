@@ -137,6 +137,8 @@ namespace settings
         OnlineServer,
         // Codes: built-in modifiers, guarded in the guest hook.
         InfiniteBoost, InfiniteTime, QuickMoney, QuickTakedowns, EasyBoost,
+        RewindEnabled, RewindDuration, RewindChord10, RewindChord20, RewindChord30,
+        KeyRewind10, KeyRewind10_2, KeyRewind20, KeyRewind20_2, KeyRewind30, KeyRewind30_2,
         // Advanced
         Language,  // interface and game language, applied at launch
         AsyncShaders,
@@ -150,7 +152,7 @@ namespace settings
     // Key: a key code of user/key_names.h (0: no key), saved by its name
     // there ("w", "left_shift", "none"); the menu takes it from a key press.
     enum class Type : uint8_t { Bool, Int, Float, Enum, Key };
-    enum class Category : uint8_t { Display, Graphics, Audio, Input, Wheel, Controls, Online, Codes, Achievements, Advanced, Count };
+    enum class Category : uint8_t { Display, Graphics, Audio, Input, Wheel, Controls, Online, Codes, Rewind, Achievements, Advanced, Count };
     enum class Apply : uint8_t { Live, Restart };
 
     // Values of the enum options (GetInt returns them).
