@@ -61,6 +61,7 @@ namespace settings
         constexpr EnumEntry kLanguageEntries[] = {
             { 1, "en", "English" }, { 2, "ja", "日本語" }, { 3, "de", "Deutsch" },
             { 4, "fr", "Français" }, { 5, "es", "Español" }, { 6, "it", "Italiano" },
+            { 7, "nl", "Nederlands" }, { 8, "sv", "Svenska" }, { 9, "fi", "Suomi" },
         };
         constexpr EnumEntry kMusicEntries[] = {
             { int32_t(MusicSource::EaTrax), "ea_trax", "EA Trax" },
@@ -284,6 +285,18 @@ namespace settings
               .table = "video", .key = "hud_at_edges", .label = "HUD at Screen Edges",
               .description = "On a screen of another shape than 16:9 (ultrawide, 16:10, 4:3): the race HUD's corners at the screen's corners, each part keeping its size and shape. Off: the whole HUD in a 16:9 block in the middle. Menus and films stay 16:9 either way.",
               .env = "BURNOUT_HUD_EDGES", .defaultValue = 1 },
+            { .id = Id::CameraFov, .category = Category::Display, .type = Type::Int, .apply = Apply::Live,
+              .table = "video", .key = "fov_offset", .label = "Field of View Offset",
+              .description = "Widen or narrow the solo driving view by this many degrees. 0 keeps the original. Speed and boost still change the view. Applies live; crash cameras, Replay, mirrors and menus keep their original view.",
+              .env = "BURNOUT_CAMERA_FOV", .defaultValue = 0, .min = -20, .max = 20, .step = 2, .unit = "deg" },
+            { .id = Id::CameraDistance, .category = Category::Display, .type = Type::Int, .apply = Apply::Live,
+              .table = "video", .key = "camera_distance", .label = "Chase Camera Distance",
+              .description = "Move the solo chase camera closer or farther behind the car. 100% keeps the original distance. Applies live, with the game's obstacle checks. Other camera modes keep their original position.",
+              .env = "BURNOUT_CAMERA_DISTANCE", .defaultValue = 100, .min = 75, .max = 150, .step = 5, .unit = "%" },
+            { .id = Id::CameraShake, .category = Category::Display, .type = Type::Int, .apply = Apply::Live,
+              .table = "video", .key = "camera_shake", .label = "Camera Shake",
+              .description = "Reduce added shaking in the solo chase view. 100% keeps the original; 0% removes it. Steering response, obstacle checks, vibration and field of view stay unchanged. Crash cameras and Replay keep their original effects.",
+              .env = "BURNOUT_CAMERA_SHAKE", .defaultValue = 100, .min = 0, .max = 100, .step = 10, .unit = "%" },
             // Brightness: a power curve on the game's picture, -5..+5 (video/display_tone.h).
             { .id = Id::Brightness, .category = Category::Display, .type = Type::Int, .apply = Apply::Live,
               .table = "video", .key = "brightness", .label = "Brightness",

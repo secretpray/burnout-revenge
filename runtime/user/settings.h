@@ -49,6 +49,9 @@ namespace settings
         Scaling,
         AspectRatio,
         HudAtEdges,    // on a screen wider than 16:9: the race HUD at its edges (game/hud_anchor.h)
+        CameraFov,  // degrees added to the native solo driving FOV (game/camera.h)
+        CameraDistance, // percentage of the native chase-camera longitudinal offset
+        CameraShake, // strength of native additive chase-camera position/rotation effects
         Brightness,    // the game's picture (video/display_tone.h)
         DisplayGamma,  // the 360's display gamma ramp (video/display_gamma.h)
         Sharpening,

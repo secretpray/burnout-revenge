@@ -939,7 +939,7 @@ namespace ui
             ImGui::BeginDisabled(settings::EnvOverride(settings::Id::Language) != nullptr);
             if (ImGui::BeginCombo("##setup-language", locale::names[int(locale::Current()) - 1]))
             {
-                for (int id = 1; id <= 6; ++id)
+                for (int id = 1; id <= int(locale::codes.size()); ++id)
                     if (ImGui::Selectable(locale::names[id - 1], id == int(locale::Current())))
                     {
                         settings::Set(settings::Id::Language, id);

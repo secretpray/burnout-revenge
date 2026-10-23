@@ -13,6 +13,7 @@
 #include "frame_time.h"
 #include "rewind_probe.h"
 #include "rewind_ring.h"
+#include "camera.h"
 #include <report/report.h>
 
 #include <unordered_set>
@@ -102,11 +103,12 @@ PPC_FUNC(sub_82353BA8)
     }
 
     const Scales scale = s_scales.load(std::memory_order_relaxed);
-    if (scale.x == 1.0f && scale.y == 1.0f)
+    const float viewScale = game::camera::ViewWindowScale(base, camera, caller, fov);
+    if (scale.x == 1.0f && scale.y == 1.0f && viewScale == 1.0f)
         return;
     auto loadF = [base](uint32_t a) { uint32_t u = PPC_LOAD_U32(a); float v; memcpy(&v, &u, 4); return v; };
     auto storeF = [base](uint32_t a, float v) { uint32_t u; memcpy(&u, &v, 4); PPC_STORE_U32(a, u); };
-    const float x = loadF(camera + 72) / scale.x, y = loadF(camera + 76) / scale.y;
+    const float x = loadF(camera + 72) * viewScale / scale.x, y = loadF(camera + 76) * viewScale / scale.y;
     storeF(camera + 72, x);
     storeF(camera + 76, y);
     storeF(camera + 80, 1.0f / x);

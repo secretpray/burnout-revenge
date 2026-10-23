@@ -20,7 +20,8 @@ namespace locale
         constexpr File files[] = {
 #include "language_manifest.inc"
         };
-        constexpr const char* suffixes[] = {"us", "ja", "ge", "fr", "sp", "it"};
+        constexpr const char* suffixes[] = {"us", "ja", "ge", "fr", "sp", "it", "du", "sw", "fi"};
+        static_assert(std::size(suffixes) == codes.size());
         std::map<std::string, std::filesystem::path, std::less<>> active;
         std::string Lower(std::string_view value)
         {

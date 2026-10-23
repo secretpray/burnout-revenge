@@ -1,6 +1,28 @@
 # Changelog
 
-## Unreleased
+## v0.1.23
+
+- Dutch, Swedish and Finnish for all port menus and original game text.
+  Import verified language files from either supported European disc, select
+  Nederlands, Svenska or Suomi under Advanced > Language, then restart.
+  The USA executable, saves and original audio are preserved. Achievement
+  names and requirements use English where the original database has no text.
+
+- Settings > Display: a live field-of-view offset from -20 to +20 degrees
+  for ordinary solo World Tour driving, with the original view at 0.
+  Native speed/boost FOV changes and aspect-ratio correction are preserved.
+  Crash/Aftertouch cameras, Replay, mirrors, menus and multiplayer retain
+  their original view. The option does not alter saved camera state.
+
+- Display > Chase Camera Distance: 75–150% of the native longitudinal
+  offset during ordinary solo World Tour chase-camera driving. 100% keeps
+  the original. Changes take effect when play resumes, with the original
+  obstacle checks; other camera modes keep their native position.
+
+- Display > Camera Shake: reduce native additive position/rotation effects
+  in the solo chase view, from the original 100% down to 0%. Steering response,
+  obstacle checks, vibration and FOV effects remain native. Crash/Aftertouch,
+  Replay and other camera modes retain their original effects.
 
 ## v0.1.22
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the six-language catalogue and explicit presentation keys."""
+"""Validate the nine-language catalogue and explicit presentation keys."""
 import argparse
 import json
 from pathlib import Path
@@ -30,7 +30,7 @@ def check():
         except (ValueError, IndexError):
             errors.append(f'{path.name}:{number}: invalid catalogue row')
             continue
-        if len(row) != 6 or any(not isinstance(s, str) or not s for s in row):
+        if len(row) != 9 or any(not isinstance(s, str) or not s for s in row):
             errors.append(f'{path.name}:{number}: every language needs text')
             continue
         if row[0] in rows:
@@ -65,7 +65,7 @@ def check():
     if errors:
         print('\n'.join(dict.fromkeys(errors)), file=sys.stderr)
         return 1
-    print(f'Localization: PASS ({len(rows)} keys, six languages, {len(checked)} explicit presentation keys)')
+    print(f'Localization: PASS ({len(rows)} keys, nine languages, {len(checked)} explicit presentation keys)')
     return 0
 
 

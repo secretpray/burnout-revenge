@@ -89,6 +89,11 @@ target_include_directories(codes_test PRIVATE ${RT}/kernel ${RT}/thirdparty/o1he
     ${ROOT}/tools/XenonRecomp/XenonUtils ${ROOT}/tools/XenonRecomp/thirdparty/simde)
 target_compile_options(codes_test PRIVATE -fsanitize=address)
 target_link_options(codes_test PRIVATE -fsanitize=address)
+sb_test(camera_test SOURCES ${RT}/game/camera.cpp ${RT}/user/settings.cpp)
+target_include_directories(camera_test PRIVATE ${RT}/kernel ${RT}/thirdparty/o1heap ${BR_PPC_DIR}
+    ${ROOT}/tools/XenonRecomp/XenonUtils ${ROOT}/tools/XenonRecomp/thirdparty/simde)
+target_compile_options(camera_test PRIVATE -fsanitize=address)
+target_link_options(camera_test PRIVATE -fsanitize=address)
 sb_test(rewind_probe_test SOURCES ${RT}/game/rewind_probe.cpp)
 target_include_directories(rewind_probe_test PRIVATE ${RT}/kernel ${RT}/thirdparty/o1heap ${BR_PPC_DIR}
     ${ROOT}/tools/XenonRecomp/XenonUtils ${ROOT}/tools/XenonRecomp/thirdparty/simde)

@@ -138,7 +138,7 @@ namespace vfs
             if (auto file = locale::Resource(relative)) return Resolved{*file, true};
             // Language selection can request a generic movie variant absent
             // on the USA disc. Keep that disc's verified NTSC video.
-            if (locale::XboxLanguage() != 1 && relative.size() > 9 &&
+            if (locale::GameLanguageId() != 1 && relative.size() > 9 &&
                 IStartsWith(relative, "ovid/") && relative.ends_with("M.xmv"))
             {
                 std::string name = relative.substr(5, relative.size() - 10) + "_N.xmv";

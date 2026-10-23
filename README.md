@@ -59,8 +59,7 @@
 <sub>Unedited screenshots from this port on an M1 Pro. The game content in them belongs to its owners.</sub>
 
 > [!TIP]
-> **New in v0.1.22: Rewind 10, 20 or 30 seconds** in solo World Tour. Configure keyboard keys and controller combinations, with an
-> on-screen notice showing the actual time restored. [Controls and screenshots](#rewind).
+> **New in v0.1.23: camera controls and three more languages.** Adjust FOV, chase-camera distance and shake on the existing Display page. Menus and original game text now support Dutch, Swedish and Finnish, alongside the previous six languages. [Language import](#languages).
 
 **TL;DR**
 
@@ -75,7 +74,7 @@
   game, then you play.
 - Optional [Rewind](#rewind) for solo World Tour, and offline [Codes](#offline-codes) for the solo career, and Xbox Live
   play again through community or your own servers.
-- Menus and game text in **English, Japanese, German, French, Spanish and Italian**.
+- Menus and game text in **English, Japanese, German, French, Spanish, Italian, Dutch, Swedish and Finnish**.
   [Language setup](#languages) explains the optional European disc import.
 - Updates install over the old version. Saves and settings stay.
 - Settings: **F1**, **Cmd+,** or **Back + Start** on a controller.
@@ -337,7 +336,7 @@ Open with **F1**, **Cmd+,** or **Back + Start**. LB/RB (Q/E) switch pages.
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/settings-menu-display.jpg" alt="v0.1.22 Display settings with Fullscreen, V-Sync, Frame Rate, Aspect Ratio and HUD placement"><br><sub>Display: window, frame rate and HUD.</sub></td>
+    <td width="50%"><img src="docs/screenshots/settings-menu-display.jpg" alt="v0.1.23 Display settings with Field of View Offset, Chase Camera Distance and Camera Shake"><br><sub>Display: FOV, camera distance and shake.</sub></td>
     <td width="50%"><img src="docs/screenshots/settings-menu-graphics.jpg" alt="v0.1.22 Graphics settings with anti-aliasing, upscaling, sharpening, anisotropic filtering and mipmaps"><br><sub>Graphics: anti-aliasing and upscaling.</sub></td>
   </tr>
   <tr>
@@ -352,7 +351,7 @@ Open with **F1**, **Cmd+,** or **Back + Start**. LB/RB (Q/E) switch pages.
 
 | Page | What's there |
 |---|---|
-| Display | Fullscreen, V-Sync, Frame Rate, Aspect Ratio (fill any window, or 16:9), HUD at Screen Edges (not 16:9), Brightness, Xbox 360 Display Gamma |
+| Display | Fullscreen, V-Sync, Frame Rate, Aspect Ratio (fill any window, or 16:9), HUD at Screen Edges (not 16:9), Field of View Offset, Chase Camera Distance and Camera Shake, Brightness, Xbox 360 Display Gamma |
 | Graphics | Anti-Aliasing and its type (SMAA, FXAA), Upscaling (Bicubic, Bilinear, FSR 1, MetalFX Spatial), Sharpening, Anisotropic Filtering, Mipmaps, Internal Resolution, Bloom, Motion Blur, Vehicle Detail |
 | Audio | Master Volume, Mute, Mute in Background, Music (EA Trax or My Music), Music Folder |
 | Input | Stick and trigger deadzones, Vibration, Button Prompts (Auto, Xbox, PlayStation, Keyboard), DualSense raw HID driver |
@@ -363,6 +362,24 @@ Open with **F1**, **Cmd+,** or **Back + Start**. LB/RB (Q/E) switch pages.
 | Codes | Infinite Boost, Infinite Time, Quick Money, Quick Takedowns, Easy Boost; solo World Tour only, off by default ([Codes](#offline-codes)) |
 | Rewind | 10/20/30-second history, editable keyboard and controller shortcuts; [controls and current limits](docs/REWIND_EXPERIMENT.md#working-controls) |
 | Advanced | Language, Import Languages from Disc, Asynchronous Shaders, Performance Overlay, Auto-import Add-ons, Skip Intro Movies, Save Bug Report, Check for Updates, Add-ons, Save Backups, About |
+
+**Display > Field of View Offset** widens or narrows
+ordinary solo World Tour driving by -20 to +20 degrees, applied live. 0 keeps
+the original; speed and boost still change the view. Crash/Aftertouch cameras,
+Replay, mirrors, menus and multiplayer retain their native view.
+
+**Chase Camera Distance** on the same page changes the distance behind the car
+from 75% to 150%, with 100% as the original. It applies during ordinary solo
+World Tour chase-camera driving, retaining the game's obstacle checks. A change
+made while paused takes effect when play resumes; other camera modes keep their
+native position.
+
+**Camera Shake** reduces the native added position and rotation effects in the
+solo World Tour chase view: 100% keeps the original, 0% removes them. It leaves
+steering response, obstacle checks, controller vibration and native FOV effects
+intact. Crash/Aftertouch cameras, Replay and other camera modes retain their
+original effects. The setting applies when play resumes, with no extra smoothing
+or input delay.
 
 A good start on an M1 Pro: 1.5x internal resolution (1080p), SMAA, Bicubic,
 sharpening 0.3 and 16x anisotropic filtering. Use 1x if the GPU can't keep
@@ -383,7 +400,8 @@ sharpening 0.3 and 16x anisotropic filtering. Use 1x if the GPU can't keep
 </p>
 
 The port menus, setup, dialogs, settings help, Codes and achievement status
-are available in **English, 日本語, Deutsch, Français, Español and Italiano**.
+are available in **English, 日本語, Deutsch, Français, Español, Italiano,
+Nederlands, Svenska and Suomi**. All nine also have verified original game text.
 
 Choose a language in the first-run screen, or in
 **Settings > Advanced > Language**. A change in Settings applies
@@ -394,23 +412,25 @@ to use the saved choice.
 The USA disc contains English game text. To use another game language, choose
 **Import Languages from Disc...** in Advanced and select your own European Xbox
 360 ISO. The **Europe (Fr,De,It)** disc contains the Japanese, German, French,
-Spanish and Italian text resources; **Europe (En,Es,Nl,Sv,Fi)** also supplies
-Spanish. These are the disc editions tested with this port, identified directly
+Spanish and Italian text resources. Both European editions also supply Dutch,
+Swedish and Finnish; **Europe (En,Es,Nl,Sv,Fi)**
+also supplies Spanish. These are the disc editions tested with this port, identified directly
 from each disc's `default.xex` execution info:
 
 | Xbox 360 edition | Title ID | Media ID | XEX version | Use in this port |
 |---|---|---|---|---|
 | USA | `454107DC` | `223759FA` | `0.0.0.4` | Required base game; English text |
-| Europe (Fr,De,It) | `454107DC` | `213B2D4C` | `0.0.0.1` | Import Japanese, German, French, Spanish and Italian text |
-| Europe (En,Es,Nl,Sv,Fi) | `454107DC` | `29FD0247` | `0.0.0.7` | Alternative source for Spanish text |
+| Europe (Fr,De,It) | `454107DC` | `213B2D4C` | `0.0.0.1` | Import Japanese, German, French, Spanish and Italian, Dutch, Swedish and Finnish |
+| Europe (En,Es,Nl,Sv,Fi) | `454107DC` | `29FD0247` | `0.0.0.7` | Import Spanish, Dutch, Swedish and Finnish text |
 
 Use the **USA base game** above, then import from **Europe (Fr,De,It),
-Media ID `213B2D4C`**, for all five tested additional game languages.
+Media ID `213B2D4C`**, for all eight additional game languages.
 All three editions share the same Title ID; use the Media ID to distinguish them.
 The importer checks the original executable's SHA-256 hash and the language
 files' paths, sizes and SHA-256 hashes, so a
 matching Title ID or renamed ISO alone does not establish compatibility.
-Dutch, Swedish and Finnish are not selectable languages in this port.
+Dutch, Swedish and Finnish use the existing Language choice and import action;
+no additional settings page is needed.
 
 To apply a game translation:
 
@@ -429,9 +449,19 @@ the port's menus still use the language you chose.
   <sub>The original Japanese game text and font, loaded alongside the USA game.</sub>
 </p>
 
+<p align="center">
+  <img src="docs/screenshots/localization-game-nl.jpg" alt="Original Dutch game text in the World Tour garage" width="32%">
+  <img src="docs/screenshots/localization-game-sv.jpg" alt="Original Swedish game text and accented characters in the World Tour garage" width="32%">
+  <img src="docs/screenshots/localization-game-fi.jpg" alt="Original Finnish game text in the World Tour garage" width="32%">
+  <br><sub>Nederlands · Svenska · Suomi — original disc text with the USA executable.</sub>
+</p>
+
 Japanese uses the original disc font in the game and system glyphs in the port
 menus. Achievement names and requirements use the original translations from
-your game; the Japanese edition's achievement names remain in English. Movie
+your game; the Japanese edition's achievement names remain in English. The
+original achievement database has no Dutch, Swedish or Finnish text, so their
+achievement names and requirements use English while the port's status text is
+translated. Movie
 audio, music titles and the original title artwork are unchanged;
 release notes and technical diagnostics may remain in English. The recompiled
 executable still targets the USA revision; importing languages does not add

@@ -589,7 +589,7 @@ int main(int argc, char** argv)
                 achievementData = { image.data.get() + address - image.base, length };
         }
     }
-    if (!achievements::Current().Initialize(achievementData, GetUserPath() / "achievements.txt", uint32_t(locale::Current())))
+    if (!achievements::Current().Initialize(achievementData, GetUserPath() / "achievements.txt", locale::XboxLanguageFor(locale::Current())))
     {
         fprintf(stderr, "[achievements] %s\n", achievements::Current().Error().c_str());
         ui::Toast(achievements::Current().Error(), 12.0);
