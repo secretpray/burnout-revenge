@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.1.24
+
+- Classic Crash Launch in Settings > Mods: the PS2 and original Xbox launch
+  meter for offline solo World Tour Crash. It is off by default and requires
+  a restart. Press the launch button to start, again to set speed, then again
+  to set control. The original nonlinear meter rules, per-car thresholds,
+  launch outcomes, engine controls and failure deadlines replace the Xbox 360
+  countdown. Time and traffic continue while the meter is active.
+- Reconstruct the curved meter with flame animation and artwork read from
+  your installed game. Launch prompts follow the selected interface language
+  and input glyphs; outcome messages use the game's own localized HUD.
+  The port uses Xbox 360 fonts and effects; exact PS2/Xbox visual and sound
+  parity is not claimed.
+- Preserve launch controls in the current event's Replay, including Stall and
+  Blown outcomes and seeking back to the start. Rewind becomes available after
+  the meter finishes. The launch recording is held in memory and is not stored
+  in saved Burnout Clips; their playback can differ.
+- Rename Settings > Codes to Mods, with Classic Crash Launch after the five
+  existing cheats. Existing cheat settings remain compatible.
+
 ## v0.1.23
 
 - Dutch, Swedish and Finnish for all port menus and original game text.

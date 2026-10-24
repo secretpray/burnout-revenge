@@ -4,6 +4,7 @@
 #include "rewind_probe.h"
 #include "rewind_gate.h"
 #include "rewind_copy.h"
+#include "crash_launch_status.h"
 #include <cpu/guest_thread.h>
 #include <user/online.h>
 #include <kernel/write_watch.h>
@@ -681,6 +682,11 @@ namespace game::rewind::ring
         // Crash world capture also runs outside the ordinary recorder callback.
         // Only its solo event may use the native Crash special-mode flag.
         if (SupportedEvent(b.event) && b.event==kGame+0x36D20 && b.specialMode==1) permitted.specialMode=0;
+        if (b.event==kGame+0x36D20 && game::crash_launch::rewindBlocked.load(std::memory_order_acquire))
+        {
+            if (s.guest) Clear(base,"Crash launch meter active");
+            Publish(State::Collecting); return;
+        }
         if (!CanObserve(permitted) || !SupportedEvent(b.event) || !IsLiveClock(PPC_LOAD_U32(kClockFlags)) || PPC_LOAD_U8(kWorldPlayback)!=0)
         {
             if (Duration())

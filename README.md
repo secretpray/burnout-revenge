@@ -236,13 +236,17 @@ events are excluded. Single buttons retain their game actions before a complete
 combination is held, so choose combinations that suit your controls.
 [Details, validation and limits](docs/REWIND_EXPERIMENT.md).
 
-## Offline Codes
+## Mods
 
 <p align="center">
-  <img src="docs/screenshots/settings-codes.jpg" alt="Settings, Codes page: Infinite Boost On, Infinite Time Off, Quick Money Off, Quick Takedowns On and selected with its description, Easy Boost Off" width="85%">
+  <img src="docs/screenshots/settings-mods.jpg" alt="Settings, Mods page: five cheat switches and Classic Crash Launch" width="85%">
   <br>
-  <sub>Settings > Codes: one switch each, off by default, applied at once.</sub>
+  <sub>Settings > Mods: cheat switches and optional gameplay modifications.</sub>
 </p>
+
+Classic Crash Launch restores the PS2 and original Xbox launch meter
+in offline solo World Tour Crash. It is off by default; restart the game after changing it.
+[Controls and current limits](docs/CLASSIC_CRASH_LAUNCH.md).
 
 Five modifiers for the **solo World Tour**, modelled on the old Xbox 360 trainers.
 They change what the game awards, not how it saves: results earned with a Code stay

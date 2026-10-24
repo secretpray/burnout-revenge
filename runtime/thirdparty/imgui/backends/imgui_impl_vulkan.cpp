@@ -962,7 +962,7 @@ static void ImGui_ImplVulkan_CreateShaderModules(VkDevice device, const VkAlloca
 typedef void VkPipelineRenderingCreateInfoKHR;
 #endif
 
-static VkPipeline ImGui_ImplVulkan_CreatePipeline(VkDevice device, const VkAllocationCallbacks* allocator, VkPipelineCache pipelineCache, const ImGui_ImplVulkan_PipelineInfo* info)
+static VkPipeline ImGui_ImplVulkan_CreatePipeline(VkDevice device, const VkAllocationCallbacks* allocator, VkPipelineCache pipelineCache, const ImGui_ImplVulkan_PipelineInfo* info, bool additive = false)
 {
     ImGui_ImplVulkan_Data* bd = ImGui_ImplVulkan_GetBackendData();
     ImGui_ImplVulkan_CreateShaderModules(device, allocator);
@@ -1025,7 +1025,7 @@ static VkPipeline ImGui_ImplVulkan_CreatePipeline(VkDevice device, const VkAlloc
     VkPipelineColorBlendAttachmentState color_attachment[1] = {};
     color_attachment[0].blendEnable = VK_TRUE;
     color_attachment[0].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    color_attachment[0].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    color_attachment[0].dstColorBlendFactor = additive ? VK_BLEND_FACTOR_ONE : VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     color_attachment[0].colorBlendOp = VK_BLEND_OP_ADD;
     color_attachment[0].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
     color_attachment[0].dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
@@ -1078,6 +1078,14 @@ static VkPipeline ImGui_ImplVulkan_CreatePipeline(VkDevice device, const VkAlloc
     VkResult err = vkCreateGraphicsPipelines(device, pipelineCache, 1, &create_info, allocator, &pipeline);
     check_vk_result(err);
     return pipeline;
+}
+
+// Local extension: an otherwise identical pipeline for additive game HUD fire.
+// The caller owns it and destroys it before backend shutdown / format changes.
+VkPipeline ImGui_ImplVulkan_CreateAdditivePipeline()
+{
+    ImGui_ImplVulkan_InitInfo* v = &ImGui_ImplVulkan_GetBackendData()->VulkanInitInfo;
+    return ImGui_ImplVulkan_CreatePipeline(v->Device, v->Allocator, v->PipelineCache, &v->PipelineInfoMain, true);
 }
 
 static void ImGui_ImplVulkan_CreateDescriptorSetLayout(VkDescriptorSetLayout* p_layout, VkDescriptorType descriptor_type)

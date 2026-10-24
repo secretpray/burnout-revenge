@@ -4,6 +4,7 @@
 #include <game/rewind_ring.h>
 #include <game/rewind_probe.h>
 #include <game/rewind_gate.h>
+#include <game/crash_launch_status.h>
 #include <kernel/write_watch.h>
 #include <cpu/guest_thread.h>
 #include <cstdlib>
@@ -180,11 +181,11 @@ int main(int argc,char** argv)
     else if(mode.starts_with("contract_lap")) { kEvent=game::rewind::kGame+0x39F10;corruptOffset=3016; }
     else if(mode.starts_with("contract_eliminator")) { kEvent=game::rewind::kGame+0x3AAE0;corruptOffset=3020; }
     else if(eventCase) corruptOffset=2392;
-    if(mode=="crash_special" || mode=="crash_party" || mode=="contract_crash_early") kEvent=game::rewind::kGame+0x36D20;
+    if(mode=="crash_meter" || mode=="crash_special" || mode=="crash_party" || mode=="contract_crash_early") kEvent=game::rewind::kGame+0x36D20;
     unsetenv("BURNOUT_REWIND_MODES"); // Player settings need no developer mode switch.
     drivingSelection=mode=="driving_target" || mode=="camera_wait";
     if(mode=="camera_wait") expectedSelectionClock=30.f;
-    userMode=mode=="finished" || mode=="crash_special" || mode=="crash_party" || drivingSelection || mode=="camera_wait_save" || mode=="camera_wait_timeout" || mode=="no_driving_target" || trackSaveMode || trackOptionsMode || trackCancelMode || eventCase || mode=="user" || mode=="rollback" || mode=="save" || timeoutMode;
+    userMode=mode=="crash_meter" || mode=="finished" || mode=="crash_special" || mode=="crash_party" || drivingSelection || mode=="camera_wait_save" || mode=="camera_wait_timeout" || mode=="no_driving_target" || trackSaveMode || trackOptionsMode || trackCancelMode || eventCase || mode=="user" || mode=="rollback" || mode=="save" || timeoutMode;
     rejectTarget=mode=="rollback";
     trackMode=mode=="track" || timeoutMode || trackSaveMode || trackOptionsMode || trackCancelMode;
     setenv("BURNOUT_REWIND_RING",mode=="disabled" || userMode ? "0":mode=="invalid" ? "30junk":mode=="budget" ? "30":"sequence",1);
@@ -245,6 +246,18 @@ int main(int argc,char** argv)
         Word(kClockFlags,0x01010000);Call();assert(frees==2);
         Word(kClockFlags,0x01000000);Call();assert(allocations==3);
         Word(kPhase,0);Call();assert(frees==3 && !restores);
+        assert(munmap(g_memory.base,PPC_MEMORY_SIZE)==0);return 0;
+    }
+    if(mode=="crash_meter")
+    {
+        game::crash_launch::rewindBlocked.store(true);
+        for (unsigned t=1;t<=15;++t) { Float(kWorldClock,float(t));Call(); }
+        assert(!allocations && !captures && !ring::Request(10));
+        assert(ring::GetStatus().state==ring::State::Collecting);
+        game::crash_launch::rewindBlocked.store(false);
+        Float(kWorldClock,16);Call();assert(captures==1 && allocations==1);
+        assert(!ring::Request(10)); // No snapshot from the launch mini-game.
+        ring::SetEnabled(false);Call();assert(frees==1);
         assert(munmap(g_memory.base,PPC_MEMORY_SIZE)==0);return 0;
     }
     if(mode=="crash_special" || mode=="crash_party")

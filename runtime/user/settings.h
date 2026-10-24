@@ -138,8 +138,9 @@ namespace settings
         // Online (the [online] table; user/online.h): read at launch.
         OnlineEnabled,
         OnlineServer,
-        // Codes: built-in modifiers, guarded in the guest hook.
+        // Mods page: original Codes IDs and persisted keys stay compatible.
         InfiniteBoost, InfiniteTime, QuickMoney, QuickTakedowns, EasyBoost,
+        CrashLaunchMeter,
         RewindEnabled, RewindDuration, RewindChord10, RewindChord20, RewindChord30,
         KeyRewind10, KeyRewind10_2, KeyRewind20, KeyRewind20_2, KeyRewind30, KeyRewind30_2,
         // Advanced

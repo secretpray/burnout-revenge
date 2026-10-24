@@ -48,6 +48,10 @@ endif()
 sb_test(rumble_focus_test)
 sb_test(rewind_shortcuts_test)
 sb_test(rewind_gate_test)
+sb_test(crash_launch_model_test)
+sb_test(crash_launch_texture_test)
+target_compile_options(crash_launch_texture_test PRIVATE -fsanitize=address)
+target_link_options(crash_launch_texture_test PRIVATE -fsanitize=address)
 # The XMA decoder's bit copies (apu/bit_copy.h, header only), with
 # AddressSanitizer: no byte outside the bits copied is read or written.
 sb_test(bit_copy_test)
@@ -114,6 +118,7 @@ target_include_directories(rewind_copy_test PRIVATE ${RT}/kernel ${RT}/thirdpart
 target_compile_options(rewind_copy_test PRIVATE -fsanitize=address)
 target_link_options(rewind_copy_test PRIVATE -fsanitize=address)
 sb_test(rewind_ring_test SOURCES ${RT}/game/rewind_ring.cpp)
+add_test(NAME rewind_ring_crash_meter_test COMMAND rewind_ring_test crash_meter)
 target_include_directories(rewind_ring_test PRIVATE ${RT}/kernel ${RT}/thirdparty/o1heap ${BR_PPC_DIR}
     ${ROOT}/tools/XenonRecomp/XenonUtils ${ROOT}/tools/XenonRecomp/thirdparty/simde)
 target_compile_options(rewind_ring_test PRIVATE -fsanitize=address)

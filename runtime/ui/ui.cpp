@@ -33,6 +33,10 @@
 #include <deque>
 #include <game/rewind_ring.h>
 #include <hid/rewind_shortcuts.h>
+#if defined(BR_GAME_BURNOUT)
+#include <game/crash_launch_status.h>
+#include "crash_launch_hud.h"
+#endif
 
 namespace ui
 {
@@ -744,6 +748,9 @@ namespace ui
         pipeline.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
         pipeline.PipelineRenderingCreateInfo.pColorAttachmentFormats = &format;
         ImGui_ImplVulkan_CreateMainPipeline(&pipeline);
+#if defined(BR_GAME_BURNOUT)
+        ReleaseCrashLaunchRenderer(s_target.device, false);
+#endif
     }
 
     void SetFramebufferSize(uint32_t width, uint32_t height)
@@ -761,6 +768,9 @@ namespace ui
             CloseSettings();
         {
             std::lock_guard lock(*s_target.queueMutex);
+#if defined(BR_GAME_BURNOUT)
+            ReleaseCrashLaunchRenderer(s_target.device, true);
+#endif
             ImGui_ImplVulkan_Shutdown();
         }
         ImGui_ImplSDL3_Shutdown();
@@ -1139,7 +1149,21 @@ namespace ui
         }
         bool toast = !toastText.empty();
         bool achievementNotice = AchievementNoticeVisible();
-        if (!s_modal && !s_settingsOpen && !perf && !toast && !achievementNotice)
+#if defined(BR_GAME_BURNOUT)
+        const auto launch = game::crash_launch::hudStatus.Read();
+        const bool launchVisible = launch.visible && !s_modal && !s_settingsOpen;
+        static unsigned lastLaunchHud = 0;
+        const unsigned launchHud = launchVisible ? 1 + unsigned(launch.model.result) * 2 + launch.model.upperStopped : 0;
+        if (launchHud != lastLaunchHud)
+        {
+            fprintf(stderr, "[crash-hud] visible=%u upper_stopped=%u result=%u\n",
+                launchVisible, launch.model.upperStopped, unsigned(launch.model.result));
+            lastLaunchHud = launchHud;
+        }
+#else
+        const bool launchVisible = false;
+#endif
+        if (!s_modal && !s_settingsOpen && !perf && !toast && !achievementNotice && !launchVisible)
             return false;
         ImGui_ImplVulkan_NewFrame();
         ImGui_ImplSDL3_NewFrame();
@@ -1209,6 +1233,10 @@ namespace ui
             DrawToast(toastText);
         if (achievementNotice)
             DrawAchievementNotice();
+#if defined(BR_GAME_BURNOUT)
+        if (launchVisible)
+            DrawCrashLaunch(launch);
+#endif
         ImGui::Render();
         ImDrawData* data = ImGui::GetDrawData();
         s_frameBuilt = data && data->CmdLists.Size > 0;  // (CmdListsCount is obsolete in 1.92)

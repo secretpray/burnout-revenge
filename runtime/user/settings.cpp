@@ -521,6 +521,10 @@ namespace settings
               .table = "codes", .key = "easy_boost", .label = "Easy Boost",
               .description = "Earn a full current boost bar from a Near Miss. Lower the speed and distance required for Near Miss and drift boost in solo World Tour. Disabled with Online Play and in Multiplayer.",
               .env = "BURNOUT_EASY_BOOST", .defaultValue = 0 },
+            { .id = Id::CrashLaunchMeter, .category = Category::Codes, .type = Type::Bool, .apply = Apply::Restart,
+              .table = "gameplay", .key = "crash_launch_meter", .label = "Classic Crash Launch",
+              .description = "Use the PS2 and original Xbox launch meter in solo World Tour Crash. Press once to start, again to set speed, then again to set control. Time and traffic keep moving. Restart to apply. Off keeps the Xbox 360 start.",
+              .env = "BURNOUT_CRASH_LAUNCH_METER", .defaultValue = 0 },
             { .id=Id::RewindEnabled,.category=Category::Rewind,.type=Type::Bool,.apply=Apply::Live,
               .table="rewind",.key="enabled",.label="Rewind",
               .description="Keep up to 30 seconds of event history in memory. Solo World Tour only; unavailable online, in Multiplayer and clips. History clears after loading, saving or changing Codes.",
@@ -1400,7 +1404,7 @@ namespace settings
         case Category::Controls: return "Controls";
         case Category::Wheel: return "Wheel";
         case Category::Online: return "Online";
-        case Category::Codes: return "Codes";
+        case Category::Codes: return "Mods";
         case Category::Rewind: return "Rewind";
         case Category::Achievements: return "Achievements";
         case Category::Advanced: return "Advanced";

@@ -22,6 +22,13 @@ static std::vector<std::string> Arguments(const char* text)
 }
 int main(int argc, char** argv)
 {
+    if (argc == 3 && std::string_view(argv[1]) == "--crash")
+    {
+        assert(settings::Load());
+        assert(settings::GetBool(settings::Id::CrashLaunchMeter) == bool(std::atoi(argv[2])));
+        assert(settings::GetStoredValue(settings::Id::CrashLaunchMeter) == 1);
+        return 0;
+    }
     if (argc == 4 && std::string_view(argv[1]) == "--read")
     {
         assert(settings::Load());
@@ -67,12 +74,25 @@ int main(int argc, char** argv)
     std::filesystem::remove_all(root); std::filesystem::create_directories(root);
     setenv("BR_DATA_DIR", root.c_str(), 1); unsetenv("BURNOUT_LANGUAGE");
     assert(settings::Load());
+    assert(!settings::GetBool(settings::Id::CrashLaunchMeter));
+    assert(settings::Set(settings::Id::CrashLaunchMeter, 1) == settings::SetResult::Deferred);
+    assert(!settings::GetBool(settings::Id::CrashLaunchMeter));
+    assert(settings::RestartPending(settings::Id::CrashLaunchMeter));
     assert(settings::GetInt(settings::Id::Language) == 1);
     assert(settings::Set(settings::Id::Language, 2) == settings::SetResult::Deferred);
     assert(settings::GetInt(settings::Id::Language) == 1);
     assert(settings::GetMenuValue(settings::Id::Language) == 2);
     assert(settings::RestartPending(settings::Id::Language));
     assert(settings::Save());
+    auto crashRelaunch = [&](const char* expected) {
+        pid_t child = fork(); assert(child >= 0);
+        if (child == 0) { execl(argv[0], argv[0], "--crash", expected, nullptr); _exit(127); }
+        int status = 0; assert(waitpid(child, &status, 0) == child);
+        assert(WIFEXITED(status) && WEXITSTATUS(status) == 0);
+    };
+    crashRelaunch("1");
+    setenv("BURNOUT_CRASH_LAUNCH_METER", "0", 1); crashRelaunch("0");
+    unsetenv("BURNOUT_CRASH_LAUNCH_METER"); crashRelaunch("1");
     auto relaunch = [&](const char* expected, const char* stored = "2") {
         pid_t child = fork(); assert(child >= 0);
         if (child == 0) { execl(argv[0], argv[0], "--read", expected, stored, nullptr); _exit(127); }
