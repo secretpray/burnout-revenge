@@ -110,6 +110,8 @@ def main():
                 needed = text.split('Version needs section', 1)[-1] if 'Version needs section' in text else ''
                 versions += re.findall(r'Name: ' + prefix + r'_(\d+(?:\.\d+)+)', needed)
             requirements[prefix] = max(versions, key=lambda v: tuple(map(int, v.split('.'))), default='none')
+        (stage / 'ARCHITECTURE').write_text(('x86_64' if arch == 'x86_64' else 'aarch64') + '\n')
+        (stage / 'MIN_GLIBC').write_text(requirements['GLIBC'] + '\n')
         manifest = dict(version=version, revision=commit, architecture=arch,
                         qualification='UNVERIFIED RELEASE CANDIDATE; native GPU gates OPEN',
                         required_symbol_versions=requirements, bundled_libraries=sorted(bundled),
