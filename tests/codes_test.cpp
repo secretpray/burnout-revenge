@@ -115,7 +115,7 @@ int main()
     Map(kLocalPlayers, 4); Map(kCrashVariant, 4); Map(0x825E1F30,1024); Map(0x8276FB80,4); Map(0x82AB6FA4,4);
     Reset(); Call(true); Reset(); Call(true, 2);
     Reset(); settings::Set(settings::Id::InfiniteBoost, 0); Call(false);
-    Reset(); live = true; Call(false); // Online overrides every solo-looking field.
+    Reset(); live = true; Call(true); // Signing in does not change a solo event.
     Reset(); g_memory.base[kSpecialMode] = 1; Call(false);
     for (uint32_t count : {0u, 2u, 3u, 4u, 0xFFFFFFFFu}) { Reset(); Word(kLocalPlayers, count); Call(false); }
     for (uint32_t session : {0u, 0x8287C6FCu, 0x8287C718u, 0xDEADBEEFu})
@@ -130,13 +130,13 @@ int main()
     for (float capacity : {0.f, -1.f, 10001.f, std::numeric_limits<float>::infinity(), std::numeric_limits<float>::quiet_NaN()})
     { Reset(); Word(kBoost + 92, std::bit_cast<uint32_t>(capacity)); Call(false); }
     // A mode transition in the same process must never carry our stock flag.
-    Reset(); Call(true); live = true; Word(kBoost + 96, std::bit_cast<uint32_t>(12.f)); Call(false, 2);
+    Reset(); Call(true); live = true; Word(kSession,0x8287C718); Word(kBoost + 96, std::bit_cast<uint32_t>(12.f)); Call(false, 2);
     Reset(); throwOriginal = true;
     PPCContext ctx{}; ctx.r3.u32 = kBoost; ctx.r4.u64 = 0xDEADBEEF01234567;
     try { sub_820DA9D8(ctx, g_memory.base); assert(false); } catch (const std::runtime_error&) {}
     assert(g_memory.base[kBoost + 184] == 0);
     // Exercise every modifier with all multiplayer rejection paths, through its real ABI.
-    for (int mode=0;mode<6;++mode)
+    for (int mode=0;mode<7;++mode)
     {
         Reset();
         if (mode==1) live=true;
@@ -144,7 +144,8 @@ int main()
         if (mode==3) Word(kSession,0x8287C6FC);
         if (mode==4) Word(kSoloSession+8,kCrashController);
         if (mode==5) Word(kSession,0xDEADBEEF);
-        const bool allowed=mode==0;
+        if (mode==6) { live=true; Word(kSession,0x8287C718); }
+        const bool allowed=mode==0 || mode==1;
         PPCContext c{};c.r3.u32=kCar;c.r4.u32=0;c.r5.u32=100;c.r6.u32=2;
         sub_82324D58(c,g_memory.base);assert(c.r3.u32==91 && moneyAmount==(allowed?15000u:100u) && moneyMultiplier==2);
         c={};c.r5.u32=kCar;sub_8212F168(c,g_memory.base);auto* base=g_memory.base;
@@ -170,13 +171,14 @@ int main()
     c={};c.r3.u32=kEvent;sub_8212DE50(c,g_memory.base);assert(c.f1.f64==60);
     Word(0x82AB6FA4,std::bit_cast<uint32_t>(100.5f));c.r3.u32=kEvent;sub_8212DE50(c,g_memory.base);assert(c.f1.f64==60 && Get(kEvent+3056)==160.5f);
     settings::Set(settings::Id::InfiniteTime,0);Word(0x82AB6FA4,std::bit_cast<uint32_t>(101.f));c.r3.u32=kEvent;sub_8212DE50(c,g_memory.base);assert(c.f1.f64==59.5);
-    for (int mode=1;mode<6;++mode) {
+    for (int mode=1;mode<7;++mode) {
         Reset();Word(kSoloSession+4,kEvent);g_memory.base[kEvent+3132]=1;
         if(mode==1)live=true;if(mode==2)Word(kLocalPlayers,2);if(mode==3)Word(kSession,0x8287C6FC);
         if(mode==4)Word(kSoloSession+8,kCrashController);if(mode==5)Word(kSession,0xDEADBEEF);
+        if(mode==6) { live=true;Word(kSession,0x8287C718); }
         Word(kEvent+3056,std::bit_cast<uint32_t>(160.f));Word(0x82AB6FA4,std::bit_cast<uint32_t>(100.f));
         c.r3.u32=kEvent;sub_8212DE50(c,g_memory.base);
-        Word(0x82AB6FA4,std::bit_cast<uint32_t>(100.5f));c.r3.u32=kEvent;sub_8212DE50(c,g_memory.base);assert(c.f1.f64==59.5 && Get(kEvent+3056)==160);
+        Word(0x82AB6FA4,std::bit_cast<uint32_t>(100.5f));c.r3.u32=kEvent;sub_8212DE50(c,g_memory.base);assert(c.f1.f64==(mode==1 ? 60:59.5) && Get(kEvent+3056)==(mode==1 ? 160.5f:160.f));
     }
     // No amplification for AI, a different award call site, invalid earning factors or another player.
     Reset();Word(kCar+15328,1);c={};c.r3.u32=kBoost;c.lr=0x820BB144;c.f1.f64=60;sub_820AC718(c,g_memory.base);assert(earned==60);

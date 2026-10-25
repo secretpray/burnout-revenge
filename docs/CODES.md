@@ -1,6 +1,6 @@
-# Codes: offline cheats for the solo career
+# Cheat Codes and bonus unlocks
 
-Open Settings (F1, Cmd+, or Back + Start) and go to **Mods**. There are five
+Open Settings (F1, Cmd+, or Back + Start) and go to **Mods**. The **Cheat Codes** section contains five driving
 modifiers, in the spirit of the Xbox 360 trainers by RETROBYTE (Aurora) and
 TeamXPG. All are off by default and apply at once, without a restart. They
 work only in solo World Tour driving events. Career progress is saved through
@@ -15,12 +15,21 @@ code never edits your save file.
 | Quick Takedowns | Sets the event count to 99 after the first real Takedown; later Takedowns add normally |
 | Easy Boost | Fills the current bar on a Near Miss and lowers the Near Miss and drift thresholds |
 
+**Unlock Madden Van** is a separate one-time action in Cheat Codes. Open it in
+the World Tour menu with your Player File loaded. It uses the game's Madden NFL
+06 trailer unlock; it does not require 100% completion or playback of the trailer.
+Save your Player File afterwards to retain the bonus. An already unlocked bonus
+shows **Unlocked**. Select the van from a Crash event’s garage. This action works while signed in to Live and does not award
+career medals or completion.
+
+The **Modifications** section contains [Classic Crash Launch](CLASSIC_CRASH_LAUNCH.md).
+
 ![Road Rage results with Quick Takedowns](screenshots/codes-takedowns-gold.jpg)
 
-## Limits
+## Driving Code limits
 
-- Online Play must be off **at launch**. If it is on, turn it off and restart:
-  even a solo race in that process gets no Code.
+- Xbox Live sign-in and the Online Play setting do not restrict solo World Tour.
+  Eligibility follows the active session. Actual network events reject the driving Codes.
 - Local Multiplayer, turn-based Crash, Burnout Clips and AI cars are excluded.
   Boost use and the Crashbreaker are unchanged in Crash.
 - The guard sits in the game hook itself, so the menu switch and the

@@ -208,7 +208,7 @@ namespace game::camera
             // Xbox Live sign-in is also available while playing World Tour.
             // The verified solo wrapper, not the account's sign-in setting,
             // separates this camera from online and local multiplayer.
-            codes::Allowed({true, false, session,
+            codes::Allowed({true, session,
                 session == codes::kSoloSession ? PPC_LOAD_U32(session + 8) : 0,
                 PPC_LOAD_U32(codes::kLocalPlayers), PPC_LOAD_U8(codes::kSpecialMode),
                 PPC_LOAD_U32(codes::kCrashVariant), 0, 0}) &&

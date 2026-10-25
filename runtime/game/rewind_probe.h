@@ -20,7 +20,6 @@ namespace game::rewind
     struct Boundary
     {
         uint32_t game{}, phase{}, session{}, controller{}, event{}, localPlayers{}, specialMode{}, crashVariant{};
-        bool online{};
     };
 
     // Only the first, solo World Tour experiment. A successful predicate is
@@ -28,7 +27,7 @@ namespace game::rewind
     constexpr bool CanObserve(const Boundary& b)
     {
         return b.game == kGame && b.phase == 5 && b.event != 0 &&
-            codes::Allowed({true, b.online, b.session, b.controller,
+            codes::Allowed({true, b.session, b.controller,
                 b.localPlayers, b.specialMode, b.crashVariant, 0, 0});
     }
 

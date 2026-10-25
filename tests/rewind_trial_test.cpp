@@ -86,6 +86,7 @@ int main(int argc,char** argv)
     Word(kRecorder+532,100);Word(kRecorder+528,100);Word(kRecorder+540,2);
     Word(kRecorder+164,kSnapshots);Word(kRecorder+168,kSnapshots+80);
     live=mode=="online";
+    if(live) Word(codes::kSession,0x8287C718);
     if(mode=="mode") Word(codes::kSoloSession+4,kGame+0x36170); // native Race, not the measured trial
     game::rewind::trial::Captured(g_memory.base,kHeader,kPayload,128);
     Word(kClockFlags,0x01000000);Call();

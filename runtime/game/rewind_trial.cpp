@@ -5,7 +5,6 @@
 #include "rewind_ring.h"
 #include "rewind_probe.h"
 #include <cpu/guest_thread.h>
-#include <user/online.h>
 #include <cmath>
 #include <cstdlib>
 
@@ -37,7 +36,7 @@ namespace game::rewind::trial
                 session == codes::kSoloSession ? PPC_LOAD_U32(session + 8) : 0,
                 session == codes::kSoloSession ? PPC_LOAD_U32(session + 4) : 0,
                 PPC_LOAD_U32(codes::kLocalPlayers), PPC_LOAD_U8(codes::kSpecialMode),
-                PPC_LOAD_U32(codes::kCrashVariant), online::Enabled()};
+                PPC_LOAD_U32(codes::kCrashVariant)};
         }
         struct Stream
         {

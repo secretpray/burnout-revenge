@@ -5,12 +5,13 @@
 #include "rewind_probe.h"
 #include "crash_launch_model.h"
 #include "crash_launch_status.h"
+#include "crash_launch_scope.h"
 #include <report/report.h>
-#include <user/online.h>
 #include <user/settings.h>
 #include <hid/input.h>
 #include <cstdlib>
 #include <cmath>
+#include <optional>
 
 extern "C" PPC_FUNC(__imp__sub_82132AD0);
 extern "C" PPC_FUNC(__imp__sub_8227FB28);
@@ -18,10 +19,35 @@ extern "C" PPC_FUNC(__imp__sub_82290CE8);
 extern "C" PPC_FUNC(__imp__sub_82262128);
 extern "C" PPC_FUNC(__imp__sub_8219C750);
 
+namespace { void NetworkTick(PPCContext&, uint8_t*, uint32_t); }
+
+// Native network Crash variants share this state machine. Diagnostics read
+// their participant mapping without changing launch timing or network state.
+extern "C" PPC_FUNC(__imp__sub_8213FDA0);
+PPC_FUNC(sub_8213FDA0)
+{
+    const uint32_t event = ctx.r3.u32;
+    __imp__sub_8213FDA0(ctx, base);
+    NetworkTick(ctx, base, event);
+    static const bool log = std::getenv("BURNOUT_LOG_NETWORK_CRASH") != nullptr;
+    if (!log || (event != 0x82888190 && event != 0x82889780 && event != 0x8288AC70)) return;
+    static thread_local uint32_t lastEvent{}, lastState = UINT32_MAX;
+    const uint32_t state = PPC_LOAD_U32(event + 3488);
+    if (event == lastEvent && state == lastState) return;
+    lastEvent = event; lastState = state;
+    fprintf(stderr, "[network-crash] event=%08X vtable=%08X state=%u session=%08X players=%u world_type=%u clock=%.6f",
+        event,PPC_LOAD_U32(event),state,PPC_LOAD_U32(game::codes::kSession),
+        PPC_LOAD_U32(game::codes::kLocalPlayers),PPC_LOAD_U32(0x82CE000C),
+        std::bit_cast<float>(PPC_LOAD_U32(0x82AB6FA4)));
+    for (unsigned i=0;i<6;++i)
+        fprintf(stderr," p%u=%u/%u",i,PPC_LOAD_U32(event+2396+i*36),PPC_LOAD_U8(0x82CE0030+i*19200+15480));
+    fprintf(stderr," car=%08X\n",PPC_LOAD_U32(0x82CE0030+18240));
+}
+
 namespace
 {
     constexpr uint32_t kWorld = 0x82AB6F80;
-    constexpr uint32_t kEvent = game::rewind::kGame + 0x36D20;
+    constexpr uint32_t kEvent = game::crash_launch::kSoloEvent;
     constexpr uint32_t kParticipant = 0x82CE0030;
 
     struct HoldExperiment
@@ -49,7 +75,8 @@ namespace
     thread_local LaunchRecording recording;
     thread_local HoldExperiment replayHold;
 
-    bool MeterEnabled()
+    thread_local std::optional<bool> eventMeterChoice;
+    bool RequestedMeter()
     {
         static const bool enabled = [] {
             const char* value = std::getenv("BURNOUT_CRASH_LAUNCH_METER_PROBE");
@@ -57,6 +84,7 @@ namespace
         }();
         return enabled || settings::GetBool(settings::Id::CrashLaunchMeter);
     }
+    bool MeterEnabled() { return eventMeterChoice.value_or(RequestedMeter()); }
 
     bool Diagnostics()
     {
@@ -68,7 +96,11 @@ namespace
     }
 
     template<class... Args> void Trace(const char* format, Args... args)
-    { if (Diagnostics()) fprintf(stderr, format, args...); }
+    {
+        if (!Diagnostics()) return;
+        if constexpr (sizeof...(Args)==0) fputs(format,stderr);
+        else fprintf(stderr,format,args...);
+    }
 
     float HoldSeconds()
     {
@@ -91,10 +123,7 @@ namespace
             const char* value = std::getenv("BURNOUT_CRASH_LAUNCH_PROBE");
             return value && std::string_view(value) == "1";
         }();
-        return (enabled || MeterEnabled()) && !online::Enabled() &&
-            PPC_LOAD_U32(game::codes::kSession) == game::codes::kSoloSession &&
-            PPC_LOAD_U32(game::codes::kSoloSession + 4) == kEvent &&
-            PPC_LOAD_U32(game::codes::kLocalPlayers) == 1;
+        return (enabled || MeterEnabled()) && game::crash_launch::SoloEvent(base);
     }
 
     bool HoldScope(uint8_t* base, bool allowPlayback = false)
@@ -299,14 +328,14 @@ namespace
         }
     }
 
-    bool ShowLaunchMessage(const PPCContext& ctx, uint8_t* base)
+    bool ShowLaunchMessage(const PPCContext& ctx, uint8_t* base, const game::crash_launch::Model& model = hold.model)
     {
         using game::crash_launch::Result;
         // USA 360's retained bonus map at 825F4064..825F40C7 supplies
         // localized text, texture AgressivePos, and the original animation.
-        const uint32_t event = hold.model.result == Result::Stall ? 204 :
-            hold.model.result == Result::Fast ? 206 : hold.model.result == Result::Power ? 207 :
-            hold.model.result == Result::Blown ? 208 : 205;
+        const uint32_t event = model.result == Result::Stall ? 204 :
+            model.result == Result::Fast ? 206 : model.result == Result::Power ? 207 :
+            model.result == Result::Blown ? 208 : 205;
         PPCContext invoke = ctx;
         invoke.r3.u64 = 0x82A51300;
         invoke.r4.u64 = event;
@@ -327,6 +356,133 @@ namespace
         Trace( "[crash-meter-message] event=%u accepted=%u world=%.6f\n",
             event, accepted, ReadFloat(base, kWorld + 36));
         return accepted;
+    }
+
+    struct NetworkLaunch
+    {
+        uint32_t event{}, participant{};
+        bool started{}, previousPress{}, deferred{}, finalized{}, nativeMessage{};
+        float lastWorld{}, startedAt{}, resultAt{};
+        game::crash_launch::Model model;
+    };
+    thread_local NetworkLaunch network;
+
+    bool NetworkScope(uint8_t* base, uint32_t event)
+    {
+        if (!MeterEnabled() || !game::crash_launch::NetworkEvent(base,event) ||
+            PPC_LOAD_U32(game::rewind::kPhase)!=5 || PPC_LOAD_U8(game::rewind::kWorldPlayback)) return false;
+        const uint32_t table=PPC_LOAD_U32(event);
+        return table==0x82016B50 || table==0x82016D68 || table==0x82016F80;
+    }
+    bool NetworkHolding(uint8_t* base)
+    {
+        return network.event && !network.finalized && NetworkScope(base,network.event) &&
+            PPC_LOAD_U32(network.event+3488)>=11 && PPC_LOAD_U32(network.event+3488)<=12;
+    }
+    void ReleaseNetworkCar(const PPCContext& ctx, uint8_t* base)
+    {
+        using namespace game::crash_launch;
+        const uint32_t physical=PPC_LOAD_U32(kParticipant+18240);
+        const float maximum=ReadFloat(base,physical+6484);
+        const uint32_t gears=PPC_LOAD_U32(physical+6736);
+        if (!std::isfinite(maximum) || maximum<=10 || gears==0 || gears>12)
+        {
+            PPCContext fallback=ctx;
+            fallback.r3.u64=network.event; fallback.r4.u64=0; fallback.r5.u64=1;
+            __imp__sub_82132AD0(fallback,base);
+            network={};
+            return;
+        }
+        std::array<float,12> ratios{};
+        for (unsigned i=0;i<gears;++i) ratios[i]=ReadFloat(base,physical+6620+i*4);
+        PPCContext invoke=ctx;
+        invoke.r3.u64=network.event; invoke.r4.u64=0; invoke.r5.u64=1;
+        __imp__sub_82132AD0(invoke,base);
+        const auto& model=network.model;
+        const float scaled=model.Maximum(maximum);
+        for (unsigned i=0;i<gears;++i) WriteFloat(base,physical+6620+i*4,ratios[i]*model.GearScale(maximum));
+        WriteFloat(base,physical+6484,scaled);
+        WriteFloat(base,PPC_LOAD_U32(physical+6532)+448,scaled);
+        WriteFloat(base,network.event+2856,model.fraction);
+        WriteFloat(base,network.event+2864,model.steering);
+        const bool power=model.result==Result::Power;
+        PPC_STORE_U8(network.event+2880,power);
+        PPC_STORE_U8(network.event+2916,power);
+        PPC_STORE_U8(kParticipant+13470,power);
+        PPC_STORE_U8(kParticipant+13471,0);
+        PPC_STORE_U8(physical+6614,power || model.result==Result::Fast);
+        PPC_STORE_U8(network.event+2408+network.participant*36,model.result==Result::Stall || model.result==Result::Blown);
+        network.finalized=true;
+        network.resultAt=ReadFloat(base,kWorld+36);
+        if (model.result==Result::Blown) BlowOutEffects(ctx,base);
+        network.nativeMessage=ShowLaunchMessage(ctx,base,model);
+        // Keep the native network deadline, turn progression and transport.
+        // Only this peer's local car receives its chosen launch outcome.
+        fprintf(stderr,"[crash-meter-network] released event=%08X participant=%u result=%u maximum=%.7g world=%.6f\n",
+            network.event,network.participant,unsigned(model.result),scaled,network.resultAt);
+    }
+    bool NetworkFinalize(const PPCContext& ctx, uint8_t* base)
+    {
+        if (ctx.r4.u32!=0 || network.event!=ctx.r3.u32 || !NetworkScope(base,network.event)) return false;
+        const uint32_t state=PPC_LOAD_U32(network.event+3488);
+        if (state<11 || state>12) return false;
+        if (network.finalized) return true;
+        network.deferred=true;
+        if (network.started && network.model.phase==game::crash_launch::Phase::Done)
+            ReleaseNetworkCar(ctx,base);
+        return true;
+    }
+    void NetworkTick(PPCContext& ctx, uint8_t* base, uint32_t event)
+    {
+        using namespace game::crash_launch;
+        if (!NetworkScope(base,event)) { network={}; return; }
+        const uint32_t state=PPC_LOAD_U32(event+3488);
+        if (state<11 || state>12) { network={}; return; }
+        const float world=ReadFloat(base,kWorld+36);
+        const bool pressed=LaunchPressed(ctx,base);
+        if (!network.event && state==11)
+        {
+            const uint32_t participant=PPC_LOAD_U8(kParticipant+15480);
+            if (participant>=6 || PPC_LOAD_U32(event+2396+participant*36)!=6) return;
+            network.event=event; network.participant=participant;
+            network.lastWorld=world; network.previousPress=pressed;
+            auto& p=network.model.parameters;
+            for (unsigned i=0;i<6;++i) p.limits[i]=ReadFloat(base,kParticipant+13424+i*4);
+            p.multiplier=ReadFloat(base,kParticipant+13448);
+            p.minimumSpeed=ReadFloat(base,kParticipant+13452);
+            if (!p.Valid()) { network={}; return; }
+            hid::ScriptEvent("crashwaiting");
+            fprintf(stderr,"[crash-meter-network] ready event=%08X participant=%u\n",event,participant);
+        }
+        if (network.event!=event) return;
+        if (!network.started && pressed && !network.previousPress)
+        {
+            network.started=true; network.startedAt=world;
+            hid::ScriptEvent("crashlaunch");
+        }
+        network.previousPress=pressed;
+        const float dt=world>network.lastWorld ? ReadFloat(base,kWorld+32):0.f;
+        network.lastWorld=world;
+        if (network.started && network.model.phase!=Phase::Done)
+            network.model.Step(dt,pressed);
+        if (!network.finalized && network.started && network.deferred && network.model.phase==Phase::Done)
+            ReleaseNetworkCar(ctx,base);
+        if (!network.event) return;
+        if (!network.finalized)
+        {
+            ApplyMeterEngine(base,PPC_LOAD_U32(kParticipant+18240),network.model);
+            WriteFloat(base,event+2416+network.participant*36,network.model.level);
+        }
+        const float age=world-network.resultAt;
+        Status status;
+        status.visible=!network.finalized || age<2.5f;
+        status.waiting=!network.started;
+        status.showStartPrompt=status.waiting;
+        status.nativeMessage=network.nativeMessage;
+        status.time=world-network.startedAt;
+        status.alpha=network.finalized ? std::clamp(1.f-(age-.5f)*.5f,0.f,1.f):1.f;
+        status.model=network.model;
+        hudStatus.Publish(status);
     }
 
     void Log(uint8_t* base, const char* point, uint32_t caller)
@@ -547,6 +703,11 @@ PPC_FUNC(sub_821320A8)
 
 PPC_FUNC(sub_82132AD0)
 {
+    if (NetworkFinalize(ctx, base)) return;
+    static const bool logNetwork = std::getenv("BURNOUT_LOG_NETWORK_CRASH") != nullptr;
+    if (logNetwork && (ctx.r3.u32 == 0x82888190 || ctx.r3.u32 == 0x82889780 || ctx.r3.u32 == 0x8288AC70))
+        fprintf(stderr,"[network-crash-finalize] event=%08X driver=%u caller=%08X state=%u\n",
+            ctx.r3.u32,ctx.r4.u32,uint32_t(ctx.lr),PPC_LOAD_U32(ctx.r3.u32+3488));
     if (ctx.r3.u32 == kEvent && ctx.r4.u32 == 0 && ReplayingLaunch(base))
     {
         // The ordinary 360 countdown must not grant a different launch in
@@ -581,6 +742,8 @@ PPC_FUNC(sub_82132AD0)
 extern "C" PPC_FUNC(__imp__sub_8229A0F8);
 PPC_FUNC(sub_8229A0F8)
 {
+    if (NetworkHolding(base) && ctx.r3.u32 == PPC_LOAD_U32(kParticipant + 18240))
+        PPC_STORE_U8(ctx.r3.u32 + 14654, 1);
     if (replayHold.active && ReplayingLaunch(base) &&
         ctx.r3.u32 == PPC_LOAD_U32(kParticipant + 18240))
         PPC_STORE_U8(ctx.r3.u32 + 14654, 1);
@@ -603,6 +766,8 @@ PPC_FUNC(sub_822817C0)
     const bool observe = Enabled(base) && PPC_LOAD_U32(game::rewind::kPhase) == 5 &&
         self == PPC_LOAD_U32(kParticipant + 18240);
     __imp__sub_822817C0(ctx, base);
+    if (NetworkHolding(base) && self == PPC_LOAD_U32(kParticipant + 18240))
+        ApplyMeterEngine(base, self, network.model);
     if (!observe) return;
     if (hold.active && hold.meter && HoldScope(base) && PPC_LOAD_U32(kEvent + 2384) == 18)
         ApplyMeterEngine(base, self);
@@ -740,4 +905,22 @@ PPC_FUNC(sub_82363C80)
     if (observe) Log(base, "clock-reset-pre", caller);
     __imp__sub_82363C80(ctx, base);
     if (observe) Log(base, "clock-reset-post", caller);
+}
+
+// The native initializer runs for a fresh Crash event and Retry, including
+// network variants through their common base. Keep the current event stable
+// when the player changes the setting while paused or during a launch.
+extern "C" PPC_FUNC(__imp__sub_821394F8);
+PPC_FUNC(sub_821394F8)
+{
+    const uint32_t event=ctx.r3.u32;
+    if (event==kEvent || game::crash_launch::KnownNetworkEvent(event))
+    {
+        eventMeterChoice=RequestedMeter();
+        hold={}; replayHold={}; recording={}; network={};
+        game::crash_launch::rewindBlocked.store(false,std::memory_order_release);
+        game::crash_launch::hudStatus.Publish({});
+        fprintf(stderr,"[crash-meter] event initialized=%08X enabled=%u\n",event,*eventMeterChoice);
+    }
+    __imp__sub_821394F8(ctx,base);
 }

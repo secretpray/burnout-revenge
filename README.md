@@ -19,7 +19,7 @@
   &nbsp;·&nbsp;
   <a href="#rewind">Rewind</a>
   &nbsp;·&nbsp;
-  <a href="#offline-codes">Codes</a>
+  <a href="#mods">Codes</a>
   &nbsp;·&nbsp;
   <a href="#languages">Languages</a>
   &nbsp;·&nbsp;
@@ -72,7 +72,7 @@
 - [Download](https://github.com/secretpray/burnout-revenge/releases/latest) the DMG, drag the app to
   Applications, open it and choose your disc image. It checks and installs the
   game, then you play.
-- Optional [Rewind](#rewind) for solo World Tour, and offline [Codes](#offline-codes) for the solo career, and Xbox Live
+- Optional [Rewind](#rewind) for solo World Tour, and [Codes](#mods) for the solo career, and Xbox Live
   play again through community or your own servers.
 - Menus and game text in **English, Japanese, German, French, Spanish, Italian, Dutch, Swedish and Finnish**.
   [Language setup](#languages) explains the optional European disc import.
@@ -250,17 +250,24 @@ combination is held, so choose combinations that suit your controls.
 ## Mods
 
 <p align="center">
-  <img src="docs/screenshots/settings-mods.jpg" alt="Settings, Mods page: five cheat switches and Classic Crash Launch" width="85%">
+  <img src="docs/screenshots/settings-mods.jpg" alt="Settings, Mods page with Cheat Codes, Unlock Madden Van and a separate Modifications section" width="85%">
   <br>
-  <sub>Settings > Mods: cheat switches and optional gameplay modifications.</sub>
+  <sub>Settings > Mods: Cheat Codes and Modifications.</sub>
 </p>
 
 Classic Crash Launch restores the PS2 and original Xbox launch meter
-in offline solo World Tour Crash. It is off by default; restart the game after changing it.
+in solo World Tour and network Crash. It is off by default. A change applies when
+you retry the event or leave it and start another, without quitting the app.
+Each network player chooses whether to enable it.
 Tap and release A (PlayStation cross) to start the meter, then use separate
 presses to set speed and control. Holding the first press can stop it at about
 one third and give a weak automatic launch, as in the original PS2/Xbox game.
 [Controls and current limits](docs/CLASSIC_CRASH_LAUNCH.md).
+
+**Cheat Codes > Unlock Madden Van** opens the same bonus as the Madden NFL 06
+trailer. It is available with your Player File loaded in the World Tour menu;
+100% completion is not required. Save your Player File afterwards to keep it,
+then select the van in a Crash event’s garage.
 
 Five modifiers for the **solo World Tour**, modelled on the old Xbox 360 trainers.
 They change what the game awards, not how it saves: results earned with a Code stay
@@ -280,9 +287,10 @@ in your career.
   <sub>Road Rage with Quick Takedowns: 100 Takedowns, a Gold medal.</sub>
 </p>
 
-Fair play is enforced inside the game's own code, not just in the menu: every Code
-is rejected in local Multiplayer, Crash, Burnout Clips, for AI cars and in any run
-with Online Play enabled. To use them, turn Online Play off and restart the game.
+The five driving modifiers apply only to solo World Tour driving. Signing in
+to Live or enabling Online Play does not restrict solo play. Local Multiplayer, Crash, Burnout Clips and AI cars retain their
+original behavior. The Madden Van action and Classic Crash Launch have their own
+scope as described above.
 Details and limits: [docs/CODES.md](docs/CODES.md).
 
 ## Xbox 360 achievements
@@ -377,7 +385,7 @@ Open with **F1**, **Cmd+,** or **Back + Start**. LB/RB (Q/E) switch pages.
 | Controls | Two keys for each Xbox 360 control |
 | Online | Online Play, Server (Xerenge Community, My Server, LAN), Gamertag, Server Address, Check Server ([online play](docs/ONLINE.md)) |
 | Achievements | Original Xbox 360 list, requirements, earned dates and local Gamerscore ([details](docs/ACHIEVEMENTS.md)) |
-| Codes | Infinite Boost, Infinite Time, Quick Money, Quick Takedowns, Easy Boost; solo World Tour only, off by default ([Codes](#offline-codes)) |
+| Mods | Cheat Codes: five solo driving modifiers and Unlock Madden Van. Modifications: Classic Crash Launch ([details](#mods)) |
 | Rewind | 10/20/30-second history, editable keyboard and controller shortcuts; [controls and current limits](docs/REWIND_EXPERIMENT.md#working-controls) |
 | Advanced | Language, Import Languages from Disc, Asynchronous Shaders, Performance Overlay, Auto-import Add-ons, Skip Intro Movies, Save Bug Report, Check for Updates, Add-ons, Save Backups, About |
 

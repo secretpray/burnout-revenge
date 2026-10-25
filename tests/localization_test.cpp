@@ -75,9 +75,9 @@ int main(int argc, char** argv)
     setenv("BR_DATA_DIR", root.c_str(), 1); unsetenv("BURNOUT_LANGUAGE");
     assert(settings::Load());
     assert(!settings::GetBool(settings::Id::CrashLaunchMeter));
-    assert(settings::Set(settings::Id::CrashLaunchMeter, 1) == settings::SetResult::Deferred);
-    assert(!settings::GetBool(settings::Id::CrashLaunchMeter));
-    assert(settings::RestartPending(settings::Id::CrashLaunchMeter));
+    assert(settings::Set(settings::Id::CrashLaunchMeter, 1) == settings::SetResult::Applied);
+    assert(settings::GetBool(settings::Id::CrashLaunchMeter));
+    assert(!settings::RestartPending(settings::Id::CrashLaunchMeter));
     assert(settings::GetInt(settings::Id::Language) == 1);
     assert(settings::Set(settings::Id::Language, 2) == settings::SetResult::Deferred);
     assert(settings::GetInt(settings::Id::Language) == 1);

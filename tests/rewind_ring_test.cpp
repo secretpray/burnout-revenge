@@ -233,7 +233,9 @@ int main(int argc,char** argv)
         Word(kRecorder+offset+4,buffer);Word(kRecorder+offset+16,0x1000000);
         Word(kRecorder+offset+8,buffer);Word(kRecorder+offset+12,buffer);
     }
-    onlineMode=mode=="online";large=mode=="budget";
+    onlineMode=mode=="online" || mode=="signedin";
+    if(mode=="online") Word(codes::kSession,0x8287C718);
+    large=mode=="budget";
     failedCapture=mode=="failed";
     if (mode=="replay") Word(kClockFlags,0x01010000);
     if (mode=="event") Word(codes::kSoloSession+4,kGame+0x37000);
@@ -431,7 +433,7 @@ int main(int argc,char** argv)
     }
     if (userMode && !rejectTarget && !corruptEvent && !corruptScore && !corruptActor && !corruptCrashGlobals && !timeoutMode && !trackSaveMode && !trackOptionsMode) { ring::SetEnabled(false);Call(); }
     if(timeoutMode || trackSaveMode || trackOptionsMode) assert(restores==1 && frees==(timeoutMode ? 1u:2u));
-    else if (mode=="sequence" || mode=="user" || (eventCase && !corruptEvent && !corruptScore && !corruptActor && !corruptCrashGlobals) || trackMode) assert(restores==3 && captures>60 && allocations==1 && frees==1);
+    else if (mode=="signedin" || mode=="sequence" || mode=="user" || (eventCase && !corruptEvent && !corruptScore && !corruptActor && !corruptCrashGlobals) || trackMode) assert(restores==3 && captures>60 && allocations==1 && frees==1);
     else if (rejectTarget || corruptEvent || corruptScore || corruptActor || corruptCrashGlobals) assert(restores==2 && frees==1);
     else if (mode=="budget" || mode=="buffer" || mode=="failed") assert(!restores && allocations==1 && frees==1);
     else assert(!restores && !allocations && !captures);

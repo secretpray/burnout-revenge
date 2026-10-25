@@ -6,7 +6,6 @@
 #include "rewind_copy.h"
 #include "crash_launch_status.h"
 #include <cpu/guest_thread.h>
-#include <user/online.h>
 #include <kernel/write_watch.h>
 #include <report/report.h>
 #include <cmath>
@@ -677,7 +676,7 @@ namespace game::rewind::ring
         const Boundary b{kGame,PPC_LOAD_U32(kPhase),session,
             session==codes::kSoloSession ? PPC_LOAD_U32(session+8):0,
             session==codes::kSoloSession ? PPC_LOAD_U32(session+4):0,
-            PPC_LOAD_U32(codes::kLocalPlayers),PPC_LOAD_U8(codes::kSpecialMode),PPC_LOAD_U32(codes::kCrashVariant),online::Enabled()};
+            PPC_LOAD_U32(codes::kLocalPlayers),PPC_LOAD_U8(codes::kSpecialMode),PPC_LOAD_U32(codes::kCrashVariant)};
         auto permitted=b;
         // Crash world capture also runs outside the ordinary recorder callback.
         // Only its solo event may use the native Crash special-mode flag.

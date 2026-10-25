@@ -20,12 +20,12 @@ namespace game::codes
 
     struct Context
     {
-        bool enabled{}, online{};
+        bool enabled{};
         uint32_t session{}, controller{}, localPlayers{}, specialMode{}, crashVariant{}, driver{}, player{};
     };
     constexpr bool Allowed(const Context& c)
     {
-        return c.enabled && !c.online && c.session == kSoloSession &&
+        return c.enabled && c.session == kSoloSession &&
             c.controller != 0 && c.controller != kPartyController && c.controller != kCrashController &&
             c.localPlayers == 1 && c.specialMode == 0 && c.driver == 0 && c.player == 0;
     }

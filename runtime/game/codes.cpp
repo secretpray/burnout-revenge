@@ -1,7 +1,6 @@
 // Burnout Revenge port. GPL-3.0-or-later (see COPYING).
 // Built-in solo Codes, guarded at every original game update or award.
 #include <stdafx.h>
-#include <user/online.h>
 #include <bit>
 #include <chrono>
 #include <cstdlib>
@@ -21,7 +20,7 @@ namespace
     Context ReadContext(uint8_t* base, bool enabled, uint32_t car = 0)
     {
         const uint32_t session = PPC_LOAD_U32(kSession);
-        return {enabled, online::Enabled(), session,
+        return {enabled, session,
             session == kSoloSession ? PPC_LOAD_U32(session + 8) : 0, PPC_LOAD_U32(kLocalPlayers),
             PPC_LOAD_U8(kSpecialMode), PPC_LOAD_U32(kCrashVariant),
             car ? PPC_LOAD_U32(car + 15328) : 0, car ? PPC_LOAD_U32(car + 19168) : 0};
@@ -123,9 +122,9 @@ PPC_FUNC(sub_820DA9D8)
             {
                 const uint32_t boostingFrames = entry.boostingFrames;
                 entry = {self, 0, now};
-                fprintf(stderr, "[codes] boost=%08X car=%08X apply=%u driver=%u player=%u locals=%u special=%u online=%u session=%08X controller=%08X variant=%u level=%u stock=%u active=%u boosting_frames=%u boost=%g/%g levels=%g,%g,%g,%g\n",
+                fprintf(stderr, "[codes] boost=%08X car=%08X apply=%u driver=%u player=%u locals=%u special=%u session=%08X controller=%08X variant=%u level=%u stock=%u active=%u boosting_frames=%u boost=%g/%g levels=%g,%g,%g,%g\n",
                     self, car, apply, context.driver, context.player, context.localPlayers,
-                    context.specialMode, context.online, context.session, context.controller, context.crashVariant, PPC_LOAD_U32(self + 88) + 1,
+                    context.specialMode, context.session, context.controller, context.crashVariant, PPC_LOAD_U32(self + 88) + 1,
                     PPC_LOAD_U8(self + 184), PPC_LOAD_U8(self + 186), boostingFrames,
                     std::bit_cast<float>(PPC_LOAD_U32(self + 96)), capacity,
                     std::bit_cast<float>(PPC_LOAD_U32(0x825E1F3C)), std::bit_cast<float>(PPC_LOAD_U32(0x825E1F40)),

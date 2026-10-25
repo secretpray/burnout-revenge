@@ -15,6 +15,7 @@ namespace game::crash_launch
         bool visible{};
         bool waiting{};
         bool nativeMessage{};
+        bool showStartPrompt{}; // network countdown has no native press-to-start prompt
         float time{}, alpha{1};
         Model model;
     };

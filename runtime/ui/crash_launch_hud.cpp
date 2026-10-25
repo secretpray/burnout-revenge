@@ -146,8 +146,8 @@ namespace ui
         if (done && m.result != game::crash_launch::Result::Blown && m.result != game::crash_launch::Result::Missed)
             arc.Ring(bar, m.level - .03828f, m.level + .03828f, {245.5f / 256, 1}, {1, 0},
                 1 + .7f / radiusPerWidth, 1 - .7f / radiusPerWidth, white, 1);
-        // The game supplies the initial centred PRESS ... TO START prompt.
-        if (status.waiting) return;
+        // Solo supplies its native prompt; network Crash starts a countdown.
+        if (status.waiting && !status.showStartPrompt) return;
         if (done && status.nativeMessage) return;
         auto* font = burnout::RowFont();
         const bool originalFont = locale::Current() == locale::Language::English && crash_art::LoadFont();
@@ -168,7 +168,8 @@ namespace ui
         if (!done)
         {
             const float fontSize = (originalFont ? 31 : 23) * scale;
-            const std::string prompt = locale::Text(m.upperStopped ? "PRESS {} TO SET CONTROL" : "PRESS {} TO SET SPEED");
+            const std::string prompt = locale::Text(status.waiting ? "PRESS {} TO START" :
+                m.upperStopped ? "PRESS {} TO SET CONTROL" : "PRESS {} TO SET SPEED");
             const size_t button = prompt.find("{}");
             if (button == std::string::npos) return;
             const std::string prefix = prompt.substr(0, button), suffix = prompt.substr(button + 2);
@@ -179,7 +180,7 @@ namespace ui
             const char* key = code ? SDL_GetScancodeName(SDL_Scancode(code)) : "UNBOUND";
             const float glyph = keyboard ? width(key, fontSize) + 10 * scale : 25 * scale;
             const float total = a + glyph + width(suffix.c_str(), fontSize);
-            const ImVec2 at{viewport->WorkPos.x + (size.x - total) * .5f, top + (m.upperStopped ? 321 : 76) * scale};
+            const ImVec2 at{viewport->WorkPos.x + (size.x - total) * .5f, top + (status.waiting || m.upperStopped ? 321 : 76) * scale};
             outlined(prefix.c_str(), at, fontSize, white);
             if (keyboard) outlined(key, {at.x + a + 5 * scale, at.y}, fontSize, white);
             else burnout::ButtonGlyph(draw, {at.x + a, at.y}, 25 * scale, "A");

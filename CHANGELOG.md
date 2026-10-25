@@ -2,6 +2,15 @@
 
 ## v0.1.25
 
+- Split Settings > Mods into Cheat Codes and Modifications, and add a one-time Madden Van unlock using the game's original trailer reward. Save the loaded Player File afterwards to retain it.
+
+- Allow Classic Crash Launch in solo World Tour while signed in to Xbox Live.
+  Also support network Crash on clients that enable the option, preserving native
+  networking, event deadlines and turn progression. Changes now apply on event
+  Retry or the next event, without restarting the app.
+- Keep solo driving Codes and Rewind available while signed in to Live. Their
+  restrictions follow actual network/local multiplayer sessions, independently
+  of the Online Play sign-in switch.
 - Clarify Classic Crash Launch's tap-and-release controls. Holding the initial
   press can stop the meter at about one third, following the original PS2/Xbox
   rules. Its launch algorithm is unchanged.

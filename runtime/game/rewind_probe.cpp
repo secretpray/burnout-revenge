@@ -4,12 +4,12 @@
 #include "rewind_probe.h"
 #include "rewind_trial.h"
 #include "rewind_ring.h"
+#include "madden_unlock.h"
 #include <apu/audio.h>
 #include <cpu/guest_thread.h>
 #include <gpu/command_processor.h>
 #include <kernel/vmem.h>
 #include <report/report.h>
-#include <user/online.h>
 #include <cmath>
 #include <cstdlib>
 
@@ -75,7 +75,7 @@ namespace
             session == game::codes::kSoloSession ? PPC_LOAD_U32(session + 8) : 0,
             session == game::codes::kSoloSession ? PPC_LOAD_U32(session + 4) : 0,
             PPC_LOAD_U32(game::codes::kLocalPlayers), PPC_LOAD_U8(game::codes::kSpecialMode),
-            PPC_LOAD_U32(game::codes::kCrashVariant), online::Enabled()};
+            PPC_LOAD_U32(game::codes::kCrashVariant)};
         struct Series
         {
             Boundary boundary{};
@@ -147,7 +147,11 @@ PPC_FUNC(sub_8211FA28)
         }
     }
     __imp__sub_8211FA28(ctx, base);
-    if (gameObject==game::rewind::kGame) game::rewind::ring::AtWorldBoundary(ctx,base);
+    if (gameObject==game::rewind::kGame)
+    {
+        game::rewind::ring::AtWorldBoundary(ctx,base);
+        game::madden::AtBoundary(ctx,base);
+    }
 }
 
 // Native Replay uses a game-owned serializer, rather than raw RAM copies.
@@ -159,7 +163,7 @@ PPC_FUNC(sub_82345648)
     __imp__sub_82345648(ctx, base);
     if (ctx.r3.u32 == 0) return;
     game::rewind::trial::Captured(base, header, payload, capacity);
-    if (!Enabled() || online::Enabled()) return;
+    if (!Enabled() || PPC_LOAD_U32(game::codes::kSession) != game::codes::kSoloSession) return;
     static thread_local unsigned count = 0;
     if (count >= 24) return;
     Diagnose([&] {
@@ -175,7 +179,7 @@ PPC_FUNC(sub_823456A8)
 {
     const uint32_t header = ctx.r3.u32;
     __imp__sub_823456A8(ctx, base);
-    if (!Enabled() || online::Enabled()) return;
+    if (!Enabled() || PPC_LOAD_U32(game::codes::kSession) != game::codes::kSoloSession) return;
     static thread_local unsigned count = 0;
     if (count >= 100) return;
     Diagnose([&] {

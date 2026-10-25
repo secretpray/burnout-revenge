@@ -36,6 +36,7 @@
 #include <user/online.h>
 #include <user/online_identity.h>
 #include <game/rewind_ring.h>
+#include <game/madden_unlock.h>
 #include <hid/input.h>
 #include <hid/rewind_shortcuts.h>
 #include <SDL3/SDL_dialog.h>
@@ -83,6 +84,7 @@ namespace ui
         std::optional<online::CheckResult> s_checkResult;
         std::string s_checkedServer;  // the server the result is about
         bool s_describedMusicFolder = false;
+        bool s_describedMadden = false;
         bool s_openAddons = false;
         bool s_rewindHelp=false,s_chordHelp=false,s_chordRecording=false,s_chordArmed=false;
         uint16_t s_chordPeak=0;
@@ -413,7 +415,7 @@ namespace ui
 
         float RowHeight()
         {
-            return ImGui::GetFrameHeight() + 10.0f * Scale();
+            return ImGui::GetFrameHeight() + (s_category == Category::Codes ? 2.0f : 10.0f) * Scale();
         }
 
         // Rows keep their text kSpaceL inside the highlight, which spans the
@@ -783,6 +785,27 @@ namespace ui
             if (activated)
                 menu_sounds::Play(menu_sounds::Sound::Select);
             return activated;
+        }
+
+        void ModsSection(const char* label)
+        {
+            ImGui::TableNextRow(ImGuiTableRowFlags_None, RowHeight() * .6f);
+            ImGui::TableNextColumn();
+            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + LabelInset());
+            ImGui::PushFont(burnout::LabelFont(), 18.f);
+            ImGui::TextDisabled("%s", Upper(label).c_str());
+            ImGui::PopFont();
+            ImGui::TableNextColumn();
+        }
+
+        void MaddenRow(float width)
+        {
+            using game::madden::Status;
+            const auto state = game::madden::GetStatus();
+            const char* value = state == Status::Unlocked ? "Unlocked" :
+                state == Status::Pending ? "Unlocking..." : state == Status::Ready ? "Unlock" : "Open World Tour";
+            if (ActionRow("madden-van", "Unlock Madden Van", value, width, s_describedMadden, state == Status::Ready))
+                game::madden::Request();
         }
 
         std::string RewindStateText()
@@ -1311,6 +1334,11 @@ namespace ui
                 ImGui::PopStyleColor();
                 return;
             }
+            if (s_describedMadden)
+            {
+                ImGui::TextWrapped("%s", locale::Text("Unlock the Madden Van for Crash events in the loaded Player File, just like opening the Madden NFL 06 trailer. Available in the World Tour menu. Save your Player File afterwards to keep it. Career medals and completion stay the same."));
+                return;
+            }
             if (s_described == Id::Count)
             {
                 ImGui::TextDisabled(" ");
@@ -1482,6 +1510,7 @@ namespace ui
         s_describedServerAddress = false;
         s_describedCheck = false;
         s_describedMusicFolder = false;
+        s_describedMadden = false;
         s_describedCal = false;
         if (s_waiting != Id::Count && settings::Info(s_waiting).category != s_category)
             EndWait();
@@ -1547,7 +1576,7 @@ namespace ui
                 ImGui::PopStyleVar();
                 // The rows in the game's face; the focused one is marked by
                 // RowLabel (yellow between hazard dashes), not ImGui's box.
-                ImGui::PushFont(burnout::RowFont(), kRowFontSize);
+                ImGui::PushFont(burnout::RowFont(), category == Category::Codes ? 21.f : kRowFontSize);
                 ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0, 0, 0, 0));
                 ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(1, 1, 1, 0.04f));
                 ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(0.96f, 0.71f, 0.15f, 0.10f));
@@ -1575,6 +1604,9 @@ namespace ui
                         for (const char* text : { "START", "17/17" })
                             valueWidth = std::max(valueWidth, ImGui::CalcTextSize(locale::Text(text)).x);
                     if (category==Category::Rewind) valueWidth=std::max(valueWidth,250.f*s);
+                    if (category==Category::Codes)
+                        for (const char* text : { "Unlocked", "Unlocking...", "Unlock", "Open World Tour" })
+                            valueWidth=std::max(valueWidth,ImGui::CalcTextSize(Upper(text).c_str()).x);
                     valueWidth += 2 * kSpaceM * s;
                     float arrow = ImGui::GetFrameHeight();
                     ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, cellPadding);
@@ -1582,6 +1614,7 @@ namespace ui
                     {
                         ImGui::TableSetupColumn("label", ImGuiTableColumnFlags_WidthStretch);
                         ImGui::TableSetupColumn("value", ImGuiTableColumnFlags_WidthFixed, valueWidth + arrow * 2 + ValueInset());
+                        if (category==Category::Codes) ModsSection("Cheat Codes");
                         if (category == Category::Controls)
                             for (const auto& e : hid::keymap::kEntries)
                             {
@@ -1592,6 +1625,11 @@ namespace ui
                             for (const auto& o : settings::Options())
                                 if (o.category == category && !o.hidden)
                                 {
+                                    if (category==Category::Codes && o.id==Id::CrashLaunchMeter)
+                                    {
+                                        MaddenRow(valueWidth);
+                                        ModsSection("Modifications");
+                                    }
                                     if (o.type==settings::Type::Key)
                                     {
                                         const auto& entry=KeyEntry(o.id);

@@ -17,6 +17,7 @@ Heap g_userHeap;
 static bool live{}, throws{}, diagnosticThrows{};
 static int originals{}, inventories{};
 static PPCContext expected;
+namespace game::madden { void AtBoundary(PPCContext&,uint8_t*) {} }
 namespace online { bool Enabled() { return live; } }
 namespace game::rewind::trial { void Captured(uint8_t*, uint32_t, uint32_t, uint32_t) {} }
 namespace game::rewind::ring { void AtWorldBoundary(PPCContext&,uint8_t*) {} }
@@ -123,7 +124,7 @@ int main(int argc, char** argv)
     {
         Call(1); assert(inventories == 0); // foreign receiver: no global reads
         Setup();
-        live = true; Call(); assert(inventories == 0);
+        live = true; Change(kSession,0x8287C718); Call(); assert(inventories == 0);
         Setup(); Change(kSession, 0xDEADBEEF); Call(); assert(inventories == 0);
         Setup(); Change(kLocalPlayers, 2); Call(); assert(inventories == 0);
         Setup(); Change(kSpecialMode, 0x01000000); Call(); assert(inventories == 0);
