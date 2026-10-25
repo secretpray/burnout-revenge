@@ -257,6 +257,9 @@ combination is held, so choose combinations that suit your controls.
 
 Classic Crash Launch restores the PS2 and original Xbox launch meter
 in offline solo World Tour Crash. It is off by default; restart the game after changing it.
+Tap and release A (PlayStation cross) to start the meter, then use separate
+presses to set speed and control. Holding the first press can stop it at about
+one third and give a weak automatic launch, as in the original PS2/Xbox game.
 [Controls and current limits](docs/CLASSIC_CRASH_LAUNCH.md).
 
 Five modifiers for the **solo World Tour**, modelled on the old Xbox 360 trainers.

@@ -4,10 +4,12 @@ Enable **Settings > Mods > Classic Crash Launch**, then restart the game.
 The option is off by default. It applies to solo World Tour Crash with
 **Online Play disabled**. Other modes keep their original launch.
 
-Press the launch button (Xbox A, PlayStation cross, or its keyboard binding)
-once to begin. Press again to set speed while the meter rises, then again to
-set control as it descends. These are presses, not a requirement to hold the
-button. The upper green zone sets a fast launch; combining it with the lower
+Tap and release the launch button (Xbox A, PlayStation cross, or its keyboard
+binding) once to begin. The meter rises on its own. Tap again to set speed,
+release, then tap again to set control as it descends. Holding the first press
+can stop the meter at about one third and trigger a weak automatic start;
+this follows the original PS2/Xbox eligible-button rules, rather than a lost
+controller signal. The upper green zone sets a fast launch; combining it with the lower
 green zone gives Power Boost. The extreme red ends can produce Engine Blown
 or Stalled. The Stall window is very narrow and depends on the simulation
 frame; a missed press can give Slow Start instead. Waiting without pressing

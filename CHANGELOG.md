@@ -2,6 +2,9 @@
 
 ## v0.1.25
 
+- Clarify Classic Crash Launch's tap-and-release controls. Holding the initial
+  press can stop the meter at about one third, following the original PS2/Xbox
+  rules. Its launch algorithm is unchanged.
 - Keep solo World Tour FOV, chase distance and shake controls working while
   signed in to Xbox Live. Eligibility now follows the active solo session;
   the account's sign-in setting no longer disables the camera controls.

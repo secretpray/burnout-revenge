@@ -73,6 +73,32 @@ int main()
         }
         else assert(m.result == Result::Missed && m.fraction == .52f);
     }
+    // A physical Cross/A held from the initial launch is not lost input.
+    // Both retail PS2 and Xbox instruction traces stop it on tick 30 at
+    // 0.3010755479, then finish without a second press on tick 46. The
+    // eligible-zone history must not be replaced with a raw-button edge.
+    m = {};
+    m.parameters.limits = {.007f, .08f, .22f, .30f, .8f, .9965f};
+    for (unsigned tick = 1; tick <= 46; ++tick)
+    {
+        m.Step(1.f / 60, true);
+        if (tick < 30) assert(!m.upperStopped);
+        if (tick == 30)
+            assert(m.upperStopped && std::bit_cast<unsigned>(m.upper) == 1050289811u);
+        if (tick < 46) assert(m.phase != Phase::Done);
+    }
+    assert(m.result == Result::Missed && m.fraction == .52f);
+    // Release the initial tap, then make separate upper/lower presses:
+    // retail traces stop on tick 69 and finish with Power on tick 127.
+    m = {};
+    m.parameters.limits = {.007f, .08f, .22f, .30f, .8f, .9965f};
+    for (unsigned tick = 1; tick <= 127; ++tick)
+    {
+        m.Step(1.f / 60, tick < 5 || tick == 69 || tick == 127);
+        if (tick < 69) assert(!m.upperStopped);
+        if (tick < 127) assert(m.phase != Phase::Done);
+    }
+    assert(m.result == Result::Power && m.fraction == 1 && m.steering == 0);
     m = {}; m.Step(.2f, false);
     assert(m.level == .1f); // Original accepts simulation hitches above 100 ms.
     assert(m.engineAcceleration == 1.f);
