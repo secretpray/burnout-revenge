@@ -1,11 +1,18 @@
 # Changelog
 
-## Unreleased
+## v0.1.26
 
 - Home / Xbox Guide / PS opens the quit confirmation while the game window
   is active. Cancel is selected first, and B / Circle returns to the game or
   the settings page that was open. Holding the button cannot repeat the prompt.
   Availability depends on the controller driver and system shortcuts.
+- The dialog follows the controller that opened it, including player 2, and
+  keeps an open Settings page intact. Other dialogs, control assignment and
+  calibration are not interrupted.
+- While the game window is focused, macOS is asked to give Home to the quit
+  dialog instead of its system gesture. System handling resumes when focus
+  leaves; your Game Center / Games shortcut settings stay unchanged. macOS
+  may still reserve the button, and Settings > Quit Game remains available.
 
 ## v0.1.25
 

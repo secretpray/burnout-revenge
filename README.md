@@ -59,7 +59,7 @@
 <sub>Unedited screenshots from this port on an M1 Pro. The game content in them belongs to its owners.</sub>
 
 > [!TIP]
-> **New in v0.1.25:** Classic Crash Launch in network play, changes applied on Retry, solo Codes and Rewind with Live sign-in enabled, and Madden Van unlock in a clearer Mods page. Controller slots stay stable after disconnects; My Music indexes in the background and resumes after reward videos. [Release notes](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.25).
+> **New in v0.1.26:** Press **Home / Xbox Guide / PS** to open the quit confirmation. Cancel is selected first, the dialog follows the controller that opened it, and an open Settings page stays intact. The active game requests priority over the macOS system gesture without changing your shortcut settings. [Release notes](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.26).
 
 
 **TL;DR**
@@ -156,6 +156,11 @@
 
 **Controls**
 
+- **Home / Xbox Guide / PS** opens the quit confirmation in the active game
+  window, with Cancel selected first. B / Circle dismisses it. The dialog
+  follows the controller that opened it and preserves an open Settings page.
+  macOS is asked to give Home to the game while focused; system shortcut
+  settings stay unchanged. [See the dialog](docs/screenshots/controller-quit.jpg).
 - Xbox controllers and DualSense through SDL, with vibration. Back + Start
   (Share + Options on a DualSense) opens the settings anywhere. If an Xbox
   controller uses Apple's GameController route over USB, a one-time notice
