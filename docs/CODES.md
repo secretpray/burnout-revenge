@@ -1,6 +1,6 @@
 # Codes: offline cheats for the solo career
 
-Open Settings (F1, Cmd+, or Back + Start) and go to **Codes**. There are five
+Open Settings (F1, Cmd+, or Back + Start) and go to **Mods**. There are five
 modifiers, in the spirit of the Xbox 360 trainers by RETROBYTE (Aurora) and
 TeamXPG. All are off by default and apply at once, without a restart. They
 work only in solo World Tour driving events. Career progress is saved through

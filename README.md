@@ -59,7 +59,7 @@
 <sub>Unedited screenshots from this port on an M1 Pro. The game content in them belongs to its owners.</sub>
 
 > [!TIP]
-> **New in v0.1.23: camera controls and three more languages.** Adjust FOV, chase-camera distance and shake on the existing Display page. Menus and original game text now support Dutch, Swedish and Finnish, alongside the previous six languages. [Language import](#languages).
+> **New in v0.1.24: Classic Crash Launch.** Enable the PS2/original Xbox launch meter under Settings > Mods, then restart. The renamed Mods page also contains the five existing cheats. [Controls and current limits](docs/CLASSIC_CRASH_LAUNCH.md).
 
 **TL;DR**
 
