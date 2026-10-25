@@ -72,6 +72,8 @@ def main():
             if not match:
                 continue
             soname, source = match.groups()
+            if '/' in soname or soname.startswith('ld-linux'):
+                continue  # absolute loader entries are always supplied by glibc
             # Display/audio/server libraries must match the host. C/C++ runtime
             # requirements are measured and documented instead of replacing glibc.
             if re.match(r'lib(c\.|m\.|dl\.|rt\.|pthread\.|stdc\+\+|gcc_s|vulkan|X|xcb|wayland|decor|drm|gbm|GL|EGL|pipewire|pulse|asound|udev|dbus|systemd)', soname):
