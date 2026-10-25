@@ -19,7 +19,7 @@
   &nbsp;·&nbsp;
   <a href="#rewind">Rewind</a>
   &nbsp;·&nbsp;
-  <a href="#mods">Codes</a>
+  <a href="#mods">Mods</a>
   &nbsp;·&nbsp;
   <a href="#languages">Languages</a>
   &nbsp;·&nbsp;
@@ -59,7 +59,8 @@
 <sub>Unedited screenshots from this port on an M1 Pro. The game content in them belongs to its owners.</sub>
 
 > [!TIP]
-> **New in v0.1.25:** stable player assignments after controller disconnects, an Xbox USB vibration notice, background indexing for My Music, and soundtrack recovery after reward videos. Classic Crash Launch remains available in Settings > Mods. [Controls and current limits](docs/CLASSIC_CRASH_LAUNCH.md).
+> **New in v0.1.25:** Classic Crash Launch in network play, changes applied on Retry, solo Codes and Rewind with Live sign-in enabled, and Madden Van unlock in a clearer Mods page. Controller slots stay stable after disconnects; My Music indexes in the background and resumes after reward videos. [Release notes](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.25).
+
 
 **TL;DR**
 
@@ -80,6 +81,20 @@
 - Settings: **F1**, **Cmd+,** or **Back + Start** on a controller.
 
 ## Highlights
+
+**Gameplay and mods**
+
+- **Classic Crash Launch**: the PS2 and original Xbox meter in solo World Tour
+  and network Crash. Set speed and control with separate taps. Switch it in
+  Settings > Mods > Modifications, then retry or start another event; no app
+  restart is needed. Each network player can choose their launch style.
+- **Rewind 10, 20 or 30 seconds** in six solo World Tour event types, with
+  configurable controller combinations and keyboard shortcuts.
+- **Cheat Codes**: five optional solo driving modifiers and **Unlock Madden Van**.
+  The van uses the original trailer reward and does not require 100% completion.
+  Save your Player File after unlocking it, then choose it in a Crash garage.
+- Live sign-in does not disable solo Codes, Rewind or camera controls. Their
+  restrictions follow the active network or local multiplayer session.
 
 **Picture**
 
@@ -218,7 +233,7 @@ two or three buttons to assign them. During play, hold the combination for
 combinations are rejected. L2/R2 (gas and brake) are excluded.
 
 <p align="center">
-  <img src="docs/screenshots/rewind-controller-shortcuts.jpg" alt="Rewind settings with configurable controller rows: 10 seconds L1 + R1, 20 seconds L3 + R3, 30 seconds L1 + R3; help explains holding for 0.3 seconds and releasing fully" width="85%">
+  <img src="docs/screenshots/rewind-controller-shortcuts.jpg" alt="Current Rewind controller shortcuts: 10 seconds LB + RB, 20 seconds LS + RS, 30 seconds LB + RS; hold for 0.3 seconds and release fully" width="85%">
   <br>
   <sub>Assign a separate controller combination to each rewind duration.</sub>
 </p>
@@ -268,6 +283,13 @@ one third and give a weak automatic launch, as in the original PS2/Xbox game.
 trailer. It is available with your Player File loaded in the World Tour menu;
 100% completion is not required. Save your Player File afterwards to keep it,
 then select the van in a Crash event’s garage.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/classic-crash-launch.jpg" alt="Classic Crash Launch in Road To Ruins: the curved meter and press-to-set-control prompt with the Madden Van"><br><sub>Set speed, then control.</sub></td>
+    <td width="50%"><img src="docs/screenshots/classic-crash-network.jpg" alt="Network Crash with two Madden Vans, a remote player marker and a Perfect Start after the classic meter"><br><sub>Classic launch in network Crash.</sub></td>
+  </tr>
+</table>
 
 Five modifiers for the **solo World Tour**, modelled on the old Xbox 360 trainers.
 They change what the game awards, not how it saves: results earned with a Code stay
@@ -362,16 +384,16 @@ Open with **F1**, **Cmd+,** or **Back + Start**. LB/RB (Q/E) switch pages.
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/settings-menu-display.jpg" alt="v0.1.23 Display settings with Field of View Offset, Chase Camera Distance and Camera Shake"><br><sub>Display: FOV, camera distance and shake.</sub></td>
-    <td width="50%"><img src="docs/screenshots/settings-menu-graphics.jpg" alt="v0.1.22 Graphics settings with anti-aliasing, upscaling, sharpening, anisotropic filtering and mipmaps"><br><sub>Graphics: anti-aliasing and upscaling.</sub></td>
+    <td width="50%"><img src="docs/screenshots/settings-menu-display.jpg" alt="Current Display camera settings: Field of View Offset, Chase Camera Distance and Camera Shake"><br><sub>Display: FOV, camera distance and shake.</sub></td>
+    <td width="50%"><img src="docs/screenshots/settings-menu-graphics.jpg" alt="Current Graphics settings with anti-aliasing, upscaling, sharpening, anisotropic filtering and mipmaps"><br><sub>Graphics: anti-aliasing and upscaling.</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshots/settings-menu-audio.jpg" alt="v0.1.22 Audio settings with master volume, mute controls and the EA Trax or My Music choice"><br><sub>Audio: volume and music.</sub></td>
-    <td width="50%"><img src="docs/screenshots/settings-menu-input.jpg" alt="v0.1.22 Input settings with stick and trigger deadzones, vibration, button prompts and the DualSense driver"><br><sub>Input: deadzones, vibration and button prompts.</sub></td>
+    <td width="50%"><img src="docs/screenshots/settings-menu-audio.jpg" alt="Current Audio settings with master volume, mute controls and the EA Trax or My Music choice"><br><sub>Audio: volume and music.</sub></td>
+    <td width="50%"><img src="docs/screenshots/settings-menu-input.jpg" alt="Current Input settings with stick and trigger deadzones, vibration, button prompts and the DualSense driver"><br><sub>Input: deadzones, vibration and button prompts.</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshots/settings-menu-codes.jpg" alt="v0.1.22 Codes settings with five optional solo World Tour modifiers"><br><sub>Codes: optional solo career modifiers.</sub></td>
-    <td width="50%"><img src="docs/screenshots/settings-menu-rewind.jpg" alt="v0.1.22 Rewind settings with separate configurable controller combinations for 10, 20 and 30 seconds"><br><sub>Rewind: configurable 10/20/30-second shortcuts.</sub></td>
+    <td width="50%"><img src="docs/screenshots/settings-mods.jpg" alt="Current Mods settings: Cheat Codes, Unlock Madden Van and Modifications"><br><sub>Mods: Cheat Codes and Modifications.</sub></td>
+    <td width="50%"><img src="docs/screenshots/settings-menu-rewind.jpg" alt="Current Rewind settings with separate configurable controller combinations for 10, 20 and 30 seconds"><br><sub>Rewind: configurable 10/20/30-second shortcuts.</sub></td>
   </tr>
 </table>
 

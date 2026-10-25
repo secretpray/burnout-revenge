@@ -2,42 +2,26 @@
 
 ## v0.1.25
 
-- Split Settings > Mods into Cheat Codes and Modifications, and add a one-time Madden Van unlock using the game's original trailer reward. Save the loaded Player File afterwards to retain it.
-
-- Allow Classic Crash Launch in solo World Tour while signed in to Xbox Live.
-  Also support network Crash on clients that enable the option, preserving native
-  networking, event deadlines and turn progression. Changes now apply on event
-  Retry or the next event, without restarting the app.
-- Keep solo driving Codes and Rewind available while signed in to Live. Their
-  restrictions follow actual network/local multiplayer sessions, independently
-  of the Online Play sign-in switch.
-- Clarify Classic Crash Launch's tap-and-release controls. Holding the initial
-  press can stop the meter at about one third, following the original PS2/Xbox
-  rules. Its launch algorithm is unchanged.
-- Keep solo World Tour FOV, chase distance and shake controls working while
-  signed in to Xbox Live. Eligibility now follows the active solo session;
-  the account's sign-in setting no longer disables the camera controls.
-- Resume the soundtrack when leaving a challenge-complete, rank-up or signature
-  takedown video, including skipping with Start. Use the game's own resume and
-  mute cleanup, avoid a second resume after a completed movie, and keep the hold
-  across consecutive reward clips. Adapted from Xerenge's v0.4.8 fix for #29.
-- Keep player assignments stable during local split-screen sessions when a
-  controller disconnects. A replacement joins the first missing player with a
-  fresh Start press; reconnecting or adding a spare controller cannot silently
-  take another player's car. The native pause remains in charge, and controls
-  must be released before a replacement can send input.
-- Explain the macOS GameController USB vibration limitation for affected Xbox
-  controllers, including player 2. The notice appears in the game menu or
-  over Settings while play is paused, only with Vibration enabled. Dismissal
-  is remembered. Bluetooth and other controller routes are excluded; this
-  notice does not change the motors' behavior.
-- Index My Music on one background worker. Audio settings and track selection
-  share a ready list with cached metadata, so browsing a slow library no
-  longer scans the filesystem on the UI or audio thread. Updated folders are
-  refreshed in the background, with cancellation of stale generations and
-  bounded scanning (4,096 songs / 16,384 entries). The folder row shows scanning,
-  unavailable and limit states in all nine interface languages. EA Trax plays
-  while the first list is loading; shutdown does not wait on a stalled mount.
+- Mods now has Cheat Codes and Modifications sections. Unlock Madden Van uses
+  the game's original trailer reward without requiring 100% completion. Save
+  your Player File afterwards, then select the van in a Crash event's garage.
+- Classic Crash Launch works in solo World Tour and network Crash. Each network
+  player can choose the classic meter or the Xbox 360 start. Changes apply on
+  event Retry or the next event, without restarting the app. Tap and release
+  A/Cross to start, then press separately to set speed and control.
+- Solo driving Codes, Rewind and camera controls work while signed in to Live.
+  Restrictions follow actual network and local multiplayer sessions; the
+  Online Play switch no longer disables solo options.
+- Controller disconnects preserve player slots in split screen. A replacement
+  joins the first missing player with a fresh Start press. Release the controls
+  before resuming; reconnecting a spare cannot silently swap the cars.
+- A one-time notice explains the affected Xbox USB vibration route on macOS
+  and suggests Bluetooth. It includes player 2 and remembers dismissal.
+- My Music indexes folders and song metadata in the background. Audio settings
+  and playback share the ready list; EA Trax plays while it loads. Missing
+  folders and scan limits are shown in all nine interface languages.
+- Leaving a reward video resumes the soundtrack through the game's own routine,
+  including when skipped with Start. Adapted from Xerenge's v0.4.8 fix for #29.
 
 ## v0.1.24
 

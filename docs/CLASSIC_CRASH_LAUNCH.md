@@ -38,3 +38,7 @@ In solo World Tour, the current event's Replay retains the launch timeline and d
 in memory, including replaying from the start. Small physics differences can
 remain. Saved or reloaded Burnout Clips do not store this additional timeline
 and can play differently. Solo Rewind history starts after the launch meter finishes.
+
+![Classic meter in solo World Tour](screenshots/classic-crash-launch.jpg)
+
+![Classic start in network Crash](screenshots/classic-crash-network.jpg)
