@@ -102,8 +102,9 @@ namespace ui
 
     // A full-screen page drawn every frame instead of the game until it is
     // cleared (the installer). Call from the main thread; `draw` runs inside
-    // BeginFrame().
-    void SetModal(std::function<void()> draw, bool preserveSettings = false);
+    // BeginFrame(). An optional controller owns its navigation until cleared
+    // or disconnected; other panels keep the backend's usual controller.
+    void SetModal(std::function<void()> draw, bool preserveSettings = false, SDL_JoystickID controller = 0);
     bool HasModal();
     // Initialize() succeeded: the UI draws (a modal set without it would
     // hold the game's input with nothing on screen).
@@ -164,6 +165,8 @@ namespace ui
     // The menu closed: Quit Game's prompt (settings_menu.cpp, quit_game.h),
     // if it was asking, is cancelled.
     void ForgetQuitPrompt();
+    // Home/Guide/PS: the existing confirmation, preserving any open settings.
+    bool RequestControllerQuit(SDL_JoystickID controller);
 
     // Shared look (ui.cpp).
     SDL_Window* GetWindow();

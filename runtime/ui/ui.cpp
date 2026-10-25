@@ -8,6 +8,8 @@
 #include "guest_keyboard.h"
 #include "burnout_setup.h"
 #include "menu_sounds.h"
+#include "quit_game.h"
+#include <hid/input.h>
 #include <apu/audio.h>
 
 #include <hid/wheel.h>       // the settings chord and the menus from a steering wheel
@@ -59,7 +61,19 @@ namespace ui
         bool s_rendererReady = false;
         bool s_frameBuilt = false;
         bool s_settingsOpen = false;
+#if BR_QUIT_GAME
+        quit::GuidePress s_guide;
+#endif
         std::function<void()> s_modal;
+        SDL_Gamepad* s_modalGamepad = nullptr;
+
+        void ReleaseModalGamepad()
+        {
+            if (!s_modalGamepad) return;
+            ImGui_ImplSDL3_SetGamepadMode(ImGui_ImplSDL3_GamepadMode_AutoFirst);
+            SDL_CloseGamepad(s_modalGamepad);
+            s_modalGamepad = nullptr;
+        }
         std::atomic<bool> s_capturing{ false };
         int s_shots = 0;  // BURNOUT_UI_KEYS captures not yet taken (main thread)
 
@@ -766,6 +780,7 @@ namespace ui
         CancelGuestKeyboard();
         if (s_settingsOpen)
             CloseSettings();
+        ReleaseModalGamepad();
         {
             std::lock_guard lock(*s_target.queueMutex);
 #if defined(BR_GAME_BURNOUT)
@@ -781,6 +796,9 @@ namespace ui
         s_ready = false;
         s_rendererReady = false;
         s_modal = nullptr;
+#if BR_QUIT_GAME
+        s_guide.Clear();
+#endif
         s_heldPress.clear();
         UpdateCapture();
     }
@@ -797,6 +815,18 @@ namespace ui
 #endif
         if (!s_ready)
             return;
+#if BR_QUIT_GAME
+        if ((e.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN || e.type == SDL_EVENT_GAMEPAD_BUTTON_UP) &&
+            e.gbutton.button == SDL_GAMEPAD_BUTTON_GUIDE)
+        {
+            const bool allowed = SDL_GetKeyboardFocus() == s_window && hid::AssignedGamepad(e.gbutton.which);
+            if (s_guide.Button(e.gbutton.which, e.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN, allowed))
+                RequestControllerQuit(e.gbutton.which);
+            return;  // Guide is a host shortcut, never a game control or remapped chord.
+        }
+        if (e.type == SDL_EVENT_GAMEPAD_REMOVED)
+            s_guide.Removed(e.gdevice.which);
+#endif
         bool forward = s_capturing.load(std::memory_order_relaxed);
         if (s_settingsOpen && !s_modal && SettingsMenuRecordingChord() &&
             (e.type==SDL_EVENT_GAMEPAD_BUTTON_DOWN || e.type==SDL_EVENT_GAMEPAD_BUTTON_UP)) return;
@@ -1166,6 +1196,8 @@ namespace ui
         if (!s_modal && !s_settingsOpen && !perf && !toast && !achievementNotice && !launchVisible)
             return false;
         ImGui_ImplVulkan_NewFrame();
+        if (s_modalGamepad && !SDL_GamepadConnected(s_modalGamepad))
+            ReleaseModalGamepad();  // another pad or the keyboard can cancel after a disconnect.
         ImGui_ImplSDL3_NewFrame();
         FeedWheelNav();  // after the backend's gamepads, so the wheel has the last word
         // SDL gave the window's size and pixels; the UI is drawn into the
@@ -1253,8 +1285,17 @@ namespace ui
         ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
     }
 
-    void SetModal(std::function<void()> draw, bool preserveSettings)
+    void SetModal(std::function<void()> draw, bool preserveSettings, SDL_JoystickID controller)
     {
+        ReleaseModalGamepad();
+        if (draw && controller && s_ready)
+        {
+            // ImGui's default is the first enumerated pad, which need not
+            // be the player who pressed Guide (or even an assigned player).
+            s_modalGamepad = SDL_OpenGamepad(controller);
+            if (s_modalGamepad)
+                ImGui_ImplSDL3_SetGamepadMode(ImGui_ImplSDL3_GamepadMode_Manual, &s_modalGamepad, 1);
+        }
         if (draw && !s_modal && s_ready)
         {
             ImGui::GetIO().ClearInputKeys();

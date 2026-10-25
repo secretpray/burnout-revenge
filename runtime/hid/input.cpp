@@ -527,6 +527,7 @@ namespace
             static const std::pair<const char*, SDL_GamepadButton> buttons[] = {
                 { "A", SDL_GAMEPAD_BUTTON_SOUTH }, { "B", SDL_GAMEPAD_BUTTON_EAST }, { "X", SDL_GAMEPAD_BUTTON_WEST },
                 { "Y", SDL_GAMEPAD_BUTTON_NORTH }, { "BACK", SDL_GAMEPAD_BUTTON_BACK }, { "START", SDL_GAMEPAD_BUTTON_START },
+                { "GUIDE", SDL_GAMEPAD_BUTTON_GUIDE }, { "HOME", SDL_GAMEPAD_BUTTON_GUIDE }, { "PS", SDL_GAMEPAD_BUTTON_GUIDE },
                 { "LB", SDL_GAMEPAD_BUTTON_LEFT_SHOULDER }, { "RB", SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER },
                 { "LS", SDL_GAMEPAD_BUTTON_LEFT_STICK }, { "RS", SDL_GAMEPAD_BUTTON_RIGHT_STICK },
                 { "UP", SDL_GAMEPAD_BUTTON_DPAD_UP }, { "DOWN", SDL_GAMEPAD_BUTTON_DPAD_DOWN },
@@ -665,6 +666,8 @@ namespace
         SDL_GUIDToString(guid, guidText, sizeof(guidText));
         fprintf(stderr, "[input] player %u: SDL GUID %s, driver %c\n", user+1, guidText,
             guid.data[14] >= 32 && guid.data[14] < 127 ? guid.data[14] : '-');
+        fprintf(stderr, "[input] player %u: Home/Guide/PS %s (SDL Guide; foreground quit confirmation)\n", user+1,
+            SDL_GamepadHasButton(gamepad, SDL_GAMEPAD_BUTTON_GUIDE) ? "available" : "not exposed");
         fprintf(stderr, "[input] player %u: %s (rumble %s, trigger rumble %s; transport %s)\n", user + 1,
             SDL_GetGamepadName(gamepad),
             SDL_GetBooleanProperty(props, SDL_PROP_GAMEPAD_CAP_RUMBLE_BOOLEAN, false) ? "yes" : "no",
@@ -986,6 +989,13 @@ namespace hid
         case settings::ButtonPrompts::Auto: break;
         }
         return anyThread ? PublishedGlyphs() : LastGlyphs();
+    }
+
+    bool AssignedGamepad(SDL_JoystickID device)
+    {
+        for (auto* pad : s_gamepads)
+            if (pad && SDL_GetGamepadID(pad) == device) return true;
+        return false;
     }
 
     void HandleEvent(const SDL_Event& e)

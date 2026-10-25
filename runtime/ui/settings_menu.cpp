@@ -39,10 +39,13 @@
 #include <game/madden_unlock.h>
 #include <hid/input.h>
 #include <hid/rewind_shortcuts.h>
+#include <kernel/xam.h>
+#include <apu/audio.h>
 #include <SDL3/SDL_dialog.h>
 #include <SDL3/SDL_misc.h>  // SDL_OpenURL: Music Folder in Finder
 #include <atomic>
 #include <mutex>
+#include <memory>
 #include <optional>
 #include <thread>
 
@@ -1868,6 +1871,46 @@ namespace ui
     }
 
     bool SettingsMenuRecordingChord() { return s_chordRecording; }
+
+    bool RequestControllerQuit(SDL_JoystickID controller)
+    {
+#if BR_QUIT_GAME
+        // Do not replace installation/notices, save dialogs, calibration or
+        // a binding being recorded. A fresh press can ask after they close.
+        if (!Ready() || HasModal() || s_waiting != Id::Count || s_chordRecording || s_calibrating ||
+            ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel))
+            return false;
+        if (s_quit.Choose() != quit::Outcome::Asking)
+            return false;
+        fprintf(stderr, "[ui] Quit Game: asking (Home/Guide/PS)\n");
+        // BeginFrame copies the callback before invoking it, so its first-frame
+        // state must survive those copies.
+        const auto first = std::make_shared<bool>(true);
+        SetModal([first] {
+            if (*first) { ImGui::OpenPopup(kQuitPopup); *first = false; }
+            ImGui::PushFont(burnout::LabelFont(), kTextFontSize);
+            DrawQuitPrompt();
+            ImGui::PopFont();
+            if (!s_quit.Asking() && !s_quit.Quitting())
+            {
+                SetModal(nullptr);
+                if (!SettingsOpen())
+                {
+                    XamNotifySystemUi(false);
+                    apu::SetMenuDuck(false);
+                }
+            }
+        }, true, controller);
+        if (!SettingsOpen())
+        {
+            XamNotifySystemUi(true);
+            apu::SetMenuDuck(true);
+        }
+        return true;
+#else
+        return false;
+#endif
+    }
 
     void ForgetQuitPrompt()
     {

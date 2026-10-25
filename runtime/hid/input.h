@@ -72,6 +72,8 @@ namespace hid
     // there is none by then. Elsewhere nothing.
     void NoteGameStarting();
     void HandleEvent(const SDL_Event& event);
+    // Main thread: only an assigned player's pad may open the quit prompt.
+    bool AssignedGamepad(SDL_JoystickID device);
     // Main thread, once per presented frame: sample devices.
     void Update();
     // While set (a menu is open), the game sees an idle controller, and

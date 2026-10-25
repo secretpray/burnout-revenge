@@ -51,6 +51,32 @@ namespace
         CHECK(ui::quit::kOffered == ui::quit::OfferedOn(ui::quit::kSystem), "the macro and the table agree");
     }
 
+    void GuideButton()
+    {
+        ui::quit::GuidePress guide;
+        CHECK(guide.Button(1, true, true), "a focused player's fresh Guide press asks");
+        CHECK(!guide.Button(1, true, true), "held or duplicate Guide cannot ask again");
+        CHECK(!guide.Button(1, false, true), "releasing Guide never asks");
+        CHECK(guide.Button(1, true, true), "release then press asks again");
+        CHECK(guide.Button(2, true, true), "player 2 has an independent Guide edge");
+        guide.Button(2, false, true);
+        CHECK(!guide.Button(1, true, true), "another pad's release cannot rearm player 1");
+        guide.Button(1, false, true);
+        CHECK(!guide.Button(1, true, false), "a background or unassigned pad press is ignored");
+        CHECK(!guide.Button(1, true, true), "gaining focus while held does not ask");
+        guide.Button(1, false, false);
+        CHECK(guide.Button(1, true, true), "a fresh foreground press works");
+        guide.Removed(1);
+        CHECK(guide.Button(1, true, true), "disconnect drops stale state");
+        guide.Clear();
+        CHECK(guide.Button(1, true, true), "a new UI session has no stale held buttons");
+
+        Prompt p;
+        p.Choose(); p.Shown(); p.Shown();
+        CHECK(p.Press(Button::Cancel) == Outcome::Cancelled, "the controller shortcut still defaults to Cancel");
+        CHECK(!guide.Button(1, true, true), "cancelling while Guide is held cannot reopen the prompt");
+    }
+
     void Steps()
     {
         // Nothing open: the prompt's buttons and B do nothing.
@@ -360,6 +386,7 @@ namespace
 int main(int argc, char** argv)
 {
     Platforms();
+    GuideButton();
     Steps();
     NoAccidentalQuit();
     if (argc > 1)

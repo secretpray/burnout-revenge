@@ -79,6 +79,10 @@
   [Language setup](#languages) explains the optional European disc import.
 - Updates install over the old version. Saves and settings stay.
 - Settings: **F1**, **Cmd+,** or **Back + Start** on a controller.
+- Quit confirmation: press the controller's **Home / Xbox Guide / PS** button.
+  Cancel is selected first; **B / Circle** dismisses the prompt. The game window
+  must be active and the controller driver must expose the button. macOS or
+  Steam may reserve it; **Settings > Quit Game** remains available.
 
 ## Highlights
 

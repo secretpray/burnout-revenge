@@ -26,6 +26,9 @@
 //     quitting, nothing in the prompt acts again.
 #pragma once
 
+#include <cstdint>
+#include <unordered_set>
+
 #if defined(__APPLE__)
 #include <TargetConditionals.h>  // TARGET_OS_IPHONE: __APPLE__ alone means macOS or iOS
 #endif
@@ -39,6 +42,22 @@
 
 namespace ui::quit
 {
+    // Home/Guide/PS is an edge, never a held-button action. Remember even
+    // ignored presses (background, another dialog) until their own release.
+    class GuidePress
+    {
+    public:
+        bool Button(uint32_t device, bool down, bool allowed)
+        {
+            if (!down) { m_held.erase(device); return false; }
+            return m_held.insert(device).second && allowed;
+        }
+        void Removed(uint32_t device) { m_held.erase(device); }
+        void Clear() { m_held.clear(); }
+    private:
+        std::unordered_set<uint32_t> m_held;
+    };
+
     enum class System { Mac, IPhoneIPad, Linux, Windows, Other };
 
     constexpr System kSystem =

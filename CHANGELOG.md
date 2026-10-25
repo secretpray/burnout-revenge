@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Home / Xbox Guide / PS opens the quit confirmation while the game window
+  is active. Cancel is selected first, and B / Circle returns to the game or
+  the settings page that was open. Holding the button cannot repeat the prompt.
+  Availability depends on the controller driver and system shortcuts.
+
 ## v0.1.25
 
 - Mods now has Cheat Codes and Modifications sections. Unlock Madden Van uses
