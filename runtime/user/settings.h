@@ -382,6 +382,8 @@ namespace settings
     // (video/refresh_notice.h): [app] refresh_notices in settings.toml.
     // Record adds one, in memory and in the file, as RecordVersion does (only
     // the [app] table is rewritten); any thread.
+    bool XboxUsbRumbleNoticeShown();
+    bool RecordXboxUsbRumbleNotice();
     bool RefreshNoticeShown(int hz);
     bool RecordRefreshNotice(int hz);
 }

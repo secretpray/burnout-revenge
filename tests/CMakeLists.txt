@@ -40,11 +40,16 @@ sb_test(save_import_test SOURCES ${RT}/user/save_import.cpp ${RT}/user/save_back
 # The player's own music: its folder's files in a shuffled round (user/my_music.h).
 sb_test(my_music_test SOURCES ${RT}/user/my_music.cpp ARGS ${CMAKE_BINARY_DIR})
 target_compile_definitions(my_music_test PRIVATE BR_MY_MUSIC_TEST)
+sb_test(music_index_test SOURCES ${RT}/user/music_index.cpp ${RT}/user/my_music.cpp ARGS ${CMAKE_BINARY_DIR})
+target_compile_definitions(music_index_test PRIVATE BR_MY_MUSIC_TEST)
+sb_test(my_music_player_test SOURCES ${RT}/user/music_index.cpp ${RT}/user/my_music.cpp ${RT}/user/my_music_player.cpp ${RT}/user/settings.cpp ARGS ${CMAKE_BINARY_DIR})
+target_compile_definitions(my_music_player_test PRIVATE BR_MY_MUSIC_TEST)
 # The player's own music through the system decoder (platform/audio_file.h).
 if(APPLE)
     sb_test(audio_file_test SOURCES ${RT}/platform/apple/audio_file.mm ARGS ${CMAKE_BINARY_DIR})
     target_link_libraries(audio_file_test PRIVATE "-framework AudioToolbox" "-framework Foundation" "-framework CoreFoundation")
 endif()
+sb_test(rumble_notice_test SOURCES ${RT}/user/settings.cpp ARGS ${CMAKE_CURRENT_BINARY_DIR}/rumble_notice_scratch)
 sb_test(rumble_focus_test)
 sb_test(rewind_shortcuts_test)
 sb_test(rewind_gate_test)

@@ -63,6 +63,7 @@ namespace hid
 {
     // Guest controller polling thread publishes the verified USA session state.
     void SetLocalPlayers(unsigned players);
+    void SetFrontendMenu(bool frontend);
     uint16_t RawButtons(); // player 1, before UI capture and the keyboard map
     // Main thread, after SDL video is up.
     void Initialize();

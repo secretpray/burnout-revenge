@@ -392,7 +392,17 @@ uint32_t XAudioSubmitRenderDriverFrame(uint32_t driver, void* samples)
         }
     }
     if (!s_stream || !samples)
+    {
+        // Isolated diagnostics can exercise song ends without opening a sound
+        // device. Keep BURNOUT_MUTE=1; the mixed samples are discarded.
+        static const bool drain = std::getenv("BURNOUT_TEST_MUSIC_DRAIN") != nullptr;
+        if (drain && samples && settings::EnvOverride(settings::Id::Mute) && settings::GetBool(settings::Id::Mute))
+        {
+            float discarded[SAMPLES_PER_FRAME * CHANNELS]{};
+            apu::music::MixInto(discarded, SAMPLES_PER_FRAME, CHANNELS);
+        }
         return 0;
+    }
     // Volume, mute and mute-in-background, when they or the focus change.
     {
         static uint64_t generation = ~0ull;

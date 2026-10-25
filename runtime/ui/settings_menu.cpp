@@ -32,6 +32,7 @@
 #include <game/burnout_addons.h>
 #include <platform/audio_file.h>
 #include <user/my_music.h>
+#include <user/music_index.h>
 #include <user/online.h>
 #include <user/online_identity.h>
 #include <game/rewind_ring.h>
@@ -1037,19 +1038,16 @@ namespace ui
 #endif
 
         // Audio's Music Folder row: how many files My Music would play
-        // (scanned again every 2 s while the page shows), and A opens the
+        // (from the shared background index), and A opens the
         // folder in Finder, made first.
         std::string MusicFolderValue()
         {
-            static Uint64 scanned = 0;
-            static size_t count = 0;
-            const Uint64 now = SDL_GetTicks();
-            if (scanned == 0 || now - scanned > 2000)
-            {
-                count = user::my_music::Scan(user::my_music::Folder(), platform::audio_file::IsMusicFile).size();
-                scanned = now;
-            }
-            return count == 0 ? "Empty" : locale::Format("{} {}", count, locale::Text(count == 1 ? "file" : "files"));
+            const auto library = user::my_music::Library();
+            if (!library->ready) return locale::Text("Scanning...");
+            const auto count = library->tracks.size();
+            if (count == 0 && !library->error.empty()) return locale::Text("Folder unavailable");
+            if (library->limited) return locale::Format("{} files (limit)", count);
+            return count == 0 ? locale::Text("Empty") : locale::Format("{} {}", count, locale::Text(count == 1 ? "file" : "files"));
         }
 
         void MusicFolderRow(float valueWidth)

@@ -33,7 +33,7 @@ namespace ui
             fprintf(stderr, "[ui] notice \"%s\" closed (%s)\n", notice.title.c_str(), how);
             auto closed = std::move(notice.closed);
             SetModal(nullptr);  // destroys `notice`
-            XamNotifySystemUi(false);
+            if (!SettingsOpen()) XamNotifySystemUi(false);
             if (closed)
                 closed(how);
         }
@@ -84,18 +84,18 @@ namespace ui
         }
     }
 
-    bool ShowNotice(std::string title, std::string text, std::function<void(const char*)> closed)
+    bool ShowNotice(std::string title, std::string text, std::function<void(const char*)> closed, bool overSettings)
     {
-        if (!Ready() || HasModal() || SettingsOpen())
+        if (!Ready() || HasModal() || (SettingsOpen() && !overSettings))
             return false;
         auto notice = std::make_shared<Notice>();
         notice->title = std::move(title);
         notice->text = std::move(text);
         notice->closed = std::move(closed);
         fprintf(stderr, "[ui] notice \"%s\": %s\n", notice->title.c_str(), notice->text.c_str());
-        SetModal([notice] { Draw(*notice); });
+        SetModal([notice] { Draw(*notice); }, overSettings);
         // As the settings menu: the game pauses under it.
-        XamNotifySystemUi(true);
+        if (!SettingsOpen()) XamNotifySystemUi(true);
         return true;
     }
 }

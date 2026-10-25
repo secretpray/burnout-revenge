@@ -598,6 +598,8 @@ PPC_FUNC(sub_82360D70)
     const uint32_t ports = ctx.r3.u32;
     // The local-session builder returns kGame+0x3621C. Frontend/World Tour
     // use different wrappers; online does not share this local session.
+    hid::SetFrontendMenu(PPC_LOAD_U32(game::codes::kSession) == game::codes::kFrontendSession &&
+        PPC_LOAD_U32(game::rewind::kPhase) == 5);
     hid::SetLocalPlayers(PPC_LOAD_U32(game::codes::kSession) == game::codes::kSplitSession
         ? PPC_LOAD_U32(game::codes::kLocalPlayers) : 0);
     __imp__sub_82360D70(ctx, base);

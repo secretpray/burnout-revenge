@@ -1,12 +1,24 @@
 # Changelog
 
-## Unreleased
+## v0.1.25
 
 - Keep player assignments stable during local split-screen sessions when a
   controller disconnects. A replacement joins the first missing player with a
   fresh Start press; reconnecting or adding a spare controller cannot silently
   take another player's car. The native pause remains in charge, and controls
   must be released before a replacement can send input.
+- Explain the macOS GameController USB vibration limitation for affected Xbox
+  controllers, including player 2. The notice appears in the game menu or
+  over Settings while play is paused, only with Vibration enabled. Dismissal
+  is remembered. Bluetooth and other controller routes are excluded; this
+  notice does not change the motors' behavior.
+- Index My Music on one background worker. Audio settings and track selection
+  share a ready list with cached metadata, so browsing a slow library no
+  longer scans the filesystem on the UI or audio thread. Updated folders are
+  refreshed in the background, with cancellation of stale generations and
+  bounded scanning (4,096 songs / 16,384 entries). The folder row shows scanning,
+  unavailable and limit states in all nine interface languages. EA Trax plays
+  while the first list is loading; shutdown does not wait on a stalled mount.
 
 ## v0.1.24
 

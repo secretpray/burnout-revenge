@@ -677,6 +677,8 @@ namespace settings
 
         // refresh_notices: the display rates (whole Hz) the refresh-rate
         // notice was closed for (video/refresh_notice.h), "90,144".
+        bool s_xboxUsbRumbleNotice = false; // under s_mutex
+        constexpr const char* kXboxUsbRumbleKey = "xbox_usb_rumble_notice";
         constexpr const char* kRefreshNoticesKey = "refresh_notices";
         std::vector<int>& RefreshNoticesList()
         {
@@ -700,7 +702,7 @@ namespace settings
             return out;
         }
 
-        std::string AppTable(const std::string& lastVersion, const std::vector<int>& notices)
+        std::string AppTable(const std::string& lastVersion, const std::vector<int>& notices, bool rumbleNotice)
         {
             // Only what a version looks like (a hand edit could hold a quote
             // or a newline, which would break the file).
@@ -715,9 +717,10 @@ namespace settings
             if (!rates.empty())
                 rates = std::format("# Screen refresh rates (Hz) the refresh-rate notice was closed for: it isn't shown for them again.\n"
                     "{} = \"{}\"\n", kRefreshNoticesKey, rates);
-            if (version.empty() && rates.empty())
+            const std::string rumble = rumbleNotice ? std::format("{} = true\n", kXboxUsbRumbleKey) : "";
+            if (version.empty() && rates.empty() && rumble.empty())
                 return "";
-            return std::format("\n[{}]\n{}{}", kAppTable, version, rates);
+            return std::format("\n[{}]\n{}{}{}", kAppTable, version, rates, rumble);
         }
 
         // `text` (a settings.toml) without its [app] table: from a line that
@@ -1214,13 +1217,15 @@ namespace settings
                 }
             }
             std::string lastVersion;
+            bool rumbleNotice;
             std::vector<int> notices;
             {
                 std::lock_guard lock(s_mutex);
                 lastVersion = LastVersionText();
+                rumbleNotice = s_xboxUsbRumbleNotice;
                 notices = RefreshNoticesList();
             }
-            return out + AppTable(lastVersion, notices);
+            return out + AppTable(lastVersion, notices, rumbleNotice);
         }
 
         // Where a save of `path` goes: through a symlinked settings.toml
@@ -1648,6 +1653,7 @@ namespace settings
         std::array<std::optional<double>, kCount> fileValues;
         std::array<std::string, kTextCount> textValues;
         std::string text, readError, lastError, lastVersion;
+        bool rumbleNotice = false;
         std::vector<int> notices;
         size_t fromFile = 0;
         ReadStatus status = ReadFile(path, text, readError);
@@ -1708,6 +1714,11 @@ namespace settings
                 for (auto&& [key, node] : *table)
                 {
                     std::string name = std::format("{}.{}", tableKey.str(), key.str());
+                    if (tableKey.str() == kAppTable && key.str() == kXboxUsbRumbleKey)
+                    {
+                        rumbleNotice = node.value<bool>().value_or(false);
+                        continue;
+                    }
                     if (tableKey.str() == kAppTable && key.str() == kRefreshNoticesKey)
                     {
                         if (auto v = node.as_string())
@@ -1776,6 +1787,7 @@ namespace settings
             LastErrorText() = lastError;
             LastVersionText() = lastVersion;
             RefreshNoticesList() = notices;
+            s_xboxUsbRumbleNotice = rumbleNotice;
             s_fileFound = status != ReadStatus::Missing;
             s_fileLoaded = status == ReadStatus::Ok && lastError.empty();
             detail::g_generation.fetch_add(1, std::memory_order_release);
@@ -1877,12 +1889,14 @@ namespace settings
             text = "# BurnoutRevenge settings. The settings menu writes every option here when one\n"
                    "# changes; until then each one keeps its default.\n";
         std::string recorded(version);
+        bool rumbleNotice;
         std::vector<int> notices;
         {
             std::lock_guard lock(s_mutex);
             notices = RefreshNoticesList();
+            rumbleNotice = s_xboxUsbRumbleNotice;
         }
-        if (std::string failed = WriteAtomically(path, WithoutAppTable(text) + AppTable(recorded, notices)); !failed.empty())
+        if (std::string failed = WriteAtomically(path, WithoutAppTable(text) + AppTable(recorded, notices, rumbleNotice)); !failed.empty())
         {
             fprintf(stderr, "[settings] the version isn't recorded: %s\n", failed.c_str());
             return false;
@@ -1892,6 +1906,41 @@ namespace settings
         s_fileFound = s_fileLoaded = true;
         if (LoadedPath().empty())
             LoadedPath() = path;
+        return true;
+    }
+
+    bool XboxUsbRumbleNoticeShown()
+    {
+        std::lock_guard lock(s_mutex);
+        return s_xboxUsbRumbleNotice;
+    }
+
+    bool RecordXboxUsbRumbleNotice()
+    {
+        std::lock_guard saveLock(s_saveMutex);
+        std::filesystem::path path;
+        std::string version;
+        std::vector<int> rates;
+        {
+            std::lock_guard lock(s_mutex);
+            if (s_xboxUsbRumbleNotice) return true;
+            s_xboxUsbRumbleNotice = true; // do not nag again if the disk is unavailable
+            if (s_fileFound && !s_fileLoaded) return false;
+            path = LoadedPath().empty() ? DefaultPath() : LoadedPath();
+            version = LastVersionText();
+            rates = RefreshNoticesList();
+        }
+        std::string text, error;
+        if (ReadFile(path, text, error) == ReadStatus::Failed) return false;
+        const std::string failed = WriteAtomically(path, WithoutAppTable(text) + AppTable(version, rates, true));
+        if (!failed.empty())
+        {
+            fprintf(stderr, "[settings] Xbox USB notice dismissal could not be saved: %s\n", failed.c_str());
+            return false;
+        }
+        std::lock_guard lock(s_mutex);
+        s_fileFound = s_fileLoaded = true;
+        if (LoadedPath().empty()) LoadedPath() = path;
         return true;
     }
 
@@ -1907,6 +1956,7 @@ namespace settings
         std::lock_guard saveLock(s_saveMutex);
         std::filesystem::path path;
         std::string lastVersion;
+        bool rumbleNotice;
         std::vector<int> notices;
         {
             std::lock_guard lock(s_mutex);
@@ -1922,6 +1972,7 @@ namespace settings
             }
             path = LoadedPath().empty() ? DefaultPath() : LoadedPath();
             lastVersion = LastVersionText();
+            rumbleNotice = s_xboxUsbRumbleNotice;
         }
         // Only the [app] table changes, as for RecordVersion.
         std::string text, error;
@@ -1934,7 +1985,7 @@ namespace settings
         if (status == ReadStatus::Missing)
             text = "# SpeedBreaker settings. The settings menu writes every option here when one\n"
                    "# changes; until then each one keeps its default.\n";
-        if (std::string failed = WriteAtomically(path, WithoutAppTable(text) + AppTable(lastVersion, notices)); !failed.empty())
+        if (std::string failed = WriteAtomically(path, WithoutAppTable(text) + AppTable(lastVersion, notices, rumbleNotice)); !failed.empty())
         {
             fprintf(stderr, "[settings] the refresh notice's %d Hz isn't recorded: %s\n", hz, failed.c_str());
             return false;

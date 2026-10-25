@@ -103,7 +103,7 @@ namespace ui
     // A full-screen page drawn every frame instead of the game until it is
     // cleared (the installer). Call from the main thread; `draw` runs inside
     // BeginFrame().
-    void SetModal(std::function<void()> draw);
+    void SetModal(std::function<void()> draw, bool preserveSettings = false);
     bool HasModal();
     // Initialize() succeeded: the UI draws (a modal set without it would
     // hold the game's input with nothing on screen).
@@ -118,8 +118,9 @@ namespace ui
     // Main thread: a one-time notice (`title`, a paragraph of `text`, OK) as a
     // panel over the game, which pauses under it, until the player closes it
     // (A, B, Start, Esc or OK); then `closed` runs with how. False (nothing
-    // shown) without a UI, or while another panel or the settings menu is up.
-    bool ShowNotice(std::string title, std::string text, std::function<void(const char*)> closed);
+    // shown) without a UI or while another panel is up. overSettings allows
+    // an explanatory notice over Settings, preserving its pause notification.
+    bool ShowNotice(std::string title, std::string text, std::function<void(const char*)> closed, bool overSettings = false);
 
     // Main thread, before the game starts (main.cpp): a page saying why the
     // game can't start (memory_status.h's StartupFailure), drawn until it is

@@ -6,6 +6,8 @@
 #include "rewind_shortcuts.h"
 #include "pad_slots.h"
 #include "rumble_focus.h"
+#include "rumble_notice.h"
+#include <game/movies.h>
 #include "virtual_wheel.h"
 #include "wheel.h"
 #include <cpu/guest_time.h>
@@ -14,6 +16,7 @@
 #include <user/settings.h>
 #include <user/key_names.h>
 #include <user/localization.h>
+#include <user/music_index.h>
 
 #include <SDL3/SDL.h>
 #include <fstream>
@@ -62,6 +65,7 @@ namespace
     hid::padslots::Assignments s_assignments;
     auto& s_slots = s_assignments.ids;
     std::atomic<unsigned> s_localPlayers{0};
+    std::atomic<bool> s_frontendMenu{false};
     bool s_keyboardAllowed = true; // guarded with the published XInput state
     bool s_neutralRequired[kUsers] = {};
     struct PendingPad { SDL_Gamepad* handle{}; bool start = true; };
@@ -761,6 +765,39 @@ namespace
         }
     }
 
+    void MaybeRumbleNotice()
+    {
+#if defined(__APPLE__) && !TARGET_OS_IOS
+        bool affected = false;
+        for (unsigned user = 0; user < 2; ++user)
+            if (auto* pad = s_gamepads[user])
+            {
+                const auto connection = SDL_GetGamepadConnectionState(pad);
+                const auto guid = SDL_GetGamepadGUIDForID(SDL_GetGamepadID(pad));
+                const char* name = SDL_GetGamepadName(pad);
+                hid::RumbleNotice::Device device{true, char(guid.data[14]),
+                    connection == SDL_JOYSTICK_CONNECTION_WIRELESS ? hid::RumbleNotice::Connection::Wireless :
+                    connection == SDL_JOYSTICK_CONNECTION_WIRED ? hid::RumbleNotice::Connection::Wired : hid::RumbleNotice::Connection::Unknown,
+                    SDL_GetGamepadVendor(pad), name ? name : ""};
+                // Only a test's own virtual devices can simulate the affected
+                // route. This does not claim working physical USB haptics.
+                if (const char* test = std::getenv("BURNOUT_TEST_XBOX_USB_RUMBLE");
+                    s_anyVirtualPad && test && std::atoi(test) == int(user+1) &&
+                    (!std::strchr(test, '@') || SecondsSinceLaunch() >= std::atof(std::strchr(test, '@')+1)))
+                    device = {true, 'm', hid::RumbleNotice::Connection::Unknown, 0x045e, "Xbox virtual route"};
+                affected |= hid::RumbleNotice::Affected(device);
+            }
+        if (hid::RumbleNotice::ShouldShow(affected, settings::GetBool(settings::Id::Vibration),
+            settings::XboxUsbRumbleNoticeShown(), s_frontendMenu.load(std::memory_order_relaxed) || ui::SettingsOpen(),
+            game::LastIntroMovieNs() != 0 &&
+                std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count() - game::LastIntroMovieNs() < 2'000'000'000, ui::HasModal()))
+            ui::ShowNotice(hid::RumbleNotice::kTitle, hid::RumbleNotice::kText, [](const char*) {
+                const bool saved = settings::RecordXboxUsbRumbleNotice();
+                fprintf(stderr, "[input] Xbox USB notice dismissed; saved=%d\n", saved);
+            }, true);
+#endif
+    }
+
 #if defined(__APPLE__) && TARGET_OS_IOS
     // A phone or tablet has nothing to play the game with but a controller
     // (or a keyboard attached to it, which counts as on desktop), and a
@@ -836,6 +873,7 @@ namespace
 namespace hid
 {
     namespace { uint16_t s_rawRewindButtons{};rewind::ChordSet s_rewindChord; }
+    void SetFrontendMenu(bool frontend) { s_frontendMenu.store(frontend, std::memory_order_relaxed); }
     void SetLocalPlayers(unsigned players) { s_localPlayers.store(players, std::memory_order_relaxed); }
     uint16_t RawButtons() { return s_rawRewindButtons; }
     void Initialize()
@@ -1091,6 +1129,8 @@ namespace hid
         std::array<std::string, kUsers> padSteps;
         for (unsigned i = 0; i < kUsers; ++i) padSteps[i] = StepVirtualPad(s_virtualPads[i]);
         SyncGamepads();
+        MaybeRumbleNotice();
+        user::my_music::PollLibrary();
         if (const std::string wheelSteps = virtual_wheel::Step(SecondsSinceLaunch()); !wheelSteps.empty())
             fprintf(stderr, "[wheel] virtual wheel %s\n", wheelSteps.c_str());
         const float deadzone = settings::GetFloat(settings::Id::StickDeadzone);

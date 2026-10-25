@@ -56,9 +56,10 @@ namespace user::my_music
     {
         std::filesystem::path file;  // empty: the folder has no music files
         std::string name;            // DisplayName from its tags
-        size_t count = 0;            // files in the folder
+        size_t count = 0;            // files in the last completed index
+        bool loading = false;       // first scan has not finished
     };
-    // The folder scanned again and the next file of its shuffled round.
+    // Next file and metadata from the shared background index; no I/O here.
     Pick Next();
     // Tells the player (a toast).
     void Announce(const std::string& text);

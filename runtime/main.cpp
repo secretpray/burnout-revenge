@@ -35,6 +35,8 @@
 #include <ui/ui.h>
 #include <user/paths.h>
 #include <user/settings.h>
+#include <user/my_music.h>
+#include <user/music_index.h>
 #include <user/localization.h>
 #include <user/language_resources.h>
 #include <user/version_check.h>
@@ -621,6 +623,8 @@ int main(int argc, char** argv)
     // SDL_InitSubSystem belongs to the main thread, before guest callbacks.
     apu::InitializeOutputBackend();
 
+    if (user::my_music::Chosen()) user::my_music::Library();
+
     GuestMainParams params{ uint32_t(image.entry_point), DEFAULT_GUEST_STACK };
     if (auto* stack = static_cast<const be<uint32_t>*>(getOptHeaderPtr(file.data(), XEX_HEADER_DEFAULT_STACK_SIZE)))
         params.stackSize = std::max<uint32_t>(*stack, DEFAULT_GUEST_STACK);
@@ -677,6 +681,7 @@ int main(int argc, char** argv)
     fprintf(stderr, "[runtime] window closed\n");
     if (settings::Dirty())
         settings::Save();
+    user::my_music::StopLibrary();
     gpu::renderer::Shutdown();
     video::Shutdown();
     // A clean end: no crash marker left (a crash in the shutdown above still

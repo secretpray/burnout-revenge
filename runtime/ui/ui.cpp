@@ -798,7 +798,7 @@ namespace ui
         if (!s_ready)
             return;
         bool forward = s_capturing.load(std::memory_order_relaxed);
-        if (s_settingsOpen && SettingsMenuRecordingChord() &&
+        if (s_settingsOpen && !s_modal && SettingsMenuRecordingChord() &&
             (e.type==SDL_EVENT_GAMEPAD_BUTTON_DOWN || e.type==SDL_EVENT_GAMEPAD_BUTTON_UP)) return;
         switch (e.type)
         {
@@ -814,7 +814,7 @@ namespace ui
                 s_settingsOpen ? CloseSettings() : OpenSettings();
                 return;
             }
-            if (s_settingsOpen && SettingsMenuTakesKey(e.key))
+            if (s_settingsOpen && !s_modal && SettingsMenuTakesKey(e.key))
                 return;  // a Controls row took it: ImGui doesn't act on it too
             if (!s_modal && !s_settingsOpen && !e.key.repeat && !(e.key.mod&SDL_KMOD_GUI) && settings::GetBool(settings::Id::RewindEnabled))
             {
@@ -826,7 +826,7 @@ namespace ui
             break;
         }
         case SDL_EVENT_KEY_UP:
-            if (s_settingsOpen && SettingsMenuTakesKey(e.key))
+            if (s_settingsOpen && !s_modal && SettingsMenuTakesKey(e.key))
                 return;  // the release of a key a Controls row took
             break;
         case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
@@ -1253,7 +1253,7 @@ namespace ui
         ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
     }
 
-    void SetModal(std::function<void()> draw)
+    void SetModal(std::function<void()> draw, bool preserveSettings)
     {
         if (draw && !s_modal && s_ready)
         {
@@ -1261,7 +1261,7 @@ namespace ui
             ImGui::GetIO().ClearInputMouse();
         }
         s_modal = std::move(draw);
-        if (s_modal && s_settingsOpen)
+        if (s_modal && s_settingsOpen && !preserveSettings)
             CloseSettings();
         UpdateCapture();
     }

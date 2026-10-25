@@ -59,7 +59,7 @@
 <sub>Unedited screenshots from this port on an M1 Pro. The game content in them belongs to its owners.</sub>
 
 > [!TIP]
-> **New in v0.1.24: Classic Crash Launch.** Enable the PS2/original Xbox launch meter under Settings > Mods, then restart. The renamed Mods page also contains the five existing cheats. [Controls and current limits](docs/CLASSIC_CRASH_LAUNCH.md).
+> **New in v0.1.25:** stable player assignments after controller disconnects, an Xbox USB vibration notice, and background indexing for My Music. Classic Crash Launch remains available in Settings > Mods. [Controls and current limits](docs/CLASSIC_CRASH_LAUNCH.md).
 
 **TL;DR**
 
@@ -115,6 +115,10 @@
 - **My Music**: Settings > Audio > Music plays your own MP3, AAC, ALAC, FLAC,
   WAV or AIFF files instead of EA Trax, shuffled, with a "Now playing" notice
   naming each song. The game's pauses, fades and crash silence apply to them.
+  The folder is indexed in the background and refreshed about every two seconds
+  after each scan. EA Trax plays while the first list loads. One scan is limited
+  to 4,096 songs and 16,384 entries; the Music Folder row indicates the limit or
+  an unavailable folder.
 - The game's sound steps back while the settings menu is open. Mute, Mute in
   Background and a master volume.
 
@@ -132,7 +136,9 @@
 **Controls**
 
 - Xbox controllers and DualSense through SDL, with vibration. Back + Start
-  (Share + Options on a DualSense) opens the settings anywhere.
+  (Share + Options on a DualSense) opens the settings anywhere. If an Xbox
+  controller uses Apple's GameController route over USB, a one-time notice
+  explains that vibration may not reach its motors and suggests Bluetooth.
 - Split-screen Multiplayer for two: each controller is a player, in the
   order it connects. During a local session, a disconnection preserves the
   other player's slot and pauses the game. Reconnect a controller, then press

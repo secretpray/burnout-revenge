@@ -107,6 +107,7 @@ namespace
         s_xmp.mineCount = pick.count;
         if (pick.file.empty())
         {
+            if (pick.loading) return false; // retain EA Trax until the first index is ready
             fprintf(stderr, "[xmp] My Music: the Music Folder has no music files, EA Trax plays\n");
             user::my_music::Announce("My Music: the Music Folder has no music files. EA Trax plays.");
             return false;
@@ -149,16 +150,13 @@ namespace
                 XamNotifyEnqueueEvent(kMsgStateChanged, s_xmp.state);
                 return;
             }
-            // Not on the audio thread: the folder is scanned and the file
-            // opened for its tags.
-            std::thread([song] {
-                std::lock_guard lock(s_xmp.mutex);
-                if (song == s_xmp.song && s_xmp.mine && !PlayMine())
-                {
-                    StopPlaylist();
-                    XamNotifyEnqueueEvent(kMsgStateChanged, s_xmp.state);
-                }
-            }).detach();
+            // Selection and metadata use the ready index: no filesystem I/O
+            // and no new thread for each song.
+            if (song == s_xmp.song && s_xmp.mine && !PlayMine())
+            {
+                StopPlaylist();
+                XamNotifyEnqueueEvent(kMsgStateChanged, s_xmp.state);
+            }
             return;
         }
         size_t count = s_xmp.titlePlaylists.at(s_xmp.active).songs.size();
