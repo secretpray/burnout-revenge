@@ -25,7 +25,7 @@ tar -xf "$PREFIX/downloads/SDL3-3.4.16.tar.gz" -C "$WORK"
 cmake -S "$WORK/SDL3-3.4.16" -B "$WORK/sdl-build" -G Ninja \
     -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$PREFIX" -DCMAKE_INSTALL_LIBDIR=lib \
     -DCMAKE_C_COMPILER="${CC:-clang}" -DCMAKE_CXX_COMPILER="${CXX:-clang++}" \
-    "-DCMAKE_C_FLAGS=-ffile-prefix-map=$WORK=." \
+    "-DCMAKE_C_FLAGS=-ffile-prefix-map=$WORK=. -ffile-prefix-map=$ROOT=." \
     -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_TESTS=OFF -DSDL_TEST_LIBRARY=OFF \
     -DCMAKE_SKIP_RPATH=ON > "$PREFIX/build-logs/sdl-configure.log" 2>&1
 cmake --build "$WORK/sdl-build" -j "$JOBS" > "$PREFIX/build-logs/sdl-build.log" 2>&1

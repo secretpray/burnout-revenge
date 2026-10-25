@@ -52,6 +52,7 @@ namespace gpu::memplan
     constexpr uint64_t kHeapShareDivisor = 2;
 
     // VkDriverId values the plan knows.
+    constexpr uint32_t kDriverLlvmPipe = 13;  // VK_DRIVER_ID_MESA_LLVMPIPE
     constexpr uint32_t kDriverIntelMesa = 6;  // VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA (ANV, Linux)
 
     enum class Gpu : uint8_t { kDiscrete, kIntegrated, kOther };
@@ -127,6 +128,13 @@ namespace gpu::memplan
     // protection changes don't touch the GPU's mapping there.
     inline const char* ImportRefusal(uint32_t driverId)
     {
+        // Software Vulkan executes shader memory accesses on host threads.
+        // Importing protected guest pages makes a driver worker enter our CPU
+        // fault handler and wait for its own unfinished submission (llvmpipe
+        // Mesa 26.0.8: boot stalls at the first Flush). The shadow copy stays
+        // accessible to the driver while guest aliases remain write-watched.
+        if (driverId == kDriverLlvmPipe)
+            return "llvmpipe needs a shadow copy: CPU shader workers cannot access write-watched imported guest pages";
         if (driverId == kDriverIntelMesa)
             return "Intel's Linux driver can't keep imported memory mapped while the write watch protects its pages (issue #2)";
         return nullptr;

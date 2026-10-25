@@ -222,8 +222,12 @@ static void Intel()
 {
     printf("Intel:\n");
     CHECK(ImportRefusal(6) != nullptr, "ANV (VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA) imports");
-    for (uint32_t driver : { 0u, 1u, 3u, 4u, 5u, 13u, 14u })  // unknown, AMD Windows, RADV, NVIDIA, Intel Windows, llvmpipe, MoltenVK
+    for (uint32_t driver : { 0u, 1u, 3u, 4u, 5u, 14u })  // unknown, AMD Windows, RADV, NVIDIA, Intel Windows, MoltenVK
         CHECK(ImportRefusal(driver) == nullptr, "driver %u refused", driver);
+    CHECK(ImportRefusal(13) != nullptr, "llvmpipe imports protected guest memory");
+    Memory cpu{ { { kDeviceLocal | kMapped | kHostCached, 0 } }, { 8 * GB } };
+    Expect("llvmpipe, guest memory", PlanGuestMemory(cpu, Input(Gpu::kOther, true, 13)), false,
+        "copy-vram:0", "llvmpipe needs a shadow copy");
     Memory m = AnvArrowLake();
     Plan g = PlanGuestMemory(m, Input(Gpu::kIntegrated, true, 6));
     Expect("ANV, guest memory", g, false, "copy-vram:0", "Intel's Linux driver");
