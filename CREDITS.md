@@ -71,6 +71,13 @@ Xenia, as Xerenge applies it (the motion blur's frame counter reads as finished)
 the code is our own. Bloom off does not use that patch set's bloom half (it greys
 the sky): it is our own composite change, `runtime/gpu/burnout_bloom.h`.
 
+The reward-video soundtrack resume hook (`runtime/game/reward_music.cpp`) is
+adapted from Xerenge's GPL-3.0-or-later fix for issue #29, Copyright 2026 Shipa
+Snake, commit `65c40067fb6d1cfc9a55b46ee7aec1f525b53ed1` (released in v0.4.8).
+It uses the retail resume routine on leaving a reward screen; this adaptation
+limits the hook to the three USA reward pages and keeps a hold across consecutive
+reward clips.
+
 The track skip lost between two pad polls of a frame was found by Xerenge (its
 `music_trace.cpp`, the addresses `sub_8210F940` and `0x82846670`); our hook is
 `runtime/game/music_skip.cpp`. Save import follows Takedawn's "Import Xbox save"

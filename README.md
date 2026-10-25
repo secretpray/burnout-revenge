@@ -59,7 +59,7 @@
 <sub>Unedited screenshots from this port on an M1 Pro. The game content in them belongs to its owners.</sub>
 
 > [!TIP]
-> **New in v0.1.25:** stable player assignments after controller disconnects, an Xbox USB vibration notice, and background indexing for My Music. Classic Crash Launch remains available in Settings > Mods. [Controls and current limits](docs/CLASSIC_CRASH_LAUNCH.md).
+> **New in v0.1.25:** stable player assignments after controller disconnects, an Xbox USB vibration notice, background indexing for My Music, and soundtrack recovery after reward videos. Classic Crash Launch remains available in Settings > Mods. [Controls and current limits](docs/CLASSIC_CRASH_LAUNCH.md).
 
 **TL;DR**
 

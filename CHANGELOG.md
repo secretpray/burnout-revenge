@@ -2,6 +2,10 @@
 
 ## v0.1.25
 
+- Resume the soundtrack when leaving a challenge-complete, rank-up or signature
+  takedown video, including skipping with Start. Use the game's own resume and
+  mute cleanup, avoid a second resume after a completed movie, and keep the hold
+  across consecutive reward clips. Adapted from Xerenge's v0.4.8 fix for #29.
 - Keep player assignments stable during local split-screen sessions when a
   controller disconnects. A replacement joins the first missing player with a
   fresh Start press; reconnecting or adding a spare controller cannot silently

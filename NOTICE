@@ -6,6 +6,11 @@ Derived from SpeedBreaker: https://github.com/SpeedBreakerProject/speedbreaker
 Burnout research reference: https://github.com/CrownParkComputing/Xbox360-Native-Ports
 See CREDITS.md for the exact versions and scope of reuse.
 
+Reward-video soundtrack recovery is adapted from Xerenge, Copyright (C) 2026
+Shipa Snake, under GPL-3.0-or-later, commit
+65c40067fb6d1cfc9a55b46ee7aec1f525b53ed1 (v0.4.8, issue #29):
+https://github.com/shipa-2/Xerenge
+
 This program is free software under the GNU General Public License, version 3
 or (at your option) any later version. See COPYING. It is distributed WITHOUT
 ANY WARRANTY, including MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.

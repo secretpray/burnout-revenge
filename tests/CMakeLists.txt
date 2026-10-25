@@ -92,6 +92,12 @@ target_include_directories(online_compat_test PRIVATE ${RT}/kernel ${RT}/thirdpa
     ${ROOT}/tools/XenonRecomp/XenonUtils ${ROOT}/tools/XenonRecomp/thirdparty/simde)
 target_compile_options(online_compat_test PRIVATE -fsanitize=address)
 target_link_options(online_compat_test PRIVATE -fsanitize=address)
+# Real reward-screen hook: native resume ABI, completed and skipped movies.
+sb_test(reward_music_test SOURCES ${RT}/game/reward_music.cpp)
+target_include_directories(reward_music_test PRIVATE ${RT}/kernel ${RT}/thirdparty/o1heap ${BR_PPC_DIR}
+    ${ROOT}/tools/XenonRecomp/XenonUtils ${ROOT}/tools/XenonRecomp/thirdparty/simde)
+target_compile_options(reward_music_test PRIVATE -fsanitize=address)
+target_link_options(reward_music_test PRIVATE -fsanitize=address)
 # Real Codes hook: fail closed for online, local multiplayer, Crash and AI.
 sb_test(codes_test SOURCES ${RT}/game/codes.cpp ${RT}/user/settings.cpp)
 target_include_directories(codes_test PRIVATE ${RT}/kernel ${RT}/thirdparty/o1heap ${BR_PPC_DIR}
