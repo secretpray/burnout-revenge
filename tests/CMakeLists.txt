@@ -125,6 +125,10 @@ target_include_directories(rewind_probe_test PRIVATE ${RT}/kernel ${RT}/thirdpar
 target_compile_options(rewind_probe_test PRIVATE -fsanitize=address)
 target_link_options(rewind_probe_test PRIVATE -fsanitize=address)
 add_test(NAME rewind_probe_enabled_test COMMAND rewind_probe_test enabled)
+sb_test(crash_pacing_probe_test SOURCES ${RT}/game/crash_pacing.cpp)
+target_include_directories(crash_pacing_probe_test PRIVATE ${RT}/kernel ${RT}/thirdparty/o1heap ${BR_PPC_DIR}
+    ${ROOT}/tools/XenonRecomp/XenonUtils ${ROOT}/tools/XenonRecomp/thirdparty/simde)
+add_test(NAME crash_pacing_probe_enabled_test COMMAND crash_pacing_probe_test enabled)
 sb_test(rewind_trial_test SOURCES ${RT}/game/rewind_trial.cpp)
 target_include_directories(rewind_trial_test PRIVATE ${RT}/kernel ${RT}/thirdparty/o1heap ${BR_PPC_DIR}
     ${ROOT}/tools/XenonRecomp/XenonUtils ${ROOT}/tools/XenonRecomp/thirdparty/simde)
@@ -290,6 +294,7 @@ sb_test(cursor_idle_test ARGS ${RT}/ui/ui.cpp)
 sb_test(report_zip_test SOURCES ${RT}/report/zip.cpp ARGS ${CMAKE_CURRENT_BINARY_DIR}/report_zip_out)
 find_package(Python3 COMPONENTS Interpreter)
 if(Python3_FOUND)
+    add_test(NAME crash_pacing_test COMMAND Python3::Interpreter ${CMAKE_CURRENT_SOURCE_DIR}/crash_pacing_test.py)
     add_test(NAME perf_log_test COMMAND Python3::Interpreter ${CMAKE_CURRENT_SOURCE_DIR}/perf_log_test.py)
     # What report_zip_test wrote, read back with independent code.
     add_test(NAME report_zip_check COMMAND Python3::Interpreter ${CMAKE_CURRENT_SOURCE_DIR}/report_zip_check.py

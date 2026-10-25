@@ -156,6 +156,9 @@ namespace video
         // an earlier queue submission).
         VkImage s_pendingImage = VK_NULL_HANDLE;
         int64_t s_pendingVblank = 0;  // the guest vblank the frame followed
+        uint64_t s_sourceId = 0, s_pendingSourceId = 0, s_lastSourceId = 0; // under s_pendingMutex
+        int64_t s_pendingSubmitted = 0, s_lastSubmitted = 0;
+        FILE* s_sourceLog = nullptr; // optional source-frame ledger, under s_pendingMutex
         std::atomic<uint64_t> s_dropped{ 0 };  // frames replaced here before they were shown
         std::atomic<uint64_t> s_repeated{ 0 }, s_shown{ 0 };  // see PresentStats
         std::atomic<int64_t> s_guestVblank{ 0 };
@@ -319,6 +322,9 @@ namespace video
             uint64_t swapchain;  // its generation (s_swapchainUse)
             int64_t presented;  // vkQueuePresentKHR (ns, steady clock)
             int64_t vblank;     // a new game frame: the guest vblank it followed; 0: a redraw
+            uint64_t sourceId;
+            int64_t submitted;
+            bool fresh;
         };
         // Never destroyed: the waiter is detached and blocks on them, and
         // glibc's pthread_cond_destroy waits for blocked waiters, so an exit
@@ -417,7 +423,8 @@ namespace video
                 for (const VkPastPresentationTimingGOOGLE& e : past)
                 {
                     if (s_actualLog)
-                        fprintf(s_actualLog, "%u,%llu\n", e.presentID, (unsigned long long)e.actualPresentTime);
+                        fprintf(s_actualLog, "%u,%llu,%llu,%lld\n", e.presentID, (unsigned long long)e.actualPresentTime,
+                            (unsigned long long)t.swapchain, (long long)hostToSteady);
                     for (ScheduledPresent& p : s_scheduled)
                         if (p.id == e.presentID && p.desiredNs)
                         {
@@ -463,9 +470,10 @@ namespace video
             }
             const RefreshEstimate& display = refresh.Estimate();
             if (s_timingLog)
-                fprintf(s_timingLog, "%llu,%lld,%lld,%lld,%d,%d,%.1f,%lld,%.0f\n", (unsigned long long)t.id, (long long)t.vblank,
+                fprintf(s_timingLog, "%llu,%lld,%lld,%lld,%d,%d,%.1f,%lld,%.0f,%llu,%lld,%d,%llu\n", (unsigned long long)t.id, (long long)t.vblank,
                     (long long)t.presented, (long long)onScreen, timed, display.valid, display.periodNs, (long long)display.gridNs,
-                    display.rmsNs);
+                    display.rmsNs, (unsigned long long)t.sourceId, (long long)t.submitted, t.fresh,
+                    (unsigned long long)t.swapchain);
 #if defined(__APPLE__) && !TARGET_OS_IOS
             if (s_pastTiming)
                 ReadDriverReports(t);
@@ -2786,11 +2794,19 @@ void main()
             if (const char* path = std::getenv("BURNOUT_VBLANK_LOG"))
                 if ((s_timingLog = fopen(path, "w")))
                 {
-                    fprintf(s_timingLog, "id,vblank,presented,on_screen,timed,fit_valid,period_ns,grid_ns,rms_ns\n");
+                    fprintf(s_timingLog, "id,vblank,presented,on_screen,timed,fit_valid,period_ns,grid_ns,rms_ns,source_id,submitted,fresh,swapchain\n");
+                    if ((s_sourceLog = fopen((std::string(path) + ".frames.csv").c_str(), "w")))
+                        fprintf(s_sourceLog, "source_id,submitted,vblank,replaced_source_id\n");
 #if defined(__APPLE__) && !TARGET_OS_IOS
                     if (s_pastTiming && (s_actualLog = fopen((std::string(path) + ".actual.csv").c_str(), "w")))
-                        fprintf(s_actualLog, "# steady_ns %lld uptime_raw_ns %llu\nid,actual_ns\n", (long long)NowNs(),
+                        fprintf(s_actualLog, "# steady_ns %lld uptime_raw_ns %llu\nid,actual_ns,swapchain,host_to_steady_ns\n", (long long)NowNs(),
                             (unsigned long long)clock_gettime_nsec_np(CLOCK_UPTIME_RAW));
+                    double minHz = 0, maxHz = 0;
+                    const bool externalFixed = platform::macos::DisplayRefreshFixed(s_window, &minHz, &maxHz);
+                    const SDL_DisplayMode* pacingMode = SDL_GetCurrentDisplayMode(SDL_GetDisplayForWindow(s_window));
+                    fprintf(stderr, "[pacing-display] mode_hz=%.4f min_hz=%.4f max_hz=%.4f external_fixed=%d; "
+                        "present_wait is a completion timestamp, actual.csv is driver presentedTime; source IDs do not prove pixel uniqueness\n",
+                        pacingMode ? pacingMode->refresh_rate : 0.f, minHz, maxHz, externalFixed);
 #endif
                 }
             std::thread(PresentWaiter).detach();
@@ -3028,6 +3044,7 @@ void main()
         }
 
         std::lock_guard lock(s_pendingMutex);
+        const uint64_t replacedSource = s_pendingNew ? s_pendingSourceId : 0;
         if (s_pendingNew)
             s_dropped++;
         s_pending = std::move(pixels);
@@ -3036,6 +3053,11 @@ void main()
         s_pendingAspectW = s_pendingAspectH = 0;
         s_pendingNew = true;
         s_pendingVblank = s_guestVblank.load(std::memory_order_relaxed);
+        s_pendingSourceId = ++s_sourceId;
+        s_pendingSubmitted = NowNs();
+        if (s_sourceLog)
+            fprintf(s_sourceLog, "%llu,%lld,%lld,%llu\n", (unsigned long long)s_pendingSourceId,
+                (long long)s_pendingSubmitted, (long long)s_pendingVblank, (unsigned long long)replacedSource);
     }
 
     namespace
@@ -3644,6 +3666,7 @@ void main()
         uint32_t w = 0, h = 0, aspectW = 0, aspectH = 0;
         VkImage gpuImage = VK_NULL_HANDLE;
         int64_t frameVblank = 0;
+        bool freshSource = false;
         {
             std::lock_guard lock(s_pendingMutex);
             if (s_pendingNew)
@@ -3657,6 +3680,9 @@ void main()
                 aspectH = s_pendingAspectH;
                 s_pendingNew = false;
                 frameVblank = s_pendingVblank;
+                s_lastSourceId = s_pendingSourceId;
+                s_lastSubmitted = s_pendingSubmitted;
+                freshSource = true;
             }
         }
         const bool upload = !pixels.empty();
@@ -4316,7 +4342,7 @@ void main()
         if (s_presentTiming && (present == VK_SUCCESS || present == VK_SUBOPTIMAL_KHR))
         {
             std::lock_guard lock(s_timingMutex);
-            s_timings.push_back({ id, s_swapchainGeneration, presented, frameVblank });
+            s_timings.push_back({ id, s_swapchainGeneration, presented, frameVblank, s_lastSourceId, s_lastSubmitted, freshSource });
             s_timingCv.notify_one();
         }
         s_lastPresent = std::chrono::steady_clock::now();
@@ -4375,6 +4401,7 @@ void main()
         if (!s_window)
             return;
         std::lock_guard lock(s_pendingMutex);
+        const uint64_t replacedSource = s_pendingNew ? s_pendingSourceId : 0;
         if (s_pendingNew)
             s_dropped++;
         s_pending.clear();
@@ -4385,6 +4412,11 @@ void main()
         s_pendingAspectH = aspectHeight;
         s_pendingNew = true;
         s_pendingVblank = s_guestVblank.load(std::memory_order_relaxed);
+        s_pendingSourceId = ++s_sourceId;
+        s_pendingSubmitted = NowNs();
+        if (s_sourceLog)
+            fprintf(s_sourceLog, "%llu,%lld,%lld,%llu\n", (unsigned long long)s_pendingSourceId,
+                (long long)s_pendingSubmitted, (long long)s_pendingVblank, (unsigned long long)replacedSource);
     }
 
     bool UsesMetalFx() { return s_metalFxActive; }

@@ -1,6 +1,7 @@
 // Burnout Revenge port. GPL-3.0-or-later (see COPYING).
 // Read-only checkpoint feasibility experiment, NOT a rewind implementation.
 #include <stdafx.h>
+#include "crash_pacing.h"
 #include "rewind_probe.h"
 #include "rewind_trial.h"
 #include "rewind_ring.h"
@@ -149,6 +150,7 @@ PPC_FUNC(sub_8211FA28)
     __imp__sub_8211FA28(ctx, base);
     if (gameObject==game::rewind::kGame)
     {
+        game::crash_pacing::Sample("boundary",base);
         game::rewind::ring::AtWorldBoundary(ctx,base);
         game::madden::AtBoundary(ctx,base);
     }
