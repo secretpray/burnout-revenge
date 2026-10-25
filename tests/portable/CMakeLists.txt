@@ -8,7 +8,7 @@ function(portable_test name)
     target_link_libraries(${name} PRIVATE Threads::Threads)
     add_test(NAME ${name} COMMAND ${name})
 endfunction()
-foreach(name socket_compat block_ranges texture_volume_layout rectangle_list temporal_history
+foreach(name sha1 socket_compat block_ranges texture_volume_layout rectangle_list temporal_history
         burnout_motion composite_controls xma_mmio rumble_focus rewind_shortcuts
         rewind_gate crash_launch_model crash_launch_texture bit_copy xmp_playlist
         notification_queue memory_plan zpd_report edge_bars pipeline_cache_header
