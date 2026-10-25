@@ -15,7 +15,7 @@
         "CMAKE_PREFIX_PATH": "${sourceDir}/build/linux-deps",
         "FFMPEG_XMA": "${sourceDir}/build/linux-deps/ffmpeg-xma",
         "BR_TESTS": "ON",
-        "CMAKE_BUILD_RPATH_USE_ORIGIN": "ON",
+        "CMAKE_SKIP_BUILD_RPATH": "ON",
         "CMAKE_INSTALL_RPATH": "$ORIGIN/../lib"
       }
     },
