@@ -3,12 +3,11 @@
 // Controller input (Phase 6): SDL3 gamepads and the keyboard, presented to
 // the game as XInput users 0 to 3 through XamInputGetState.
 //
-//   - Players: each controller is one player, in the order they connect
-//     (hid/pad_slots.h: the first player 1, the second player 2; if player
-//     1's goes and nobody waits, the next one up becomes player 1). The
-//     keyboard, a wheel and BURNOUT_INPUT_SCRIPT are player 1's; player 1
-//     always counts as connected (the keyboard), the others while they
-//     have a controller. Each player's rumble goes to their controller.
+//   - Players: solo promotes a remaining controller to P1. Local multiplayer
+//     reserves each player's slot; replacement controllers join the first missing
+//     slot with a fresh Start press. A physical P1 loss is visible to the game
+//     even when a keyboard is present. Keyboard/wheel P1 remains supported.
+//     Rumble is cleared whenever an assignment changes.
 //
 //   - Sticks get a radial deadzone with rescaling (Settings > Input, or
 //     BURNOUT_DEADZONE; default 0.08 of full deflection), so worn or drifting
@@ -48,7 +47,8 @@
 //     Input settings without a person). Buttons too ("5:BACK=1", "5.2:BACK=0",
 //     "6:DOWN" for a tap), which reach the menus as a real controller's do.
 //     BURNOUT_VIRTUAL_PAD2, the same way, is a second controller (player 2).
-//     Both count seconds of guest time (cpu/guest_time.h): a suspension
+//     PAD3/PAD4 add spare controllers; DETACH/ATTACH reconnects with a new ID.
+//     All count seconds of guest time (cpu/guest_time.h): a suspension
 //     doesn't count, so what falls due during one happens after it.
 //   - BURNOUT_INPUT_LOG=1: the left stick and triggers once a second, raw and
 //     as the game gets them.
@@ -61,6 +61,8 @@
 
 namespace hid
 {
+    // Guest controller polling thread publishes the verified USA session state.
+    void SetLocalPlayers(unsigned players);
     uint16_t RawButtons(); // player 1, before UI capture and the keyboard map
     // Main thread, after SDL video is up.
     void Initialize();

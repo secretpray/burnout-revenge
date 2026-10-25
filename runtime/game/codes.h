@@ -7,6 +7,7 @@ namespace game::codes
     // USA executable only. Embedded session wrappers from sub_8211CAC0;
     // World Tour builders return +0x36208, local split-screen +0x3621C.
     constexpr uint32_t kSoloSession = 0x8287C6E8;
+    constexpr uint32_t kSplitSession = 0x8287C6FC;
     constexpr uint32_t kSession = 0x828BA538;
     constexpr uint32_t kLocalPlayers = 0x82CE000C;
     constexpr uint32_t kSpecialMode = 0x828BA56F;

@@ -134,7 +134,12 @@
 - Xbox controllers and DualSense through SDL, with vibration. Back + Start
   (Share + Options on a DualSense) opens the settings anywhere.
 - Split-screen Multiplayer for two: each controller is a player, in the
-  order they connect, with its own vibration.
+  order it connects. During a local session, a disconnection preserves the
+  other player's slot and pauses the game. Reconnect a controller, then press
+  Start on it to join the first missing player shown in the notice. Release
+  all controls before resuming. A spare controller cannot take a slot silently.
+  Solo keeps the remaining controller as player 1. Two physical controllers
+  still need testing.
 - USB steering wheels (Logitech G29 and its family): wheel, pedals, buttons
   and Settings > Wheel with a Calibrate row; force feedback where the
   system can drive the wheel.

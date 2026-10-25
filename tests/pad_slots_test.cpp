@@ -78,6 +78,52 @@ int main()
         Ids ids = Empty();
         assert(Step(ids, { 6, 6, -1 }) && ids == Of(6));
     }
+    {
+        Assignments a;
+        a.Refresh(std::vector<int64_t>{11,22,33});
+        assert(a.SetPlayers(2));
+        assert(a.ids == Of(11,22)); // spare leaves the guest ports
+        assert(!a.KeyboardAllowed());
+        a.Refresh(std::vector<int64_t>{22,33});
+        assert(a.ids == Of(kEmpty,22) && a.Missing() == 0);
+        // No promotion, no automatic spare, no guessing a reconnect by name.
+        a.Refresh(std::vector<int64_t>{22,33,44});
+        assert(a.ids == Of(kEmpty,22));
+        assert(!a.Confirm(22,std::vector<int64_t>{22,33,44}));
+        assert(!a.Confirm(11,std::vector<int64_t>{22,33,44}));
+        assert(a.Confirm(44,std::vector<int64_t>{22,33,44}));
+        assert(a.ids == Of(44,22) && a.Missing() < 0);
+        a.Refresh(std::vector<int64_t>{33});
+        assert(a.ids == Empty() && a.Missing() == 0);
+        assert(a.Confirm(33,std::vector<int64_t>{33}));
+        assert(a.Missing() == 1);
+        assert(!a.Confirm(33,std::vector<int64_t>{33}));
+        a.Refresh(std::vector<int64_t>{33,55});
+        assert(a.Confirm(55,std::vector<int64_t>{33,55}));
+        assert(a.ids == Of(33,55));
+        // Frontend/solo returns to the original alias/lone-pad fallback.
+        assert(a.SetPlayers(0) && a.KeyboardAllowed());
+        a.Refresh(std::vector<int64_t>{55});
+        assert(a.ids == Of(55));
+    }
+    {
+        Assignments keyboard;
+        assert(keyboard.SetPlayers(2));
+        assert(keyboard.KeyboardAllowed() && keyboard.Missing() == 1);
+        assert(keyboard.Confirm(9,std::vector<int64_t>{9}));
+        assert(keyboard.ids == Of(kEmpty,9));
+        keyboard.Refresh(std::vector<int64_t>{});
+        assert(keyboard.Missing() == 1 && keyboard.KeyboardAllowed());
+        // Same-id alias disappearance cannot move P2 during a session.
+        Assignments alias;
+        alias.Refresh(std::vector<int64_t>{1,2});
+        alias.SetPlayers(2);
+        alias.Refresh(std::vector<int64_t>{2});
+        assert(alias.ids == Of(kEmpty,2));
+        alias.SetPlayers(1);
+        alias.Refresh(std::vector<int64_t>{2});
+        assert(alias.ids == Of(2));
+    }
     printf("pad_slots_test: ok\n");
     return 0;
 }

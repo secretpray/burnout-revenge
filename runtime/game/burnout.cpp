@@ -15,6 +15,7 @@
 #include "rewind_ring.h"
 #include "camera.h"
 #include <report/report.h>
+#include <hid/input.h>
 
 #include <unordered_set>
 
@@ -587,4 +588,32 @@ PPC_FUNC(sub_821159A8)
     sub_821048F0(ctx, base);
     ctx = saved;
     fprintf(stderr, "[language] initialized game language %u\n", locale::GameLanguageId());
+}
+
+// USA controller manager: four 24-byte ports, state at +0 and connected at
+// +20 (sub_82360D70). Read-only diagnostics for virtual detach/reconnect runs.
+extern "C" PPC_FUNC(__imp__sub_82360D70);
+PPC_FUNC(sub_82360D70)
+{
+    const uint32_t ports = ctx.r3.u32;
+    // The local-session builder returns kGame+0x3621C. Frontend/World Tour
+    // use different wrappers; online does not share this local session.
+    hid::SetLocalPlayers(PPC_LOAD_U32(game::codes::kSession) == game::codes::kSplitSession
+        ? PPC_LOAD_U32(game::codes::kLocalPlayers) : 0);
+    __imp__sub_82360D70(ctx, base);
+    static const bool log = std::getenv("BURNOUT_LOG_PAD_PORTS") != nullptr;
+    if (!log) return;
+    static thread_local std::array<uint32_t, 7> last{};
+    const std::array<uint32_t, 7> now = {
+        PPC_LOAD_U32(game::rewind::kPhase), PPC_LOAD_U32(game::codes::kSession),
+        PPC_LOAD_U32(game::codes::kLocalPlayers),
+        PPC_LOAD_U8(ports+20), PPC_LOAD_U8(ports+44), PPC_LOAD_U8(ports+68), PPC_LOAD_U8(ports+92)};
+    if (now != last)
+    {
+        last = now;
+        fprintf(stderr, "[pad-ports] phase=%u session=%08X players=%u connected=%u%u%u%u clock=%.6f rt=%u,%u\n",
+            now[0],now[1],now[2],now[3],now[4],now[5],now[6],
+            std::bit_cast<float>(PPC_LOAD_U32(game::rewind::kWorldClock)),
+            PPC_LOAD_U8(ports+11),PPC_LOAD_U8(ports+35));
+    }
 }

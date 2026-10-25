@@ -13,6 +13,7 @@
 #include <ui/ui.h>
 #include <user/settings.h>
 #include <user/key_names.h>
+#include <user/localization.h>
 
 #include <SDL3/SDL.h>
 #include <fstream>
@@ -51,14 +52,21 @@ namespace
 
     std::mutex s_mutex;
     Pad s_pads[kUsers];               // latest sample per user (devices only)
-    bool s_connected[kUsers] = {};    // user 0: always, once Initialize ran (the keyboard of our window); others: a controller
+    bool s_connected[kUsers] = {};    // guest visibility, including physical P1 loss in a local session
     uint32_t s_packets[kUsers] = {};
     struct RumbleRequest { uint16_t low = 0, high = 0; bool dirty = false; };
     RumbleRequest s_rumble[kUsers];
 
     // Main thread: each user's controller, and the SDL ids they are.
     SDL_Gamepad* s_gamepads[kUsers] = {};
-    hid::padslots::Ids s_slots = hid::padslots::Empty();
+    hid::padslots::Assignments s_assignments;
+    auto& s_slots = s_assignments.ids;
+    std::atomic<unsigned> s_localPlayers{0};
+    bool s_keyboardAllowed = true; // guarded with the published XInput state
+    bool s_neutralRequired[kUsers] = {};
+    struct PendingPad { SDL_Gamepad* handle{}; bool start = true; };
+    std::map<int64_t, PendingPad> s_pendingPads;
+    void ResetKeystrokesLocked(unsigned user);
     hid::RumbleFocus s_rumbleFocus;
     bool s_rumbleErrorReported[kUsers] = {};
 
@@ -443,18 +451,21 @@ namespace
     // step logs what the game then gets; the rumble the game asks for and
     // the rumble the pad receives are logged. BURNOUT_VIRTUAL_PAD2, the same
     // way, is a second one, attached after it (player 2: hid/pad_slots.h).
-    // "20:DETACH" unplugs a virtual pad for good.
+    // "20:DETACH,25:ATTACH" reconnects with a new SDL instance ID.
+    // PAD3/PAD4 allow spare-controller and both-disconnected tests.
     struct PadStep { double time; SDL_GamepadAxis axis; float value; std::string text; int button = -1; bool down = false; };
     constexpr int kShotStep = -2;  // PadStep::button: a capture, not a button
+    constexpr int kAttachStep = -4; // a new SDL instance, never the old identity
     constexpr int kDetachStep = -3;  // PadStep::button: the pad unplugged
     struct VirtualPad
     {
+        int number = 0;
         std::vector<PadStep> steps;
         size_t next = 0;
         SDL_JoystickID id = 0;
         SDL_Joystick* joystick = nullptr;
     };
-    VirtualPad s_virtualPads[2];
+    VirtualPad s_virtualPads[kUsers];
     bool s_anyVirtualPad = false;  // then those are the only controllers used
 
     bool SDLCALL VirtualPadRumble(void* userdata, Uint16 low, Uint16 high)
@@ -463,12 +474,35 @@ namespace
         return true;
     }
 
+    void CreateVirtualPad(VirtualPad& pad, int number)
+    {
+        SDL_VirtualJoystickDesc desc;
+        SDL_INIT_INTERFACE(&desc);
+        desc.type = SDL_JOYSTICK_TYPE_GAMEPAD;
+        desc.naxes = SDL_GAMEPAD_AXIS_COUNT;
+        desc.nbuttons = SDL_GAMEPAD_BUTTON_COUNT;
+        desc.name = "BurnoutRevenge virtual pad";
+        desc.Rumble = VirtualPadRumble;
+        desc.userdata = reinterpret_cast<void*>(intptr_t(number));
+        pad.id = SDL_AttachVirtualJoystick(&desc);
+        pad.joystick = pad.id ? SDL_OpenJoystick(pad.id) : nullptr;
+        if (!pad.joystick)
+        {
+            fprintf(stderr, "[input] virtual pad %d: no virtual controller: %s\n", number, SDL_GetError());
+            return;
+        }
+        s_anyVirtualPad = true;
+        fprintf(stderr, "[input] virtual pad %d attached, %zu steps\n", number, pad.steps.size());
+    }
+
     void AttachVirtualPad(int number)
     {
-        const char* v = std::getenv(number == 1 ? "BURNOUT_VIRTUAL_PAD" : "BURNOUT_VIRTUAL_PAD2");
+        const std::string variable = number == 1 ? "BURNOUT_VIRTUAL_PAD" : "BURNOUT_VIRTUAL_PAD" + std::to_string(number);
+        const char* v = std::getenv(variable.c_str());
         if (!v || !*v)
             return;
         VirtualPad& pad = s_virtualPads[number - 1];
+        pad.number = number;
         // A test's window rarely has the keyboard focus (on the Mac it's
         // started from a shell behind other windows), and without it SDL
         // drops stick and trigger changes: the pad kept its first value.
@@ -494,9 +528,9 @@ namespace
                 { "UP", SDL_GAMEPAD_BUTTON_DPAD_UP }, { "DOWN", SDL_GAMEPAD_BUTTON_DPAD_DOWN },
                 { "LEFT", SDL_GAMEPAD_BUTTON_DPAD_LEFT }, { "RIGHT", SDL_GAMEPAD_BUTTON_DPAD_RIGHT },
             };
-            if (name == "SHOT" || name == "DETACH")
+            if (name == "SHOT" || name == "DETACH" || name == "ATTACH")
             {
-                pad.steps.push_back({ std::atof(item.c_str()), SDL_GAMEPAD_AXIS_INVALID, 0.0f, name, name == "SHOT" ? kShotStep : kDetachStep, false });
+                pad.steps.push_back({ std::atof(item.c_str()), SDL_GAMEPAD_AXIS_INVALID, 0.0f, name, name == "SHOT" ? kShotStep : name == "ATTACH" ? kAttachStep : kDetachStep, false });
                 continue;
             }
             bool found = false;
@@ -534,29 +568,13 @@ namespace
                 fprintf(stderr, "[input] BURNOUT_VIRTUAL_PAD: unknown axis in \"%s\"\n", item.c_str());
         }
         std::stable_sort(pad.steps.begin(), pad.steps.end(), [](const PadStep& a, const PadStep& b) { return a.time < b.time; });
-        SDL_VirtualJoystickDesc desc;
-        SDL_INIT_INTERFACE(&desc);
-        desc.type = SDL_JOYSTICK_TYPE_GAMEPAD;
-        desc.naxes = SDL_GAMEPAD_AXIS_COUNT;
-        desc.nbuttons = SDL_GAMEPAD_BUTTON_COUNT;
-        desc.name = number == 1 ? "BurnoutRevenge virtual pad" : "BurnoutRevenge virtual pad 2";
-        desc.Rumble = VirtualPadRumble;
-        desc.userdata = reinterpret_cast<void*>(intptr_t(number));
-        pad.id = SDL_AttachVirtualJoystick(&desc);
-        pad.joystick = pad.id ? SDL_OpenJoystick(pad.id) : nullptr;
-        if (!pad.joystick)
-        {
-            fprintf(stderr, "[input] virtual pad %d: no virtual controller: %s\n", number, SDL_GetError());
-            return;
-        }
-        s_anyVirtualPad = true;
-        fprintf(stderr, "[input] virtual pad %d attached, %zu steps\n", number, pad.steps.size());
+        CreateVirtualPad(pad, number);
     }
 
     // Moves a virtual pad's axes due by now. Returns the steps taken ("" if none).
     std::string StepVirtualPad(VirtualPad& pad)
     {
-        if (!pad.joystick || pad.next >= pad.steps.size())
+        if (pad.next >= pad.steps.size())
             return {};
         double t = SecondsSinceLaunch();
         std::string taken;
@@ -570,15 +588,22 @@ namespace
                 taken += (taken.empty() ? "" : " ") + step.text;
                 continue;
             }
-            if (step.button == kDetachStep)
+            if (step.button == kAttachStep)
+            {
+                if (!pad.joystick) CreateVirtualPad(pad, pad.number);
+                taken += (taken.empty() ? "" : " ") + step.text;
+                continue;
+            }
+            if (step.button == kDetachStep && pad.joystick)
             {
                 // SDL then sends the removal, as for a real one.
                 SDL_CloseJoystick(pad.joystick);
                 SDL_DetachVirtualJoystick(pad.id);
                 pad.joystick = nullptr;
-                pad.next = pad.steps.size();
+                ++pad.next;
                 return taken + (taken.empty() ? "" : " ") + step.text;
             }
+            if (!pad.joystick) continue;
             if (step.button >= 0)
             {
                 if (changed & (1u << step.button))
@@ -631,6 +656,11 @@ namespace
         // What it can do: a pad without motors takes rumble and ignores it.
         SDL_PropertiesID props = SDL_GetGamepadProperties(gamepad);
         const auto connection = SDL_GetGamepadConnectionState(gamepad);
+        const SDL_GUID guid = SDL_GetGamepadGUIDForID(SDL_GetGamepadID(gamepad));
+        char guidText[33]{};
+        SDL_GUIDToString(guid, guidText, sizeof(guidText));
+        fprintf(stderr, "[input] player %u: SDL GUID %s, driver %c\n", user+1, guidText,
+            guid.data[14] >= 32 && guid.data[14] < 127 ? guid.data[14] : '-');
         fprintf(stderr, "[input] player %u: %s (rumble %s, trigger rumble %s; transport %s)\n", user + 1,
             SDL_GetGamepadName(gamepad),
             SDL_GetBooleanProperty(props, SDL_PROP_GAMEPAD_CAP_RUMBLE_BOOLEAN, false) ? "yes" : "no",
@@ -645,37 +675,89 @@ namespace
     // leaves its slot is stopped and closed.
     void SyncGamepads()
     {
+        const auto usable = UsableGamepads();
         const hid::padslots::Ids before = s_slots;
-        if (!hid::padslots::Update(s_slots, UsableGamepads()))
-            return;
+        const bool modeChanged = s_assignments.SetPlayers(s_localPlayers.load(std::memory_order_relaxed));
+        s_assignments.Refresh(usable);
+        // Keep unused devices outside the guest ports. A fresh Start edge,
+        // after release, is explicit consent to join the displayed missing slot.
+        for (auto it = s_pendingPads.begin(); it != s_pendingPads.end();)
+            if (!hid::padslots::Contains(usable, it->first))
+            {
+                SDL_CloseGamepad(it->second.handle);
+                it = s_pendingPads.erase(it);
+            }
+            else ++it;
+        for (const auto id : usable)
+            if (hid::padslots::SlotOf(s_slots, id) < 0 && hid::padslots::SlotOf(before, id) < 0 && !s_pendingPads.contains(id))
+                if (auto* handle = SDL_OpenGamepad(SDL_JoystickID(id))) s_pendingPads[id] = {handle, true};
+        for (auto& [id, pending] : s_pendingPads)
+        {
+            const bool start = SDL_GetGamepadButton(pending.handle, SDL_GAMEPAD_BUTTON_START);
+            if (start && !pending.start && s_assignments.Confirm(id, usable))
+            {
+                fprintf(stderr, "[input] replacement confirmed: instance %lld -> player %d\n",
+                    (long long)id, hid::padslots::SlotOf(s_slots, id)+1);
+                pending.start = start;
+                break; // one missing player per frame
+            }
+            pending.start = start;
+        }
+        static std::string notice;
+        const int missing = s_assignments.Missing();
+        const std::string next = missing < 0 ? std::string{} : locale::Format(
+            "Player {} disconnected. Press Start on a replacement controller to control Player {}.", missing+1, missing+1);
+        if (next != notice)
+        {
+            if (!notice.empty()) ui::WithdrawToast(notice);
+            notice = next;
+            if (!notice.empty()) ui::Toast(notice, 15.0);
+        }
+        if (!modeChanged && s_slots == before) return;
         SDL_Gamepad* open[kUsers] = {};
         for (unsigned user = 0; user < kUsers; user++)
         {
-            if (s_slots[user] == hid::padslots::kEmpty)
-                continue;
+            if (s_slots[user] == hid::padslots::kEmpty) continue;
             const int was = hid::padslots::SlotOf(before, s_slots[user]);
-            open[user] = was >= 0 ? s_gamepads[was] : SDL_OpenGamepad(SDL_JoystickID(s_slots[user]));
+            auto pending = s_pendingPads.find(s_slots[user]);
+            if (was >= 0) open[user] = s_gamepads[was];
+            else if (pending != s_pendingPads.end())
+            {
+                open[user] = pending->second.handle;
+                s_pendingPads.erase(pending);
+            }
+            else open[user] = SDL_OpenGamepad(SDL_JoystickID(s_slots[user]));
         }
         for (unsigned user = 0; user < kUsers; user++)
         {
             SDL_Gamepad* gamepad = s_gamepads[user];
-            if (!gamepad || hid::padslots::SlotOf(s_slots, before[user]) >= 0)
-                continue;
+            if (!gamepad || before[user] == s_slots[user]) continue;
+            // Stop the old physical device even if solo fallback moves it.
             SendRumble(user, 0, 0);
-            SDL_CloseGamepad(gamepad);
+            if (hid::padslots::SlotOf(s_slots, before[user]) < 0)
+            {
+                if (hid::padslots::Contains(usable, before[user]))
+                    s_pendingPads[before[user]] = {gamepad, true};
+                else SDL_CloseGamepad(gamepad);
+            }
             fprintf(stderr, "[input] player %u's controller removed\n", user + 1);
         }
-        for (unsigned user = 0; user < kUsers; user++)
-            if (open[user] && hid::padslots::SlotOf(before, s_slots[user]) != int(user))
-                LogGamepad(user, open[user]);
         std::lock_guard lock(s_mutex);
+        s_keyboardAllowed = s_assignments.KeyboardAllowed();
         for (unsigned user = 0; user < kUsers; user++)
         {
             s_gamepads[user] = open[user];
+            s_connected[user] = open[user] || (user == 0 && s_keyboardAllowed);
+            if (before[user] == s_slots[user]) continue;
             s_rumbleErrorReported[user] = false;
-            s_rumble[user].dirty = true;  // the request for this player reaches the controller it has now
-            if (user > 0)
-                s_connected[user] = open[user] != nullptr;
+            s_rumble[user] = {}; // no previous player's rumble on a replacement
+            s_pads[user] = {};
+            s_back[user] = {};
+            s_latchedButtons[user] = 0;
+            s_neutralRequired[user] = true;
+            fprintf(stderr, "[input] player %u: sampled input, button edges and rumble cleared; waiting for neutral controls\n", user+1);
+            ResetKeystrokesLocked(user);
+            if (open[user]) LogGamepad(user, open[user]);
         }
     }
 
@@ -754,6 +836,7 @@ namespace
 namespace hid
 {
     namespace { uint16_t s_rawRewindButtons{};rewind::ChordSet s_rewindChord; }
+    void SetLocalPlayers(unsigned players) { s_localPlayers.store(players, std::memory_order_relaxed); }
     uint16_t RawButtons() { return s_rawRewindButtons; }
     void Initialize()
     {
@@ -771,8 +854,7 @@ namespace hid
         // Keyboard input comes from Cocoa events, never a raw/exclusive HID handle.
         SDL_SetHint(SDL_HINT_HIDAPI_ENUMERATE_ONLY_CONTROLLERS, "1");
 #endif
-        AttachVirtualPad(1);
-        AttachVirtualPad(2);
+        for (unsigned i = 1; i <= kUsers; ++i) AttachVirtualPad(int(i));
         // A steering wheel (hid/wheel.h), unless this run has the test's
         // own controllers: then those are the only devices. The test's own
         // wheel (BURNOUT_VIRTUAL_WHEEL, hid/virtual_wheel.h) is found as a
@@ -784,7 +866,7 @@ namespace hid
         }
         SyncGamepads();
         std::lock_guard lock(s_mutex);
-        s_connected[0] = true;  // the keyboard always counts as player 1's controller
+        s_connected[0] = s_gamepads[0] || s_keyboardAllowed;
     }
 
     void NoteGameStarting()
@@ -943,6 +1025,8 @@ namespace hid
 
     void Shutdown()
     {
+        for (auto& [id, pending] : s_pendingPads) SDL_CloseGamepad(pending.handle);
+        s_pendingPads.clear();
         wheel::Shutdown();
         for (unsigned user = 0; user < kUsers; user++)
             if (s_gamepads[user])
@@ -1004,7 +1088,9 @@ namespace hid
         if (!s_glyphsKnown)
             LastGlyphs();
         ReadLive();
-        const std::string padSteps[2] = { StepVirtualPad(s_virtualPads[0]), StepVirtualPad(s_virtualPads[1]) };
+        std::array<std::string, kUsers> padSteps;
+        for (unsigned i = 0; i < kUsers; ++i) padSteps[i] = StepVirtualPad(s_virtualPads[i]);
+        SyncGamepads();
         if (const std::string wheelSteps = virtual_wheel::Step(SecondsSinceLaunch()); !wheelSteps.empty())
             fprintf(stderr, "[wheel] virtual wheel %s\n", wheelSteps.c_str());
         const float deadzone = settings::GetFloat(settings::Id::StickDeadzone);
@@ -1118,7 +1204,7 @@ namespace hid
             p.rightTrigger = Trigger(rt, triggerDeadzone);
             if (user == 0 && (gamepad || onWheel))
                 LogStick(rawX, rawY, lx, ly, rawLt, rawRt, p.leftTrigger, p.rightTrigger);
-            for (int v = 0; v < 2; v++)
+            for (unsigned v = 0; v < kUsers; v++)
                 if (gamepad && !padSteps[v].empty() && SDL_GetGamepadID(gamepad) == s_virtualPads[v].id)
                     fprintf(stderr, "[input] virtual pad %d (player %u) %s: left stick raw (%+.4f, %+.4f) -> game (%d, %d), right (%d, %d); "
                                     "triggers raw (%.3f, %.3f) -> game (%u, %u); deadzones: stick %.2f, trigger %.2f%s\n",
@@ -1140,7 +1226,7 @@ namespace hid
                 // Explicit virtual-pad scripts run unattended in an isolated
                 // test profile; a real controller still requires game focus.
                 const bool focused=SDL_GetKeyboardFocus()!=nullptr || (s_anyVirtualPad && !s_script.empty());
-                const auto chord=s_rewindChord.Update(masks,s_rawRewindButtons,blocked||!active||!focused,double(SDL_GetTicksNS())/1e9);
+                const auto chord=s_rewindChord.Update(masks,s_rawRewindButtons,blocked||!active||!focused||s_neutralRequired[0],double(SDL_GetTicksNS())/1e9);
                 p.buttons&=~chord.consume;
                 s_rewindConsumed.store(chord.consume,std::memory_order_relaxed);
                 if (chord.seconds) ui::TriggerRewind(chord.seconds);
@@ -1158,6 +1244,15 @@ namespace hid
             if ((blocked || s_wasBlocked) && padBack)
                 s_back[user].state = BackState::Swallow;
             s_latchedButtons[user] &= p.buttons;
+            if (s_neutralRequired[user])
+            {
+                if (!p.buttons && !padBack && !p.leftTrigger && !p.rightTrigger && !p.lx && !p.ly && !p.rx && !p.ry)
+                {
+                    s_neutralRequired[user] = false;
+                    fprintf(stderr, "[input] player %u: all controls released\n", user+1);
+                }
+                p = {};
+            }
             if (blocked)
                 p = Pad{};
             else
@@ -1174,7 +1269,7 @@ namespace hid
                 requests[user] = s_rumble[user];
                 s_rumble[user].dirty = false;
             }
-            s_scriptSuppressed = blocked;
+            s_scriptSuppressed = blocked || s_neutralRequired[0];
         }
         static bool vibration = true;
         bool vibrationChanged = false;
@@ -1235,12 +1330,12 @@ namespace
         return p;
     }
 
-    // Whether the game finds a controller as `user` (0 to 3). Player 1
-    // always has one: the keyboard, or the script of an automated run.
+    // Keyboard P1 is available in solo and in local sessions started with it.
+    // It must not hide the loss of a physical P1 during local multiplayer.
     // Caller holds s_mutex.
     bool ConnectedLocked(unsigned user)
     {
-        return user < kUsers && (s_connected[user] || (user == 0 && !s_script.empty()));
+        return user < kUsers && s_connected[user];
     }
 
     // XInput's "any user" (0xFF) is player 1, as in Xenia.
@@ -1295,6 +1390,12 @@ namespace
     static_assert(sizeof(Keystroke) == 8);
 
     constexpr uint32_t ERROR_EMPTY = 0x10D2;
+
+    void ResetKeystrokesLocked(unsigned user)
+    {
+        std::fill(std::begin(s_keyDown[user]), std::end(s_keyDown[user]), false);
+        std::fill(std::begin(s_keyRepeatAt[user]), std::end(s_keyRepeatAt[user]), 0);
+    }
 
     // The next keystroke of `user`, or of the first user that has one
     // (`anyUser`: XamInputGetKeystroke's "any"), with the user it came from.

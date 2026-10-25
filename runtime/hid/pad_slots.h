@@ -1,21 +1,8 @@
 // SpeedBreaker runtime. GPL-3.0-or-later (see COPYING).
-// Which controller is which player: the game polls XInput users 0 to 3
-// every frame, and each user is one slot here. A controller that turns up
-// takes the lowest empty slot, so the first is player 1 and the second
-// player 2. When one goes, a controller still waiting for a slot (a fifth)
-// takes the empty one; and if player 1's slot is left empty with nobody
-// waiting, the lowest other player's controller moves up to it, so a lone
-// controller is always player 1. That is also what keeps one controller
-// seen twice (over Bluetooth and USB at once) from being stuck as player 2
-// with nothing as player 1. The price: with two players, if player 1's
-// controller drops out, player 2's becomes player 1, and the one that comes
-// back is player 2. A controller never holds two slots.
-//
-// The rule is Fukami's (danisandoval/fukami, src/host/rrv_pad_slots.h,
-// GPL-3.0: two ports there), here for four users and written as one step
-// that takes the controllers connected now. Separate from SDL so it can be
-// tested without a device (tests/pad_slots_test.cpp); hid/input.cpp keeps
-// the open controllers in step with it.
+// Solo keeps the original Fukami fallback below. A local multiplayer session
+// reserves its participating slots: only an explicit press on a replacement
+// controller can fill a missing slot. SDL instance IDs are never identities.
+// Original fallback adapted from danisandoval/fukami, rrv_pad_slots.h (GPL-3.0).
 #pragma once
 
 #include <array>
@@ -78,4 +65,55 @@ namespace hid::padslots
                 }
         return ids != before;
     }
+    class Assignments
+    {
+    public:
+        Ids ids = Empty();
+        unsigned players = 0;
+        std::array<bool, kSlots> physical{};
+
+        bool SetPlayers(unsigned count)
+        {
+            count = count > 1 && count <= kSlots ? count : 0;
+            if (count == players) return false;
+            players = count;
+            physical = {};
+            if (players)
+                for (unsigned slot = 0; slot < kSlots; ++slot)
+                {
+                    if (slot >= players) ids[slot] = kEmpty;
+                    else physical[slot] = ids[slot] != kEmpty || slot != 0;
+                }
+            return true;
+        }
+
+        bool Refresh(std::span<const int64_t> connected)
+        {
+            if (!players) return Update(ids, connected);
+            const Ids before = ids;
+            for (auto& id : ids)
+                if (id != kEmpty && !Contains(connected, id)) id = kEmpty;
+            return ids != before;
+        }
+
+        int Missing() const
+        {
+            for (unsigned slot = 0; slot < players; ++slot)
+                if (physical[slot] && ids[slot] == kEmpty) return int(slot);
+            return -1;
+        }
+
+        // Caller detects a fresh Start edge after opening/releasing the device.
+        // One press fills the first missing participating slot, never two.
+        bool Confirm(int64_t id, std::span<const int64_t> connected)
+        {
+            const int slot = Missing();
+            if (slot < 0 || id < 0 || SlotOf(ids, id) >= 0 || !Contains(connected, id)) return false;
+            ids[unsigned(slot)] = id;
+            return true;
+        }
+
+        bool KeyboardAllowed() const { return !players || !physical[0]; }
+    };
+
 }

@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Keep player assignments stable during local split-screen sessions when a
+  controller disconnects. A replacement joins the first missing player with a
+  fresh Start press; reconnecting or adding a spare controller cannot silently
+  take another player's car. The native pause remains in charge, and controls
+  must be released before a replacement can send input.
+
 ## v0.1.24
 
 - Classic Crash Launch in Settings > Mods: the PS2 and original Xbox launch
