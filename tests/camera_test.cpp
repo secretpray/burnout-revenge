@@ -12,8 +12,6 @@
 
 Memory::Memory() {}
 Memory g_memory;
-static bool onlineMode{};
-namespace online { bool Enabled() { return onlineMode; } }
 namespace report { double SessionSeconds() { return 0.; } }
 PPC_EXTERN_FUNC(sub_82318848);
 extern "C" PPC_FUNC(__imp__sub_8230EBF8) {}
@@ -78,7 +76,7 @@ static float Scale(double fov = 70., uint32_t object = camera::kPrimary, uint32_
 static void Reset()
 {
     settings::Set(settings::Id::CameraFov, 10);
-    onlineMode = false;
+    settings::Set(settings::Id::OnlineEnabled, 0);
     Word(codes::kSession, codes::kSoloSession); Word(codes::kSoloSession + 8, 1);
     Word(codes::kLocalPlayers, 1); g_memory.base[codes::kSpecialMode] = 0;
     Word(codes::kCrashVariant, 0); Word(rewind::kPhase, 5);
@@ -125,7 +123,11 @@ int main()
     assert(Scale(30.) == 1.f); settings::Set(settings::Id::CameraFov, 20); assert(Scale(120.) == 1.f);
     for (double fov : {0., 29., 121., double(INFINITY), double(NAN)}) assert(Scale(fov) == 1.f);
     assert(Scale(70., camera::kPrimary + 304) == 1.f && Scale(70., camera::kPrimary, 0x8215C2D4) == 1.f);
-    Reset(); onlineMode = true; assert(Scale() == 1.f);
+    Reset(); settings::Set(settings::Id::OnlineEnabled, 1); assert(Scale() > 1.f);
+    // Sign-in is independent of active play. Only the exact solo wrapper is
+    // eligible; online, split, frontend and unknown wrappers never are.
+    for (uint32_t session : {0u, codes::kFrontendSession, codes::kSplitSession, 0x8287C718u, 0xDEADBEEFu})
+    { Reset(); settings::Set(settings::Id::OnlineEnabled, 1); Word(codes::kSession, session); assert(Scale() == 1.f); }
     for (uint32_t count : {0u, 2u, 4u}) { Reset(); Word(codes::kLocalPlayers, count); assert(Scale() == 1.f); }
     for (uint32_t phase : {0u, 4u, 6u}) { Reset(); Word(rewind::kPhase, phase); assert(Scale() == 1.f); }
     for (uint32_t mode : {0u, 1u, 3u}) { Reset(); Word(camera::kParticipant + 13520, mode); assert(Scale() == 1.f); }
@@ -170,7 +172,8 @@ int main()
     settings::Set(settings::Id::CameraDistance, 75); chase();
     assert(std::abs(observedZ + 5.1f) < 1e-5 && z() == stockZ);
     settings::Reset(settings::Id::CameraDistance); chase(); assert(observedZ == -6.8f);
-    setup(); onlineMode = true; chase(); assert(observedZ == -6.8f);
+    setup(); settings::Set(settings::Id::OnlineEnabled, 1); chase(); assert(std::abs(observedZ + 10.2f) < 1e-5);
+    setup(); settings::Set(settings::Id::OnlineEnabled, 1); Word(codes::kSession, 0x8287C718); chase(); assert(observedZ == -6.8f);
     setup(); g_memory.base[kWrapper + 599] = 1; chase(); assert(observedZ == -6.8f);
     setup(); Word(rewind::kClockFlags, 0x01010000); chase(); assert(observedZ == -6.8f);
     setup(); Word(camera::kManager + 11904, 10); chase(); assert(observedZ == -6.8f);
@@ -233,7 +236,8 @@ int main()
     prepareEffect(50); effectAngle = .0001; shake();
     assert(std::abs(value(effectFrame + 40) - std::sin(.00005)) < 1e-7);
     prepareEffect(100); shake(); nativePose();
-    prepareEffect(); onlineMode = true; shake(); nativePose();
+    prepareEffect(); settings::Set(settings::Id::OnlineEnabled, 1); shake(); assert(value(effectFrame + 48) == 10.f);
+    prepareEffect(); settings::Set(settings::Id::OnlineEnabled, 1); Word(codes::kSession, 0x8287C718); shake(); nativePose();
     prepareEffect(); Word(codes::kLocalPlayers, 2); shake(); nativePose();
     prepareEffect(); g_memory.base[rewind::kWorldPlayback] = 1; shake(); nativePose();
     prepareEffect(); g_memory.base[kWrapper + 599] = 1; shake(); nativePose();

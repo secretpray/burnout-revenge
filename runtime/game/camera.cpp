@@ -3,7 +3,6 @@
 #include "camera.h"
 #include "rewind_probe.h"
 #include <user/settings.h>
-#include <user/online.h>
 #include <report/report.h>
 #include <cmath>
 #include <numbers>
@@ -206,7 +205,10 @@ namespace game::camera
         const uint32_t wrapper = id >= 0 && id < 54
             ? PPC_LOAD_U32(0x82AB6F80 + 0x47760 + (7 * 65536 + 9776 + id) * 4) : 0;
         return PPC_LOAD_U32(rewind::kPhase) == 5 &&
-            codes::Allowed({true, online::Enabled(), session,
+            // Xbox Live sign-in is also available while playing World Tour.
+            // The verified solo wrapper, not the account's sign-in setting,
+            // separates this camera from online and local multiplayer.
+            codes::Allowed({true, false, session,
                 session == codes::kSoloSession ? PPC_LOAD_U32(session + 8) : 0,
                 PPC_LOAD_U32(codes::kLocalPlayers), PPC_LOAD_U8(codes::kSpecialMode),
                 PPC_LOAD_U32(codes::kCrashVariant), 0, 0}) &&

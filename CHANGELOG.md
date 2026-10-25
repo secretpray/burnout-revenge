@@ -2,6 +2,9 @@
 
 ## v0.1.25
 
+- Keep solo World Tour FOV, chase distance and shake controls working while
+  signed in to Xbox Live. Eligibility now follows the active solo session;
+  the account's sign-in setting no longer disables the camera controls.
 - Resume the soundtrack when leaving a challenge-complete, rank-up or signature
   takedown video, including skipping with Start. Use the game's own resume and
   mute cleanup, avoid a second resume after a completed movie, and keep the hold

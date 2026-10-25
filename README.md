@@ -389,6 +389,11 @@ World Tour chase-camera driving, retaining the game's obstacle checks. A change
 made while paused takes effect when play resumes; other camera modes keep their
 native position.
 
+These camera controls also work in solo World Tour while signed in to Xbox Live.
+The distance control does not select the camera view: the game's Y button
+(Triangle with PlayStation hints, Left Ctrl on the default keyboard mapping)
+switches between the bumper view and the chase view behind the car.
+
 **Camera Shake** reduces the native added position and rotation effects in the
 solo World Tour chase view: 100% keeps the original, 0% removes them. It leaves
 steering response, obstacle checks, controller vibration and native FOV effects
