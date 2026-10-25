@@ -20,9 +20,9 @@ folder. No game files are included. A terminal installation is also available:
 ./burnout-revenge.sh --install /path/to/your-disc.iso --dest /path/to/game
 ```
 
-Saves/settings use `$XDG_DATA_HOME/BurnoutRevenge` (default
-`~/.local/share/BurnoutRevenge`); caches use `$XDG_CACHE_HOME/BurnoutRevenge`
-(default `~/.cache/BurnoutRevenge`). Check the startup log for the actual paths.
+Saves/settings use `$XDG_DATA_HOME/burnout-revenge` (default
+`~/.local/share/burnout-revenge`); caches use `$XDG_CACHE_HOME/burnout-revenge`
+(default `~/.cache/burnout-revenge`). Check the startup log for the actual paths.
 For isolated testing, always set `BR_DATA_DIR` and `BR_CACHE_DIR` to scratch
 folders. `--portable on` enables the existing portable layout beside the launcher;
 that folder must be writable. Replacing an ordinary package must preserve user
