@@ -133,10 +133,25 @@ namespace update
                 }
             }
             else
-                fetched = Fetch({ .url = kApiUrl, .userAgent = UserAgent(),
+                fetched = Fetch({ .url =
+#ifdef __linux__
+                    kLinuxApiUrl,
+#else
+                    kApiUrl,
+#endif
+                    .userAgent = UserAgent(),
                     .headers = { { "Accept", "application/vnd.github+json" }, { "X-GitHub-Api-Version", "2022-11-28" } } });
 
+#ifdef __linux__
+            Result result = EvaluateLinux(fetched, running, int64_t(std::time(nullptr)),
+#if defined(__aarch64__)
+                true);
+#else
+                false);
+#endif
+#else
             Result result = Evaluate(fetched, running, int64_t(std::time(nullptr)));
+#endif
             const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count();
             const bool tested = running != report::Version();
             fprintf(stderr, "[update] %s (%.2f s%s%s)\n", result.log.c_str(), seconds, source.c_str(),

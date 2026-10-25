@@ -24,6 +24,8 @@ namespace update
 {
     // GitHub's newest release that is neither a draft nor a pre-release.
     inline constexpr const char kApiUrl[] = "https://api.github.com/repos/secretpray/burnout-revenge/releases/latest";
+    inline constexpr const char kLinuxApiUrl[] = "https://api.github.com/repos/secretpray/burnout-revenge/releases?per_page=30";
+    inline constexpr const char kLinuxReleasesPage[] = "https://github.com/secretpray/burnout-revenge/releases";
     // Where "Open download page" goes when the answer names no page of this
     // project's releases.
     inline constexpr const char kReleasesPage[] = "https://github.com/secretpray/burnout-revenge/releases/latest";
@@ -62,6 +64,7 @@ namespace update
         std::string body;     // the notes (Markdown); "" when null
         std::string message;  // an error answer's "message"
         bool draft = false, prerelease = false;
+        std::vector<std::string> assets;  // names only; never executable URLs
     };
     // Reads the top-level members above out of a JSON object. Strict: the
     // whole document must be valid JSON (RFC 8259, UTF-8, at most 64 levels
@@ -136,6 +139,9 @@ namespace update
     };
     // `current`: the running version; `now`: Unix seconds (a rate limit's reset).
     Result Evaluate(const Fetched& fetched, std::string_view current, int64_t now);
+    // Linux reads the release list, including prereleases, and offers only a
+    // release carrying a package for the running architecture. No Mac fallback.
+    Result EvaluateLinux(const Fetched& fetched, std::string_view current, int64_t now, bool arm64);
     // The page to open and show as a QR code: `url` if it is a page of this
     // project's releases (plain characters, a sane length), else kReleasesPage.
     std::string SafePageUrl(std::string_view url);

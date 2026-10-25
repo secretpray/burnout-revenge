@@ -12,4 +12,4 @@ with tempfile.TemporaryDirectory(prefix='burnout-audio-') as temp:
                         '-metadata', 'title=Linux fixture', '-metadata', 'artist=Synthetic artist',
                         *extra, str(folder / name)], check=True, timeout=30)
     (folder / 'corrupt.mp3').write_bytes(b'not audio\x00' * 17)
-    subprocess.run([sys.argv[1], str(folder)], check=True, timeout=30)
+    subprocess.run([*sys.argv[3:], sys.argv[1], str(folder)], check=True, timeout=30)

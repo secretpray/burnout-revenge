@@ -62,7 +62,7 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         target_include_directories(audio_file_formats_test PRIVATE ${RT} ${FFMPEG_INCLUDE_DIR})
         target_link_libraries(audio_file_formats_test PRIVATE ${AVFORMAT_LIBRARY} ${SWRESAMPLE_LIBRARY} ${AVCODEC_LIBRARY} ${AVUTIL_LIBRARY})
         add_test(NAME audio_file_formats COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/audio_file_formats_test.py
-            $<TARGET_FILE:audio_file_formats_test> ${BR_FIXTURE_FFMPEG})
+            $<TARGET_FILE:audio_file_formats_test> ${BR_FIXTURE_FFMPEG} ${CMAKE_CROSSCOMPILING_EMULATOR})
         set_tests_properties(audio_file_formats PROPERTIES TIMEOUT 120)
     else()
         message(STATUS "My Music compressed-format fixtures unavailable: install FFmpeg CLI (not bundled)")
@@ -379,6 +379,7 @@ sb_test(key_map_test)
 sb_test(wheel_map_test)
 # Check for Updates' logic: versions, GitHub's JSON, curl's output and the
 # release notes (update/check.cpp, self-contained).
+sb_test(linux_update_test SOURCES ${RT}/update/check.cpp ${RT}/user/localization.cpp)
 sb_test(update_check_test SOURCES ${RT}/update/check.cpp ${RT}/user/localization.cpp)
 # Settings > Quit Game: where it is offered (not on iPhone or iPad) and its
 # confirmation (ui/quit_game.h, header only); the runtime's code around it
