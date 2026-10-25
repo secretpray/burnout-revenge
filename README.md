@@ -82,7 +82,9 @@
 - Quit confirmation: press the controller's **Home / Xbox Guide / PS** button.
   Cancel is selected first; **B / Circle** dismisses the prompt. The game window
   must be active and the controller driver must expose the button. macOS or
-  Steam may reserve it; **Settings > Quit Game** remains available.
+  Steam may reserve it; **Settings > Quit Game** remains available. While the
+  game is focused it asks macOS to give Home to this dialog; system gestures
+  resume when focus leaves. This keeps your system shortcut settings intact.
 
 ## Highlights
 

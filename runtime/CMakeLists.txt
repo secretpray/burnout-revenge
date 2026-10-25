@@ -236,7 +236,7 @@ endif()
 # on macOS AppKit (file_dialog.mm) and CoreFoundation (install/placement.cpp:
 # is a folder in iCloud Drive).
 if(APPLE AND NOT IOS)
-    target_link_libraries(${BR_RUNTIME_TARGET} PRIVATE "-framework Foundation" "-framework AppKit" "-framework CoreFoundation" "-framework AudioToolbox")
+    target_link_libraries(${BR_RUNTIME_TARGET} PRIVATE "-framework Foundation" "-framework AppKit" "-framework CoreFoundation" "-framework AudioToolbox" "-framework GameController")
     if(BR_GAME STREQUAL "burnout")
         target_link_libraries(${BR_RUNTIME_TARGET} PRIVATE "-framework Metal" "-weak_framework MetalFX")
     endif()

@@ -68,6 +68,10 @@ namespace platform::macos
     void HideGame();
     void UnhideGame();
 
+    // App-local Home/Guide/PS priority: ask GameController to deliver Home
+    // directly while our window is focused; restore system gestures outside it.
+    void SetControllerHomePriority(bool focused);
+
     // System Settings > Accessibility > Display > Reduce motion: the
     // first-run screens then keep still (ui/burnout_setup.cpp).
     bool ReduceMotion();

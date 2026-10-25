@@ -20,6 +20,9 @@
 
 #include <SDL3/SDL.h>
 #include <fstream>
+#if defined(__APPLE__) && !TARGET_OS_IOS
+#include <platform/macos_window.h>
+#endif
 
 // key_map.h names XInput's bits as literals (it has no kernel header): keep
 // them the bits the game reads.
@@ -889,6 +892,9 @@ namespace hid
 #endif
         if (!SDL_InitSubSystem(SDL_INIT_GAMEPAD))
             fprintf(stderr, "[input] SDL gamepad init failed: %s\n", SDL_GetError());
+#if defined(__APPLE__) && !TARGET_OS_IOS
+        platform::macos::SetControllerHomePriority(SDL_GetKeyboardFocus() != nullptr);
+#endif
         fprintf(stderr, "[input] stick deadzone %.2f, trigger deadzone %.2f\n", settings::GetFloat(settings::Id::StickDeadzone),
             settings::GetFloat(settings::Id::TriggerDeadzone));
 #if defined(__APPLE__) && !TARGET_OS_IOS
@@ -1026,6 +1032,9 @@ namespace hid
             }
             SDL_ResetKeyboard();
             ApplyRumbleActivity(s_rumbleFocus.SetFocused(false));
+#if defined(__APPLE__) && !TARGET_OS_IOS
+            platform::macos::SetControllerHomePriority(false);
+#endif
             fprintf(stderr, "[input] window inactive (event %u): keyboard state cleared; all input grabs released\n", e.type);
         }
         else if (e.type == SDL_EVENT_WINDOW_FOCUS_GAINED || e.type == SDL_EVENT_WINDOW_SHOWN ||
@@ -1035,6 +1044,9 @@ namespace hid
             const bool focused = e.type == SDL_EVENT_WINDOW_FOCUS_GAINED ||
                 (window && (SDL_GetWindowFlags(window) & SDL_WINDOW_INPUT_FOCUS));
             ApplyRumbleActivity(s_rumbleFocus.SetFocused(focused));
+#if defined(__APPLE__) && !TARGET_OS_IOS
+            platform::macos::SetControllerHomePriority(focused);
+#endif
             fprintf(stderr, "[input] window activity: focused=%d, keyboard=%s, grab=%d\n", focused,
                 SDL_HasKeyboard() ? "present" : "absent",
                 window ? SDL_GetWindowKeyboardGrab(window) : false);
@@ -1052,6 +1064,9 @@ namespace hid
             // (A joystick too: a wheel that comes takes its device, which
             // may have looked like a gamepad.)
             SyncGamepads();
+#if defined(__APPLE__) && !TARGET_OS_IOS
+            platform::macos::SetControllerHomePriority(SDL_GetKeyboardFocus() != nullptr);
+#endif
 #if defined(__APPLE__) && TARGET_OS_IOS
             if (s_gamepads[0] || wheel::Playing())
                 WithdrawNoControllerNotice();
@@ -1073,6 +1088,9 @@ namespace hid
 
     void Shutdown()
     {
+#if defined(__APPLE__) && !TARGET_OS_IOS
+        platform::macos::SetControllerHomePriority(false);
+#endif
         for (auto& [id, pending] : s_pendingPads) SDL_CloseGamepad(pending.handle);
         s_pendingPads.clear();
         wheel::Shutdown();

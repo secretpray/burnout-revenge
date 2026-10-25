@@ -8,6 +8,7 @@
 #include <platform/macos_window.h>
 
 #import <AppKit/AppKit.h>
+#import <GameController/GameController.h>
 #include <cmath>
 #include <SDL3/SDL.h>
 #include <cstdio>
@@ -156,6 +157,25 @@ namespace platform::macos
     {
         [NSApp unhide:nil];
         [NSApp activate];
+    }
+
+    void SetControllerHomePriority(bool focused)
+    {
+        @autoreleasepool
+        {
+            unsigned exposed = 0;
+            for (GCController* controller in [GCController controllers])
+            {
+                GCControllerButtonInput* home = controller.physicalInputProfile.buttons[GCInputButtonHome];
+                if (!home) continue;
+                ++exposed;
+                // This is a preference of this process, not a change to the
+                // user's Game Center/Games shortcut. macOS can override it.
+                home.preferredSystemGestureState = focused ? GCSystemGestureStateDisabled : GCSystemGestureStateEnabled;
+            }
+            fprintf(stderr, "[input] macOS Home priority: %s (%u exposed buttons; system policy may override)\n",
+                focused ? "game quit confirmation" : "system gestures", exposed);
+        }
     }
 
     bool RestoreAfterFullscreen(SDL_Window* window)
