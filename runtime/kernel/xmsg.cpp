@@ -7,6 +7,7 @@
 // online handlers below when enabled, and fail explicitly when unknown.
 // Contracts checked against Xenia and Xerenge's BSD ReXGlue SDK fork.
 #include <stdafx.h>
+#include <utility>
 #include "function.h"
 #include "overlapped.h"
 #include "xam.h"

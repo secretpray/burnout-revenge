@@ -1,6 +1,7 @@
 #include <user/localization.h>
 // Burnout Revenge port. GPL-3.0-or-later (see COPYING). See online.h.
 #include "online.h"
+#include <platform/socket_compat.h>
 #include "online_identity.h"
 #include "settings.h"
 
@@ -231,11 +232,10 @@ namespace online
                 error = strerror(errno);
                 return -1;
             }
-            const int one = 1;
-            setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &one, sizeof(one));
+            platform::sockets::SuppressSigpipe(fd);
             fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
             sockaddr_in to{};
-            to.sin_len = sizeof(to);
+            platform::sockets::SetAddressLength(to);
             to.sin_family = AF_INET;
             to.sin_port = htons(port);
             to.sin_addr.s_addr = address;
@@ -296,7 +296,7 @@ namespace online
         packet += body;
         packet += '\0';
         std::string reply;
-        if (send(fd, packet.data(), packet.size(), 0) == ssize_t(packet.size()))
+        if (send(fd, packet.data(), packet.size(), platform::sockets::kSendFlags) == ssize_t(packet.size()))
         {
             const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(5);
             while (std::chrono::steady_clock::now() < until)

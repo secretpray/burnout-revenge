@@ -16,6 +16,7 @@ function(sb_test name)
     add_test(NAME ${name} COMMAND ${name} ${T_ARGS})
 endfunction()
 
+sb_test(socket_compat_test)
 sb_test(block_ranges_test)
 sb_test(texture_volume_layout_test)
 sb_test(rectangle_list_test)
