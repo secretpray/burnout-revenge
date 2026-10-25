@@ -1,0 +1,11 @@
+name: Linux portable tests
+on: [push, pull_request]
+jobs:
+  portable:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y clang-18 ninja-build
+      - run: cmake --preset portable-tests -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18
+      - run: cmake --build --preset portable-tests
+      - run: ctest --preset portable-tests

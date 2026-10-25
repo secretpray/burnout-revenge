@@ -1,0 +1,42 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {"major": 3, "minor": 21, "patch": 0},
+  "configurePresets": [
+    {
+      "name": "linux-release",
+      "displayName": "Linux Release (native architecture)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/linux-release",
+      "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_PREFIX_PATH": "${sourceDir}/build/linux-deps",
+        "FFMPEG_XMA": "${sourceDir}/build/linux-deps/ffmpeg-xma",
+        "BR_TESTS": "ON",
+        "CMAKE_BUILD_RPATH_USE_ORIGIN": "ON",
+        "CMAKE_INSTALL_RPATH": "$ORIGIN/../lib"
+      }
+    },
+    {
+      "name": "portable-tests",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/portable-tests",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "BR_PORTABLE_TESTS_ONLY": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {"name": "linux-release", "configurePreset": "linux-release", "jobs": 2},
+    {"name": "portable-tests", "configurePreset": "portable-tests", "jobs": 2}
+  ],
+  "testPresets": [
+    {"name": "linux-release", "configurePreset": "linux-release", "output": {"outputOnFailure": true}},
+    {"name": "portable-tests", "configurePreset": "portable-tests", "output": {"outputOnFailure": true}}
+  ]
+}

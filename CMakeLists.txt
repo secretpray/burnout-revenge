@@ -96,6 +96,15 @@ set(BR_RUNTIME_TARGET BurnoutRevenge)
 set(BR_RECOMP_TARGET BurnoutRecompLib)
 set(BR_PPC_DIR "${CMAKE_SOURCE_DIR}/ppc/burnout" CACHE PATH "Generated Burnout code")
 
+# Public CI can exercise portable code with synthetic fixtures, without XEX,
+# generated PPC, SDL or the private toolchain checkout.
+option(BR_PORTABLE_TESTS_ONLY "Build only asset-free portable tests" OFF)
+if(BR_PORTABLE_TESTS_ONLY)
+    enable_testing()
+    add_subdirectory(tests/portable)
+    return()
+endif()
+
 add_subdirectory(recomp)
 add_subdirectory(runtime)
 
