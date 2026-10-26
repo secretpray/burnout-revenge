@@ -2,7 +2,7 @@
 #include "save_import.h"
 #include "save_backup.h"
 
-#include <CommonCrypto/CommonDigest.h>
+#include <platform/sha1.h>
 
 #include <algorithm>
 #include <cctype>
@@ -22,9 +22,7 @@ namespace user::save_import
 
         stfs::Digest Sha1(std::span<const uint8_t> bytes)
         {
-            stfs::Digest digest;
-            CC_SHA1(bytes.data(), CC_LONG(bytes.size()), digest.data());
-            return digest;
+            return platform::Sha1(bytes);
         }
 
         std::vector<uint8_t> ReadFile(const fs::path& path, size_t limit)

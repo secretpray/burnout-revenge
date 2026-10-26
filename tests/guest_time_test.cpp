@@ -14,6 +14,7 @@
 #include <chrono>
 #include <cmath>
 #include <condition_variable>
+#include <cstring>
 #include <cstdio>
 #include <cstdlib>
 #include <functional>
@@ -211,12 +212,27 @@ namespace hook
     }
 }
 
-int main()
+int main(int argc, char** argv)
 {
+    long watchdogSeconds = 120;
+    if (argc != 1)
+    {
+        char* end = nullptr;
+        if (argc == 3 && std::strcmp(argv[1], "--watchdog-seconds") == 0)
+            watchdogSeconds = std::strtol(argv[2], &end, 10);
+        if (!end || *end || watchdogSeconds < 120 || watchdogSeconds > 900)
+        {
+            fprintf(stderr, "Usage: guest_time_test [--watchdog-seconds 120..900]\n");
+            return 2;
+        }
+    }
+    // Full-system CPU emulation can take longer for the same 20,000 cycles.
+    // Only its watchdog may be extended; all timing and correctness checks stay.
+    printf("watchdog: %ld s; stress workload and assertions unchanged\n", watchdogSeconds);
     // A thread left parked would hang the joins below: give up instead.
-    std::thread([] {
-        std::this_thread::sleep_for(120s);
-        printf("  FAIL: still running after 120 s (a thread left parked?)\n");
+    std::thread([watchdogSeconds] {
+        std::this_thread::sleep_for(std::chrono::seconds(watchdogSeconds));
+        printf("  FAIL: still running after %ld s (a thread left parked?)\n", watchdogSeconds);
         std::fflush(stdout);
         std::_Exit(2);
     }).detach();

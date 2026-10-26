@@ -2,7 +2,7 @@
 //
 // Where there is no system decoder for the player's music (not Apple):
 // nothing opens, and those songs are skipped.
-#ifndef __APPLE__
+#if !defined(__APPLE__) && !defined(__linux__)
 #include "audio_file.h"
 
 namespace platform::audio_file

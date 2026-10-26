@@ -7,8 +7,10 @@ include, software by others under their own licenses, listed here. The license t
 [`LICENSES/`](LICENSES).
 
 The downloads carry these notices too: the Mac app in `Burnout Revenge.app/Contents/Resources/licenses`,
-each SteamOS download in its `licenses/` folder (with the license of every library it bundles,
-collected when the bundle is made), Other platforms are not distributed by this project.
+and the experimental Linux package in its `licenses/` folder. The Linux package
+bundles SDL3 and statically links patched FFmpeg, libmspack, glslang and SPIRV-Tools;
+its manifest records exact dependency versions. Linux GPU drivers, Vulkan loader,
+glibc and GCC runtime libraries are supplied by the system, not bundled here.
 
 ## Compiled into Burnout Revenge
 
@@ -20,7 +22,7 @@ collected when the bundle is made), Other platforms are not distributed by this 
 | **XenonRecomp** (XenonUtils): Copyright (c) 2025 hedge-dev and contributors | Recompiles the game's PowerPC code into C++ (with SpeedBreaker's patches, `patches/xenonrecomp/`); its XEX loader is compiled into the runtime. | MIT | [`LICENSES/XenonRecomp-MIT.md`](LICENSES/XenonRecomp-MIT.md) |
 | **libmspack**: (C) 2003-2023 Stuart Caie | LZX decompression of the XEX (`lzxd.c`, through XenonRecomp). | LGPL-2.1 | [`LICENSES/libmspack-LGPL-2.1.txt`](LICENSES/libmspack-LGPL-2.1.txt) |
 | **tiny-AES-c** | XEX decryption (through XenonRecomp). | Unlicense | [`LICENSES/tiny-AES-c-Unlicense.txt`](LICENSES/tiny-AES-c-Unlicense.txt) |
-| **TinySHA1**: Copyright (c) 2012-22 Saurav Mohapatra | SHA-1, in XenonRecomp's XEX patcher. | ISC-style | [`LICENSES/TinySHA1-ISC.txt`](LICENSES/TinySHA1-ISC.txt) |
+| **TinySHA1**: Copyright (c) 2012-22 Saurav Mohapatra | SHA-1, in XenonRecomp's XEX patcher and portable STFS checksums. The runtime copy in `runtime/thirdparty/TinySHA1.hpp` retains the Xenia/XenonRecomp version and its copyright. | ISC-style | [`LICENSES/TinySHA1-ISC.txt`](LICENSES/TinySHA1-ISC.txt) |
 | **toml++**: Copyright (c) Mark Gillard | Reads and writes `settings.toml` (through XenonRecomp). | MIT | [`LICENSES/tomlplusplus-MIT.txt`](LICENSES/tomlplusplus-MIT.txt) |
 | **SIMDe**: Copyright (c) 2017 Evan Nemerson and contributors | Vector instructions in the recompiled code (through XenonRecomp). | MIT | [`LICENSES/SIMDe-MIT.txt`](LICENSES/SIMDe-MIT.txt) |
 | **Dear ImGui** 1.92.9: Copyright (c) 2014-2026 Omar Cornut | The installer, the settings menu and the overlays (`runtime/thirdparty/imgui`). | MIT | [`LICENSES/DearImGui-MIT.txt`](LICENSES/DearImGui-MIT.txt) |
@@ -31,35 +33,36 @@ collected when the bundle is made), Other platforms are not distributed by this 
 | **o1heap**: Copyright (c) 2020 Pavel Kirienko | The game's heap allocator (`runtime/thirdparty/o1heap`). | MIT | [`LICENSES/o1heap-MIT.txt`](LICENSES/o1heap-MIT.txt) |
 | **QR Code generator library** (C) 1.8.0: Copyright (c) 2022 Project Nayuki | The QR code of the download page in Settings > Advanced > Check for Updates (`runtime/thirdparty/qrcodegen`). | MIT | [`LICENSES/qrcodegen-MIT.txt`](LICENSES/qrcodegen-MIT.txt) |
 | **AMD FidelityFX Super Resolution 1** (FSR 1, `ffx_a.h` and `ffx_fsr1.h` at commit a21ffb8): Copyright (c) 2021 Advanced Micro Devices, Inc. | Settings > Graphics > Upscaling's FSR 1: its EASU and RCAS shader code, compiled into the game's shaders, and its constant setup (`runtime/thirdparty/fsr1`, unmodified). | MIT | [`LICENSES/FidelityFX-FSR-MIT.txt`](LICENSES/FidelityFX-FSR-MIT.txt) |
-| **FFmpeg** 7.1.1: the FFmpeg developers | The XMA1, XMA2 and WMA Pro audio decoders, linked statically. Built without any GPL parts, with one SpeedBreaker change: [`patches/ffmpeg/0001-xma-single-stream-no-holdback.patch`](patches/ffmpeg/0001-xma-single-stream-no-holdback.patch) (no sample hold-back for single-stream XMA, which the game's audio mixer depends on). Source: `https://ffmpeg.org/releases/ffmpeg-7.1.1.tar.xz` plus that patch; [`scripts/build_ffmpeg_xma.sh`](scripts/build_ffmpeg_xma.sh) builds it. | LGPL-2.1-or-later | [`LICENSES/FFmpeg-LGPL-2.1.txt`](LICENSES/FFmpeg-LGPL-2.1.txt) |
+| **FFmpeg** 7.1.1: the FFmpeg developers | The XMA1, XMA2, WMA Pro and EA Trax WMA audio decoders, linked statically. Linux also enables local My Music demuxers/decoders (MP3, AAC/ALAC, FLAC, PCM, Vorbis and Opus) and resampling, without network protocols. Built without any GPL parts, with one SpeedBreaker change: [`patches/ffmpeg/0001-xma-single-stream-no-holdback.patch`](patches/ffmpeg/0001-xma-single-stream-no-holdback.patch) (no sample hold-back for single-stream XMA, which the game's audio mixer depends on). Source: `https://ffmpeg.org/releases/ffmpeg-7.1.1.tar.xz` plus that patch; [`scripts/build_ffmpeg_xma.sh`](scripts/build_ffmpeg_xma.sh) builds it. | LGPL-2.1-or-later | [`LICENSES/FFmpeg-LGPL-2.1.txt`](LICENSES/FFmpeg-LGPL-2.1.txt) |
 
 ## Libraries in the downloads
 
 | Project | Where | License | Text |
 |---|---|---|---|
-| **SDL3**: Copyright (C) 1997-2026 Sam Lantinga | Windows, input, audio and the app's lifecycle. In the Mac app, both SteamOS downloads and the iPhone and iPad IPA. It includes HIDAPI (controllers; Copyright (c) 2010 Alan Ott, Signal 11 Software; under its BSD-style license, one of the three it offers) and yuv2rgb (Copyright (c) 2016 Adrien Descamps). | zlib; HIDAPI and yuv2rgb: BSD-3-Clause | [`LICENSES/SDL3-Zlib.txt`](LICENSES/SDL3-Zlib.txt); [`LICENSES/HIDAPI-BSD-3-Clause.txt`](LICENSES/HIDAPI-BSD-3-Clause.txt); [`LICENSES/yuv2rgb-BSD-3-Clause.txt`](LICENSES/yuv2rgb-BSD-3-Clause.txt) |
-| **glslang**: The Khronos Group Inc. and others | Compiles the game's shaders while it runs. In the Mac app, both SteamOS downloads and the iPhone and iPad IPA (without its optimizer). | BSD-3-Clause and others (its own list) | [`LICENSES/glslang.txt`](LICENSES/glslang.txt) |
-| **SPIRV-Tools**: The Khronos Group Inc. and others | Used by glslang. In the Mac app and both SteamOS downloads. | Apache-2.0 | [`LICENSES/Apache-2.0.txt`](LICENSES/Apache-2.0.txt) |
+| **SDL3**: Copyright (C) 1997-2026 Sam Lantinga | Windows, input, audio and the app's lifecycle. In the Mac app, experimental Linux package and iPhone/iPad builds. It includes HIDAPI (controllers; Copyright (c) 2010 Alan Ott, Signal 11 Software; under its BSD-style license, one of the three it offers) and yuv2rgb (Copyright (c) 2016 Adrien Descamps). | zlib; HIDAPI and yuv2rgb: BSD-3-Clause | [`LICENSES/SDL3-Zlib.txt`](LICENSES/SDL3-Zlib.txt); [`LICENSES/HIDAPI-BSD-3-Clause.txt`](LICENSES/HIDAPI-BSD-3-Clause.txt); [`LICENSES/yuv2rgb-BSD-3-Clause.txt`](LICENSES/yuv2rgb-BSD-3-Clause.txt) |
+| **glslang**: The Khronos Group Inc. and others | Compiles the game's shaders while it runs. In the Mac app and experimental Linux build; also in iPhone/iPad builds (without its optimizer). | BSD-3-Clause and others (its own list) | [`LICENSES/glslang.txt`](LICENSES/glslang.txt) |
+| **SPIRV-Tools**: The Khronos Group Inc. and others | Used by glslang. In the Mac app and experimental Linux build. | Apache-2.0 | [`LICENSES/Apache-2.0.txt`](LICENSES/Apache-2.0.txt) |
 | **MoltenVK** (with SPIRV-Cross): Copyright (c) 2015-2026 The Brenwill Workshop Ltd., The Khronos Group Inc. | Vulkan on Apple's Metal. In the Mac app and the iPhone and iPad IPA (and an iPhone or iPad build). It includes cereal (Copyright (c) 2013-2022 Randolph Voorhies, Shane Grant; BSD-3-Clause), which saves its shader conversions, and SPIRV-Tools (below). | Apache-2.0; cereal: BSD-3-Clause | [`LICENSES/Apache-2.0.txt`](LICENSES/Apache-2.0.txt); [`LICENSES/cereal-BSD-3-Clause.txt`](LICENSES/cereal-BSD-3-Clause.txt) |
-| **Vulkan Loader**: The Khronos Group Inc., Valve Corporation, LunarG, Inc. | In the Mac app (SteamOS has its own). It includes cJSON (Copyright (c) 2009-2017 Dave Gamble and cJSON contributors). | Apache-2.0; cJSON: MIT | [`LICENSES/Apache-2.0.txt`](LICENSES/Apache-2.0.txt); [`LICENSES/cJSON-MIT.txt`](LICENSES/cJSON-MIT.txt) |
+| **Vulkan Loader**: The Khronos Group Inc., Valve Corporation, LunarG, Inc. | In the Mac app; Linux uses its system Vulkan loader. It includes cJSON (Copyright (c) 2009-2017 Dave Gamble and cJSON contributors). | Apache-2.0; cJSON: MIT | [`LICENSES/Apache-2.0.txt`](LICENSES/Apache-2.0.txt); [`LICENSES/cJSON-MIT.txt`](LICENSES/cJSON-MIT.txt) |
 | **Vulkan-Headers** and **SPIRV-Headers**: The Khronos Group Inc. | Headers the game, the Vulkan Loader, glslang and SPIRV-Tools are built with. | Apache-2.0 or MIT (Vulkan-Headers); MIT (SPIRV-Headers) | [`LICENSES/Apache-2.0.txt`](LICENSES/Apache-2.0.txt) or [`LICENSES/Vulkan-Headers-MIT.txt`](LICENSES/Vulkan-Headers-MIT.txt); [`LICENSES/SPIRV-Headers.txt`](LICENSES/SPIRV-Headers.txt) |
-| **GNU C Library** (glibc) and **GCC's runtime libraries** (libstdc++, libgcc_s) | In the SteamOS x86-64 download only, from the Arch Linux packages it was built with (the download's `licenses/README.txt` names each package and version). The Steam Frame download uses SteamOS's own. | glibc: LGPL-2.1-or-later. GCC's runtime: GPL-3.0 with the GCC Runtime Library Exception | in the download's `licenses/` |
+| **GNU C Library** (glibc) and **GCC’s runtime libraries** (libstdc++, libgcc_s) | Linux system dependencies; not bundled in this project’s experimental Linux package. | glibc: LGPL-2.1-or-later; GCC runtime: GPL-3.0 with the GCC Runtime Library Exception | Supplied by the Linux distribution |
 
-Every SteamOS download's `licenses/` folder also holds the license files of the exact packages its
-libraries came from. The Mac app's libraries (all but MoltenVK) are built from their projects' own
+The experimental Linux package’s `licenses/` folder also holds the copyright
+files for the Ubuntu SDK shader libraries it links. The Mac app's libraries (all but MoltenVK) are built from their projects' own
 source releases by [`scripts/macos/build_deps.sh`](scripts/macos/build_deps.sh), for the oldest macOS
 the app supports; the app's `Contents/Resources/licenses/README.txt` names the version, source archive
 and SHA-256 of each, next to its license files.
 
 ## Source code of the LGPL parts
 
-The macOS application links FFmpeg 7.1.1 and libmspack statically. Their exact
-sources, the FFmpeg patches and build scripts are included in the
-`BurnoutRevenge-0.1.0-third-party-source.tar.xz` release asset alongside the app:
-https://github.com/secretpray/burnout-revenge/releases
-The runtime and tools needed to regenerate and relink are published in this
-repository. Bundled dynamic libraries retain their own license notices and source
-versions inside `Contents/Resources/licenses/`.
+The macOS application and Linux build link FFmpeg 7.1.1 and libmspack
+statically. Each release provides a corresponding source archive alongside the
+binary package at <https://github.com/secretpray/burnout-revenge/releases>.
+Linux `*-linux-source.tar.xz` includes the exact public runtime, dependency
+sources, FFmpeg patches, build scripts and the recompiler sources/submodule
+revisions used to regenerate and relink with your own supported game input.
+Game files and generated PowerPC code are not distributed. The bundled
+`licenses/` folder retains the dependencies' license notices and versions.
 
 ## Tools used to build it, not shipped
 

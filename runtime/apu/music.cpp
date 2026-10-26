@@ -15,6 +15,7 @@
 #include "audio.h"
 #include <cpu/guest_thread.h>
 #include <platform/audio_file.h>
+#include <condition_variable>
 #ifdef __APPLE__
 #include <pthread.h>
 #endif

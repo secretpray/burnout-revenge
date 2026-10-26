@@ -351,10 +351,15 @@ static void RunPhysicalAliases(size_t realPage)
         }
         CHECK(Differs(base + bytes, bytes, 0x37) < 0, "physical neighbor untouched");
         // A fresh store through either mirror must still reach the original.
-        alias(0xC0000000, base)[23] = 0x61;
-        CHECK(Host(base)[23] == 0x61 && alias(0xE0000000, base)[23] == 0x61, "C mirror still shared");
-        alias(0xE0000000, base)[24] = 0x72;
-        CHECK(Host(base)[24] == 0x72 && alias(0xC0000000, base)[24] == 0x72, "E mirror still shared");
+        // Distinct virtual addresses alias the same kernel object. Force real
+        // accesses: the optimizer cannot infer mmap aliases from C++ pointers.
+        auto* a = static_cast<volatile uint8_t*>(Host(base));
+        auto* c = static_cast<volatile uint8_t*>(alias(0xC0000000, base));
+        auto* e = static_cast<volatile uint8_t*>(alias(0xE0000000, base));
+        c[23] = 0x61;
+        CHECK(a[23] == 0x61 && e[23] == 0x61, "C mirror still shared");
+        e[24] = 0x72;
+        CHECK(a[24] == 0x72 && c[24] == 0x72, "E mirror still shared");
     }
 }
 

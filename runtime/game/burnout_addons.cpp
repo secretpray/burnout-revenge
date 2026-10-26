@@ -7,7 +7,7 @@
 #include <user/settings.h>
 #include <install/sha256.h>
 #include <SDL3/SDL.h>
-#include <CommonCrypto/CommonDigest.h>
+#include <platform/sha1.h>
 #include <fstream>
 #include <set>
 
@@ -19,9 +19,8 @@ namespace game
         std::vector<BurnoutAddon> s_addons;
         bool Verify(std::span<const uint8_t> bytes, std::span<const uint8_t> expected)
         {
-            uint8_t digest[CC_SHA1_DIGEST_LENGTH];
-            CC_SHA1(bytes.data(), CC_LONG(bytes.size()), digest);
-            return std::equal(expected.begin(), expected.end(), digest);
+            const auto digest = platform::Sha1(bytes);
+            return expected.size() == digest.size() && std::equal(expected.begin(), expected.end(), digest.begin());
         }
         struct Loaded { addons::Package package; std::vector<uint8_t> bytes; std::string id; };
         std::optional<Loaded> Read(const fs::path& path, std::string& error)

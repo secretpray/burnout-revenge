@@ -1,6 +1,7 @@
 // Burnout-specific compatibility while bringing up the separate build.
 // SpeedBreaker runtime. GPL-3.0-or-later (see COPYING).
 #include <stdafx.h>
+#include <platform/socket_compat.h>
 #include <ui/guest_keyboard.h>
 #include <SDL3/SDL_stdinc.h>
 #include "overlapped.h"
@@ -337,7 +338,7 @@ PPC_FUNC(__imp__NetDll_bind)
         return;
     }
     sockaddr_in local{};
-    local.sin_len = sizeof(local);
+    platform::sockets::SetAddressLength(local);
     local.sin_family = AF_INET;
     memcpy(&local.sin_port, base + addr + 2, 2);
     local.sin_port = HostPort(local.sin_port);
@@ -706,7 +707,7 @@ namespace
         if (s_playerAddresses.empty() || !socket->share)
             return;
         sockaddr_in peer{};
-        peer.sin_len = sizeof(peer);
+        platform::sockets::SetAddressLength(peer);
         peer.sin_family = AF_INET;
         peer.sin_addr.s_addr = s_playerAddresses.front().first;
         peer.sin_port = port;  // the players' port is the game's own on every console
@@ -912,7 +913,7 @@ static void Send(PPCContext& ctx, uint8_t* base, uint32_t to, uint32_t toLength)
         {
             // Online: where the game sends it.
             sockaddr_in target{};
-            target.sin_len = sizeof(target);
+            platform::sockets::SetAddressLength(target);
             target.sin_family = AF_INET;
             memcpy(&target.sin_port, base + to + 2, 2);
             target.sin_port = HostPort(target.sin_port);
@@ -928,14 +929,14 @@ static void Send(PPCContext& ctx, uint8_t* base, uint32_t to, uint32_t toLength)
             return;
         }
         sockaddr_in target{};
-        target.sin_len = sizeof(target);
+        platform::sockets::SetAddressLength(target);
         target.sin_family = AF_INET;
         memcpy(&target.sin_port, base + to + 2, 2);
         target.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
         n = sendto(socket->fd, base + ctx.r5.u32, ctx.r6.u32, 0, reinterpret_cast<sockaddr*>(&target), sizeof(target));
     }
     else
-        n = send(socket->fd, base + ctx.r5.u32, ctx.r6.u32, 0);
+        n = send(socket->fd, base + ctx.r5.u32, ctx.r6.u32, platform::sockets::kSendFlags);
     ctx.r3.u64 = n < 0 ? SocketFailure(ErrnoToWsa(errno)) : uint64_t(n);
 }
 
@@ -977,7 +978,7 @@ PPC_FUNC(__imp__NetDll_connect)
         return;
     }
     sockaddr_in target{};
-    target.sin_len = sizeof(target);
+    platform::sockets::SetAddressLength(target);
     target.sin_family = AF_INET;
     memcpy(&target.sin_port, base + to + 2, 2);
     target.sin_port = HostPort(target.sin_port);

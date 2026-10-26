@@ -2,8 +2,8 @@
 //
 // The player's own music files, decoded by the system (macOS: AudioToolbox's
 // ExtAudioFile, platform/apple/audio_file.mm): MP3, AAC/M4A, ALAC, FLAC, WAV,
-// AIFF and whatever else Core Audio reads, as 48 kHz stereo float. Elsewhere
-// Open fails (apu/music.cpp then skips the song). Any thread.
+// AIFF and whatever else Core Audio reads, as 48 kHz stereo float. Linux
+// uses patched FFmpeg with local file IO. Other platforms skip songs. Any thread.
 #pragma once
 #include <cstdint>
 #include <filesystem>

@@ -18,6 +18,7 @@ static bool live{}, throws{}, diagnosticThrows{};
 static int originals{}, inventories{};
 static PPCContext expected;
 namespace game::madden { void AtBoundary(PPCContext&,uint8_t*) {} }
+namespace game::crash_pacing { void Sample(const char*,uint8_t*,uint32_t,uint32_t) {} }
 namespace online { bool Enabled() { return live; } }
 namespace game::rewind::trial { void Captured(uint8_t*, uint32_t, uint32_t, uint32_t) {} }
 namespace game::rewind::ring { void AtWorldBoundary(PPCContext&,uint8_t*) {} }

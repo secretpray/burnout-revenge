@@ -8,7 +8,7 @@
 #include <user/save_import.h>
 #include <user/save_backup.h>
 
-#include <CommonCrypto/CommonDigest.h>
+#include <platform/sha1.h>
 
 #include <cstdio>
 #include <cstring>
@@ -39,9 +39,7 @@ static void Be(Bytes& b, size_t at, uint32_t v, size_t n) { while (n) { b[at + -
 static void Le(Bytes& b, size_t at, uint32_t v, size_t n) { for (size_t i = 0; i < n; i++) b[at + i] = uint8_t(v >> (8 * i)); }
 static std::array<uint8_t, 20> Sha1(const uint8_t* p)
 {
-    std::array<uint8_t, 20> d;
-    CC_SHA1(p, 4096, d.data());
-    return d;
+    return platform::Sha1(std::span<const uint8_t>(p, 4096));
 }
 
 struct FileSpec { std::string name; Bytes bytes; bool consecutive = true; int parent = -1; bool folder = false; };

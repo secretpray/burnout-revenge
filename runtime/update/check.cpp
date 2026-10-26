@@ -241,8 +241,8 @@ namespace update
 
         enum class Kind : uint8_t { String, Number, True, False, Null, Object, Array };
 
-        enum Field : int { kTag, kName, kUrl, kBody, kMessage, kDraft, kPrerelease, kFields };
-        constexpr std::string_view kFieldNames[kFields] = { "tag_name", "name", "html_url", "body", "message", "draft", "prerelease" };
+        enum Field : int { kTag, kName, kUrl, kBody, kMessage, kDraft, kPrerelease, kAssets, kFields };
+        constexpr std::string_view kFieldNames[kFields] = { "tag_name", "name", "html_url", "body", "message", "draft", "prerelease", "assets" };
         constexpr int kMaxDepth = 64;
 
         struct JsonReader
@@ -250,6 +250,7 @@ namespace update
             std::string_view s;
             size_t i = 0;
             std::string error;
+            bool readAssetNames = false;
 
             bool Fail(std::string_view what)
             {
@@ -491,12 +492,20 @@ namespace update
                             return Fail(std::format("a second \"{}\"", key));
                         seen |= 1u << field;
                         Space();
+                        if (field == kAssets && readAssetNames)
+                        {
+                            if (!Assets(depth + 1, top->assets)) return false;
+                            Space();
+                            if (Peek(',')) { i++; continue; }
+                            if (Peek('}')) { i++; return true; }
+                            return Fail("a missing ',' or '}'");
+                        }
                         const size_t at = i;
                         Kind kind = Kind::Null;
                         std::string text;
                         if (!Value(depth, &kind, &text))
                             return false;
-                        if (!Assign(*top, field, kind, std::move(text)))
+                        if (field != kAssets && !Assign(*top, field, kind, std::move(text)))
                         {
                             i = at;
                             return Fail(std::format("\"{}\" of the wrong type", key));
@@ -516,6 +525,24 @@ namespace update
                         return true;
                     }
                     return Fail("a missing ',' or '}'");
+                }
+            }
+
+            bool Assets(int depth, std::vector<std::string>& names)
+            {
+                if (depth > kMaxDepth || !Peek('[')) return Fail("invalid release assets");
+                i++; Space();
+                if (Peek(']')) { i++; return true; }
+                while (true)
+                {
+                    if (names.size() >= 256 || !Peek('{')) return Fail("invalid release asset");
+                    Release asset;
+                    if (!Object(depth + 1, &asset)) return false;
+                    names.push_back(std::move(asset.name));
+                    Space();
+                    if (Peek(']')) { i++; return true; }
+                    if (!Peek(',')) return Fail("a missing ',' or ']'");
+                    i++; Space();
                 }
             }
 
@@ -1213,7 +1240,7 @@ namespace update
         return std::string(url);
     }
 
-    Result Evaluate(const Fetched& fetched, std::string_view current, int64_t now)
+    static Result EvaluateImpl(const Fetched& fetched, std::string_view current, int64_t now, bool allowPrerelease)
     {
         Result r;
         Semver running;
@@ -1309,7 +1336,7 @@ namespace update
 
         // Drafts and pre-releases are never offered (the "latest" release is
         // neither, but the answer is checked rather than trusted).
-        const bool ignored = release.draft || release.prerelease || !latest.pre.empty();
+        const bool ignored = release.draft || (!allowPrerelease && (release.prerelease || !latest.pre.empty()));
         const int newer = CompareSemver(latest, running);
         if (ignored || newer <= 0)
         {
@@ -1333,4 +1360,76 @@ namespace update
         r.log = std::format("v{} is available (running v{}): {}", r.latest, r.current, r.url);
         return r;
     }
+    Result Evaluate(const Fetched& fetched, std::string_view current, int64_t now)
+    {
+        return EvaluateImpl(fetched, current, now, false);
+    }
+
+    Result EvaluateLinux(const Fetched& fetched, std::string_view current, int64_t now, bool arm64)
+    {
+        auto finish = [](Result result) {
+            if (result.url == kReleasesPage) result.url = kLinuxReleasesPage;
+            return result;
+        };
+        if (fetched.transport != Transport::Ok || fetched.response.status != 200)
+            return finish(Evaluate(fetched, current, now));
+        JsonReader reader;
+        reader.s = fetched.response.body;
+        reader.readAssetNames = true;
+        reader.Space();
+        std::string selected;
+        Semver newest;
+        bool found = false;
+        const std::string suffix = arm64 ? "-linux-arm64.tar.xz" : "-linux-x86_64.tar.xz";
+        if (!reader.Peek('[')) reader.Fail("not a release list");
+        else
+        {
+            reader.i++; reader.Space();
+            unsigned count = 0;
+            while (!reader.Peek(']') && reader.error.empty())
+            {
+                if (++count > 100 || !reader.Peek('{')) { reader.Fail("invalid release list"); break; }
+                const size_t begin = reader.i;
+                Release release;
+                if (!reader.Object(2, &release)) break;
+                Semver version;
+                const bool package = std::any_of(release.assets.begin(), release.assets.end(), [&](const auto& name) {
+                    return name.starts_with("BurnoutRevenge-") && name.ends_with(suffix);
+                });
+                if (!release.draft && release.hasTag && package && ParseSemver(release.tag, version) &&
+                    (!found || CompareSemver(version, newest) > 0))
+                {
+                    newest = std::move(version);
+                    selected = std::string(reader.s.substr(begin, reader.i - begin));
+                    found = true;
+                }
+                reader.Space();
+                if (reader.Peek(']')) break;
+                if (!reader.Peek(',')) { reader.Fail("a missing ',' or ']'"); break; }
+                reader.i++; reader.Space();
+                if (reader.Peek(']')) { reader.Fail("a trailing comma"); break; }
+            }
+            if (reader.Peek(']')) { reader.i++; reader.Space(); }
+            else reader.Fail("an unfinished release list");
+            if (reader.i != reader.s.size()) reader.Fail("more after the JSON");
+        }
+        Fetched answer = fetched;
+        if (!reader.error.empty())
+        {
+            answer.transport = Transport::Garbled;
+            answer.detail = reader.error;
+            return finish(Evaluate(answer, current, now));
+        }
+        if (!found)
+        {
+            answer.transport = Transport::Unavailable;
+            answer.detail = "Checking for updates isn't available here yet.";
+            auto result = finish(Evaluate(answer, current, now));
+            result.log += arm64 ? "; no published Linux arm64 package" : "; no published Linux x86_64 package";
+            return result;
+        }
+        answer.response.body = std::move(selected);
+        return finish(EvaluateImpl(answer, current, now, true));
+    }
+
 }

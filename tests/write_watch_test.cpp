@@ -14,6 +14,7 @@
 // is mapped as the runtime maps it (three windows of one shared object), and
 // SIGSEGV and SIGBUS go to HandleFault as main.cpp sends them. Under a second.
 #include <stdafx.h>
+#include <platform/fault_policy.h>
 #include <kernel/write_watch.h>
 
 #include <chrono>
@@ -60,7 +61,7 @@ static void FaultHandler(int sig, siginfo_t* info, void* context)
 #else
     (void)context;
 #endif
-    if (writewatch::HandleFault(info->si_addr, isWrite))
+    if (platform::IsWriteWatchFault(sig, info->si_code) && writewatch::HandleFault(info->si_addr, isWrite))
         return;
     fprintf(stderr, "unexpected signal %d at %p\n", sig, info->si_addr);
     _exit(2);

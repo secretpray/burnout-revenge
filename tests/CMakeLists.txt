@@ -5,6 +5,11 @@
 set(ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)
 set(RT ${ROOT}/runtime)
 find_package(Threads REQUIRED)
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    add_test(NAME linux_user_install COMMAND ${Python3_EXECUTABLE}
+        ${CMAKE_CURRENT_SOURCE_DIR}/linux_user_install_test.py)
+endif()
 
 function(sb_test name)
     cmake_parse_arguments(T "" "" "SOURCES;ARGS" ${ARGN})
@@ -15,6 +20,8 @@ function(sb_test name)
     add_test(NAME ${name} COMMAND ${name} ${T_ARGS})
 endfunction()
 
+sb_test(sha1_test)
+sb_test(socket_compat_test)
 sb_test(block_ranges_test)
 sb_test(texture_volume_layout_test)
 sb_test(rectangle_list_test)
@@ -48,6 +55,22 @@ target_compile_definitions(my_music_player_test PRIVATE BR_MY_MUSIC_TEST)
 if(APPLE)
     sb_test(audio_file_test SOURCES ${RT}/platform/apple/audio_file.mm ARGS ${CMAKE_BINARY_DIR})
     target_link_libraries(audio_file_test PRIVATE "-framework AudioToolbox" "-framework Foundation" "-framework CoreFoundation")
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    sb_test(audio_file_test SOURCES ${RT}/platform/audio_file_ffmpeg.cpp ARGS ${CMAKE_BINARY_DIR})
+    target_include_directories(audio_file_test SYSTEM PRIVATE ${FFMPEG_INCLUDE_DIR})
+    target_link_libraries(audio_file_test PRIVATE ${AVFORMAT_LIBRARY} ${SWRESAMPLE_LIBRARY} ${AVCODEC_LIBRARY} ${AVUTIL_LIBRARY})
+    find_program(BR_FIXTURE_FFMPEG ffmpeg)
+    if(BR_FIXTURE_FFMPEG)
+        add_executable(audio_file_formats_test audio_file_formats_test.cpp ${RT}/platform/audio_file_ffmpeg.cpp)
+        target_compile_options(audio_file_formats_test PRIVATE -O2 -UNDEBUG)
+        target_include_directories(audio_file_formats_test PRIVATE ${RT} ${FFMPEG_INCLUDE_DIR})
+        target_link_libraries(audio_file_formats_test PRIVATE ${AVFORMAT_LIBRARY} ${SWRESAMPLE_LIBRARY} ${AVCODEC_LIBRARY} ${AVUTIL_LIBRARY})
+        add_test(NAME audio_file_formats COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/audio_file_formats_test.py
+            $<TARGET_FILE:audio_file_formats_test> ${BR_FIXTURE_FFMPEG} ${CMAKE_CROSSCOMPILING_EMULATOR})
+        set_tests_properties(audio_file_formats PROPERTIES TIMEOUT 120)
+    else()
+        message(STATUS "My Music compressed-format fixtures unavailable: install FFmpeg CLI (not bundled)")
+    endif()
 endif()
 sb_test(rumble_notice_test SOURCES ${RT}/user/settings.cpp ARGS ${CMAKE_CURRENT_BINARY_DIR}/rumble_notice_scratch)
 sb_test(rumble_focus_test)
@@ -125,6 +148,10 @@ target_include_directories(rewind_probe_test PRIVATE ${RT}/kernel ${RT}/thirdpar
 target_compile_options(rewind_probe_test PRIVATE -fsanitize=address)
 target_link_options(rewind_probe_test PRIVATE -fsanitize=address)
 add_test(NAME rewind_probe_enabled_test COMMAND rewind_probe_test enabled)
+sb_test(crash_pacing_probe_test SOURCES ${RT}/game/crash_pacing.cpp)
+target_include_directories(crash_pacing_probe_test PRIVATE ${RT}/kernel ${RT}/thirdparty/o1heap ${BR_PPC_DIR}
+    ${ROOT}/tools/XenonRecomp/XenonUtils ${ROOT}/tools/XenonRecomp/thirdparty/simde)
+add_test(NAME crash_pacing_probe_enabled_test COMMAND crash_pacing_probe_test enabled)
 sb_test(rewind_trial_test SOURCES ${RT}/game/rewind_trial.cpp)
 target_include_directories(rewind_trial_test PRIVATE ${RT}/kernel ${RT}/thirdparty/o1heap ${BR_PPC_DIR}
     ${ROOT}/tools/XenonRecomp/XenonUtils ${ROOT}/tools/XenonRecomp/thirdparty/simde)
@@ -290,6 +317,7 @@ sb_test(cursor_idle_test ARGS ${RT}/ui/ui.cpp)
 sb_test(report_zip_test SOURCES ${RT}/report/zip.cpp ARGS ${CMAKE_CURRENT_BINARY_DIR}/report_zip_out)
 find_package(Python3 COMPONENTS Interpreter)
 if(Python3_FOUND)
+    add_test(NAME crash_pacing_test COMMAND Python3::Interpreter ${CMAKE_CURRENT_SOURCE_DIR}/crash_pacing_test.py)
     add_test(NAME perf_log_test COMMAND Python3::Interpreter ${CMAKE_CURRENT_SOURCE_DIR}/perf_log_test.py)
     # What report_zip_test wrote, read back with independent code.
     add_test(NAME report_zip_check COMMAND Python3::Interpreter ${CMAKE_CURRENT_SOURCE_DIR}/report_zip_check.py
@@ -355,6 +383,7 @@ sb_test(key_map_test)
 sb_test(wheel_map_test)
 # Check for Updates' logic: versions, GitHub's JSON, curl's output and the
 # release notes (update/check.cpp, self-contained).
+sb_test(linux_update_test SOURCES ${RT}/update/check.cpp ${RT}/user/localization.cpp)
 sb_test(update_check_test SOURCES ${RT}/update/check.cpp ${RT}/user/localization.cpp)
 # Settings > Quit Game: where it is offered (not on iPhone or iPad) and its
 # confirmation (ui/quit_game.h, header only); the runtime's code around it
@@ -408,3 +437,8 @@ endif()
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_test(NAME localization_catalog COMMAND ${Python3_EXECUTABLE} ${ROOT}/scripts/check_localization.py)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    sb_test(shared_memory_test)
+    sb_test(fault_policy_test)
+endif()

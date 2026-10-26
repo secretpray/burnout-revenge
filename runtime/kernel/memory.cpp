@@ -2,6 +2,7 @@
 // GPL-3.0-or-later. Modified for SpeedBreaker.
 #include "../stdafx.h"
 #include "memory.h"
+#include <platform/shared_memory.h>
 
 #ifndef _WIN32
 #include <cerrno>
@@ -26,6 +27,15 @@ bool Memory::MapPhysicalMirrors()
     {
         fprintf(stderr, "[memory] mach_make_memory_entry_64: %s\n", mach_error_string(kr));
         failedError = kr;
+        return false;
+    }
+    bool ok = true;
+#elif defined(__linux__)
+    int fd = platform::CreatePhysicalMemoryFile(PHYSICAL_SIZE);
+    if (fd < 0)
+    {
+        failedError = errno;
+        perror("[memory] memfd physical memory");
         return false;
     }
     bool ok = true;
@@ -120,11 +130,18 @@ Memory::Memory()
     // kernel/memory_status.h); without them only about 5 GB is free in one
     // piece, so this runs in static initialization, before anything else
     // takes address space. If it fails (ENOMEM), main.cpp says so on screen.
+#ifdef __linux__
+    base = failStep == 1 ? (uint8_t*)MAP_FAILED
+        : static_cast<uint8_t*>(platform::ReserveGuestAddressSpace((void*)0x100000000ull, PPC_MEMORY_SIZE));
+    if (base == (uint8_t*)MAP_FAILED && failStep != 1)
+        base = static_cast<uint8_t*>(platform::ReserveGuestAddressSpace(nullptr, PPC_MEMORY_SIZE));
+#else
     base = failStep == 1 ? (uint8_t*)MAP_FAILED
         : (uint8_t*)mmap((void*)0x100000000ull, PPC_MEMORY_SIZE, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
 
     if (base == (uint8_t*)MAP_FAILED && failStep != 1)
         base = (uint8_t*)mmap(NULL, PPC_MEMORY_SIZE, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
+#endif
 
     if (base == (uint8_t*)MAP_FAILED)
     {

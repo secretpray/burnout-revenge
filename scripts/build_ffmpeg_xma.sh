@@ -37,13 +37,21 @@ SRC="$(find "$WORK" -mindepth 1 -maxdepth 1 -type d -name 'ffmpeg-*' | head -1)"
 [ -n "$SRC" ] || { echo "build_ffmpeg_xma.sh: no ffmpeg-* folder in $TARBALL" >&2; exit 1; }
 cd "$SRC"
 for p in "$ROOT"/patches/ffmpeg/*.patch; do patch -s -p1 < "$p"; done
+# Linux My Music uses the same patched decoder, with local custom IO only.
+# Apple retains AudioToolbox and the existing minimal FFmpeg configuration.
+music=()
+if [ "${BR_FFMPEG_MUSIC:-$([ "$(uname -s)" = Linux ] && echo 1 || echo 0)}" = 1 ]; then
+    music=(--enable-demuxer=mp3,mov,flac,wav,aiff,ogg,aac
+           --enable-decoder=mp3,mp3float,aac,alac,flac,vorbis,opus,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,pcm_f64le,pcm_s16be,pcm_s24be,pcm_s32be,pcm_f32be,pcm_f64be,pcm_u8
+           --enable-parser=mpegaudio,aac,flac,vorbis,opus)
+fi
 ./configure --disable-everything --disable-programs --disable-doc --disable-debug \
     --disable-network --disable-autodetect --disable-avdevice --disable-swscale \
     --disable-postproc --disable-avfilter \
     --enable-avformat --enable-demuxer=asf --enable-swresample \
-    --enable-decoder=xma1,xma2,wmapro,wmav2 --enable-static --disable-shared --enable-pic "$@" > "$WORK/configure.log" \
+    --enable-decoder=xma1,xma2,wmapro,wmav2 --enable-static --disable-shared --enable-pic "${music[@]}" "$@" > "$WORK/configure.log" \
   || { tail -5 "$WORK/configure.log"; tail -15 ffbuild/config.log; echo "build_ffmpeg_xma.sh: configure failed"; exit 1; } >&2
-make -j"$(sysctl -n hw.ncpu 2>/dev/null || nproc)" > "$WORK/make.log"
+make -j"${BR_JOBS:-$(sysctl -n hw.ncpu 2>/dev/null || nproc)}" > "$WORK/make.log"
 make install DESTDIR="$WORK/stage" > "$WORK/install.log"
 # The default prefix (/usr/local) inside the stage, moved to its place.
 rm -rf "$PREFIX/include" "$PREFIX/lib"

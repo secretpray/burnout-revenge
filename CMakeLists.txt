@@ -66,7 +66,11 @@ endif()
 # apps' versions, the SteamOS bundles' VERSION file and the release tag
 # (v<version>). CHANGELOG.md has an entry for each version (the in-game
 # "What's new" note is built from it).
-project(BurnoutRevenge VERSION 0.1.26 LANGUAGES C CXX)
+project(BurnoutRevenge VERSION 0.1.27 LANGUAGES C CXX)
+set(BR_RELEASE_VERSION "${CMAKE_PROJECT_VERSION}")
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    string(APPEND BR_RELEASE_VERSION "-linux-beta.1")
+endif()
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -95,6 +99,15 @@ set(BR_GAME "burnout")
 set(BR_RUNTIME_TARGET BurnoutRevenge)
 set(BR_RECOMP_TARGET BurnoutRecompLib)
 set(BR_PPC_DIR "${CMAKE_SOURCE_DIR}/ppc/burnout" CACHE PATH "Generated Burnout code")
+
+# Public CI can exercise portable code with synthetic fixtures, without XEX,
+# generated PPC, SDL or the private toolchain checkout.
+option(BR_PORTABLE_TESTS_ONLY "Build only asset-free portable tests" OFF)
+if(BR_PORTABLE_TESTS_ONLY)
+    enable_testing()
+    add_subdirectory(tests/portable)
+    return()
+endif()
 
 add_subdirectory(recomp)
 add_subdirectory(runtime)

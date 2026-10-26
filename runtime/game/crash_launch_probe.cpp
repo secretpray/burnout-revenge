@@ -3,6 +3,7 @@
 // are enabled separately from the player setting.
 #include <stdafx.h>
 #include "rewind_probe.h"
+#include "crash_pacing.h"
 #include "crash_launch_model.h"
 #include "crash_launch_status.h"
 #include "crash_launch_scope.h"
@@ -542,6 +543,7 @@ namespace
 extern "C" PPC_FUNC(__imp__sub_821398C0);
 PPC_FUNC(sub_821398C0)
 {
+    game::crash_pacing::Sample("event", base, ctx.r3.u32, uint32_t(ctx.lr));
     const bool observe = ctx.r3.u32 == kEvent && Enabled(base);
     const uint32_t caller = uint32_t(ctx.lr);
     const uint32_t before = observe ? PPC_LOAD_U32(kEvent + 2384) : 0;
@@ -763,6 +765,7 @@ extern "C" PPC_FUNC(__imp__sub_822817C0);
 PPC_FUNC(sub_822817C0)
 {
     const uint32_t self = ctx.r3.u32;
+    game::crash_pacing::Sample("controls", base, self, uint32_t(ctx.lr));
     const bool observe = Enabled(base) && PPC_LOAD_U32(game::rewind::kPhase) == 5 &&
         self == PPC_LOAD_U32(kParticipant + 18240);
     __imp__sub_822817C0(ctx, base);

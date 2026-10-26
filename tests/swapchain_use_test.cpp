@@ -171,6 +171,7 @@ namespace
             }
         });
         FakeSwapchain* current = nullptr;
+        const auto coverageDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
         for (int i = 0; i < cycles; i++)
         {
             // DestroySwapchain: retire, then destroy.
@@ -193,6 +194,16 @@ namespace
                 lastPresent = g;
                 for (volatile int k = 0; k < 300; k = k + 1)
                     ;
+            }
+            if (!v015Order && i % 16 == 0)
+            {
+                // A yield does not promise to schedule the waiter: on a busy
+                // VM the writer can finish all 20,000 recreations first. Keep
+                // occasional generations alive until both waiter operations
+                // have run, without weakening the lifetime or coverage checks.
+                const uint64_t target = used.load() + 2;
+                while (used.load() < target && std::chrono::steady_clock::now() < coverageDeadline)
+                    std::this_thread::yield();
             }
         }
         stop = true;
