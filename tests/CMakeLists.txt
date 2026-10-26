@@ -433,3 +433,8 @@ endif()
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_test(NAME localization_catalog COMMAND ${Python3_EXECUTABLE} ${ROOT}/scripts/check_localization.py)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    sb_test(shared_memory_test)
+    sb_test(fault_policy_test)
+endif()

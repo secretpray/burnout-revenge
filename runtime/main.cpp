@@ -11,6 +11,7 @@
 //   BurnoutRevenge --install <image>     and the other commands in install/install_cli.h
 
 #include "stdafx.h"
+#include <platform/fault_policy.h>
 #include "kernel/arena.h"
 #include "kernel/memory_status.h"
 #include "kernel/module.h"
@@ -273,7 +274,7 @@ namespace
 #elif defined(__linux__) && defined(__aarch64__)
         writewatch::t_faultPc = reinterpret_cast<const void*>(static_cast<ucontext_t*>(context)->uc_mcontext.pc);
 #endif
-        if ((sig == SIGSEGV || sig == SIGBUS) && writewatch::HandleFault(info->si_addr, isWrite))
+        if (platform::IsWriteWatchFault(sig, info->si_code) && writewatch::HandleFault(info->si_addr, isWrite))
             return;
         // A real crash: the log, and a crash report the next launch mentions
         // (report/crash.cpp; async-signal-safe).

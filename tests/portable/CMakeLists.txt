@@ -24,3 +24,8 @@ portable_test(refresh_fit_test ${RT}/video/refresh_fit.cpp)
 portable_test(guest_time_test ${RT}/cpu/guest_time.cpp)
 portable_test(frame_rate_policy_test ${RT}/video/frame_rate_policy.cpp)
 portable_test(swapchain_policy_test ${RT}/video/swapchain_policy.cpp)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    portable_test(shared_memory_test)
+    portable_test(fault_policy_test)
+endif()

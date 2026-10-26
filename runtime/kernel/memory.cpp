@@ -2,6 +2,7 @@
 // GPL-3.0-or-later. Modified for SpeedBreaker.
 #include "../stdafx.h"
 #include "memory.h"
+#include <platform/shared_memory.h>
 
 #ifndef _WIN32
 #include <cerrno>
@@ -26,6 +27,15 @@ bool Memory::MapPhysicalMirrors()
     {
         fprintf(stderr, "[memory] mach_make_memory_entry_64: %s\n", mach_error_string(kr));
         failedError = kr;
+        return false;
+    }
+    bool ok = true;
+#elif defined(__linux__)
+    int fd = platform::CreatePhysicalMemoryFile(PHYSICAL_SIZE);
+    if (fd < 0)
+    {
+        failedError = errno;
+        perror("[memory] memfd physical memory");
         return false;
     }
     bool ok = true;
