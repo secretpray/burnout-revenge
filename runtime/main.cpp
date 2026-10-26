@@ -464,6 +464,19 @@ int main(int argc, char** argv)
         fprintf(stderr, "[version] v%s (the last version isn't known: settings.toml didn't load)\n", report::Version());
     // The window must live on the main thread (macOS); the game gets its own.
     bool windowed = video::Initialize();
+    if (!windowed)
+    {
+        const char* headless = std::getenv("BURNOUT_HEADLESS");
+        if (!headless || headless[0] != '1')
+        {
+            fprintf(stderr, "[runtime] could not initialize the game window and Vulkan renderer. "
+                            "Check the video errors above, your Vulkan driver and desktop session. "
+                            "The game has not been started.\n");
+            video::Shutdown();
+            report::FlushLog();
+            return 1;
+        }
+    }
     if (!settingsLoaded)
         ui::Toast(settings::LastError(), 12.0);  // a mistake in settings.toml: it was kept as .bad
     if (portableError)
