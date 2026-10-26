@@ -7,6 +7,15 @@
 #include <unistd.h>
 namespace platform
 {
+    inline void* ReserveGuestAddressSpace(void* hint, size_t bytes)
+    {
+        // Guest addresses span 4 GiB, but most pages are never used and the
+        // physical windows are replaced by shared aliases before access.
+        // Reserve addresses without charging swap for the entire sparse range.
+        return mmap(hint, bytes, PROT_READ | PROT_WRITE,
+            MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE, -1, 0);
+    }
+
     // Anonymous shared storage for physical aliases. Unlike shm_open, memfd
     // does not consume a container's separately capped /dev/shm mount.
     inline int CreatePhysicalMemoryFile(size_t bytes)
