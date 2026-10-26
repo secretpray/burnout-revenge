@@ -2,16 +2,19 @@
   <img src="assets/AppIcon.png" alt="The app icon: the Burnout Revenge cover art" width="128">
 </p>
 
-<h1 align="center">Burnout Revenge for Mac</h1>
+<h1 align="center">Burnout Revenge</h1>
 
 <p align="center">
   An unofficial native port of <i>Burnout Revenge</i> (Xbox 360, USA) for Apple silicon Macs.<br>
   The game's PowerPC code is recompiled ahead of time into an arm64 program; graphics run on Metal through Vulkan/MoltenVK.<br>
+  A Linux x86-64 port is in release-candidate testing; see its validation status below.<br>
   You bring the game from your own disc.
 </p>
 
 <p align="center">
-  <a href="https://github.com/secretpray/burnout-revenge/releases/latest"><b>Download</b></a>
+  <a href="https://github.com/secretpray/burnout-revenge/releases/latest"><b>Download for Mac</b></a>
+  &nbsp;·&nbsp;
+  <a href="#linux-port-status">Linux status</a>
   &nbsp;·&nbsp;
   <a href="#quick-start">Quick start</a>
   &nbsp;·&nbsp;
@@ -56,7 +59,7 @@
   </tr>
 </table>
 
-<sub>Unedited screenshots from this port on an M1 Pro. The game content in them belongs to its owners.</sub>
+<sub>Unedited macOS screenshots from this port on an M1 Pro. The game content in them belongs to its owners.</sub>
 
 > [!TIP]
 > **New in v0.1.26:** Press **Home / Xbox Guide / PS** to open the quit confirmation. Cancel is selected first, the dialog follows the controller that opened it, and an open Settings page stays intact. The active game requests priority over the macOS system gesture without changing your shortcut settings. [Release notes](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.26).
@@ -78,6 +81,9 @@
 - Menus and game text in **English, Japanese, German, French, Spanish, Italian, Dutch, Swedish and Finnish**.
   [Language setup](#languages) explains the optional European disc import.
 - Updates install over the old version. Saves and settings stay.
+- Linux x86-64 is an internal release candidate, with separate Linux update
+  selection. The Mac download remains the stable release. See
+  [Linux status](#linux-port-status) before building or testing it.
 - Settings: **F1**, **Cmd+,** or **Back + Start** on a controller.
 - Quit confirmation: press the controller's **Home / Xbox Guide / PS** button.
   Cancel is selected first; **B / Circle** dismisses the prompt. The game window
@@ -85,6 +91,52 @@
   Steam may reserve it; **Settings > Quit Game** remains available. While the
   game is focused it asks macOS to give Home to this dialog; system gestures
   resume when focus leaves. This keeps your system shortcut settings intact.
+
+## Linux port status
+
+**As of October 26, 2026, Linux is an internal release candidate, not a published
+beta.** The stable Mac release remains v0.1.26. Linux work is on
+[`codex/linux-port`](https://github.com/secretpray/burnout-revenge/tree/codex/linux-port);
+the runtime tested below is revision `b05b4908`.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/linux-x86-64-traffic-attack.png" alt="Linux x86-64 candidate running Traffic Attack through UTM Venus: the red car at 123 mph, traffic, sparks and the game HUD"><br><sub><b>Linux x86-64:</b> the packaged candidate in Ubuntu, with an emulated x86 CPU and Venus using the Mac's GPU.</sub></td>
+    <td width="50%"><img src="docs/screenshots/linux-arm64-traffic-results.png" alt="Linux ARM64 Traffic Attack results showing an OK rating and 3800 dollars of vehicle damage"><br><sub><b>Linux ARM64 diagnostic build:</b> results after an event. This is a separate build, outside the first x86-64 beta's scope.</sub></td>
+  </tr>
+</table>
+
+<sub>Unedited frames captured by the Linux builds. Game content belongs to its owners.</sub>
+
+Testing uses UTM 5.0.8 on a MacBook Pro M1 Pro with 16 GB RAM. The x86-64 VM
+runs Ubuntu Server 22.04.5 with the supported 6.8 HWE kernel, 2 emulated CPU
+cores and 4 GB RAM. The release package runs in a minimal Ubuntu 24.04 runtime
+container, with Mesa 25.2.8 and `/dev/dri` passed through to **Virtio-GPU Venus
+(Apple M1 Pro)**. ARM64 checks use a separate Ubuntu 26.04 VM with 4 CPU cores,
+8 GB RAM, Mesa 26.0.8 and Wayland. Venus translates rendering to the Mac's GPU;
+these are **not native Linux PC or Steam Deck measurements**.
+
+- The x86-64 package installs and renders Traffic Attack, including driving,
+  traffic, collisions and the HUD. The ARM64 diagnostic build has also reached
+  results, Replay, a native Player File save and reload after restarting.
+- Linux tests: 162/162 on ARM64; the x86-64 baseline passed 160/160 with
+  ASan/LSan, followed by the new memory/fault tests. Memory aliases and
+  write-watch passed again after the x86 guest's kernel upgrade. Asset-free
+  [CI passed 43/43](https://github.com/secretpray/burnout-revenge/actions/runs/40256353639).
+  macOS regression: 157/157 passed.
+- Packaging checks include archive checksums, all 802 game files at install,
+  a read-only bundle, an empty home, XDG paths and no developer tools on PATH.
+  Test saves and settings are isolated; the user's real data is unchanged.
+- Still required before a beta: native x86-64 GPU qualification, full gameplay
+  parity and endurance runs, physical controls and listening checks, plus
+  Linux display/session, device-switching and network validation. The runs
+  above were muted and used scripted input. They do not prove these checks.
+
+The current package requires **x86-64-v3/AVX2**, glibc **2.38** and libstdc++
+symbols through **GLIBCXX_3.4.32**. Ubuntu 22.04's own glibc 2.35 cannot run this
+build directly; the VM tests use the newer container runtime. CPU/GPU performance
+and minimum RAM requirements have not been established. See
+[Linux build and candidate instructions](scripts/linux/README.md).
 
 ## Highlights
 
