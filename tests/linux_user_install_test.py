@@ -49,9 +49,9 @@ class UserInstall(unittest.TestCase):
             (self.source / name).write_text(value)
         self.identity('abcdef1')
 
-    def identity(self, revision):
+    def identity(self, revision, version='1.2.3'):
         (self.source / 'bundle-info.json').write_text(json.dumps(
-            dict(version='1.2.3', revision=revision, architecture='x86_64'), indent=2))
+            dict(version=version, revision=revision, architecture='x86_64'), indent=2))
         self.hashes()
 
     def hashes(self):
@@ -102,6 +102,11 @@ class UserInstall(unittest.TestCase):
         self.install(ok=False)
         self.assertEqual(self.launcher.read_text(), 'another application')
         self.assertFalse(self.app.exists())
+
+    def test_prerelease_identity(self):
+        self.identity('abcdef1', '1.2.3-linux-beta.1')
+        self.install()
+        self.assertEqual((self.app / 'current').resolve().name, '1.2.3-linux-beta.1-abcdef1')
 
     def test_portable_bundle_is_not_migrated_implicitly(self):
         (self.source / 'portable.txt').write_text('')

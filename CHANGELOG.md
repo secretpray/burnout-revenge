@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.1.27
+
+- Experimental Linux x86-64 build with a shared runtime, Vulkan rendering,
+  XDG data paths and FFmpeg support for My Music.
+- Install for your user with `./install.sh`, then launch from the applications
+  menu. Updates and app removal preserve the installed game, saves and settings.
+- Linux testing uses UTM on an Apple silicon Mac, scripted controls and muted
+  audio. Native Linux PC GPUs, Steam Deck performance, physical controls and
+  listening have not been verified. See the Linux release's validation matrix
+  and known limitations before using it.
+- Invalid Vulkan/window initialization now stops startup before the game runs.
+  The stable Mac download remains v0.1.26.
+
 ## v0.1.26
 
 - Home / Xbox Guide / PS opens the quit confirmation while the game window

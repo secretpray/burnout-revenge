@@ -53,7 +53,7 @@ fi
 "$SOURCE/burnout-revenge.sh" --check-system
 VERSION=$(sed -n 's/^[[:space:]]*"version": "\([^"]*\)".*/\1/p' "$SOURCE/bundle-info.json")
 REVISION=$(sed -n 's/^[[:space:]]*"revision": "\([^"]*\)".*/\1/p' "$SOURCE/bundle-info.json")
-[[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ && $REVISION =~ ^[a-f0-9]{7,40}$ ]] || fail 'Invalid package identity.'
+[[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ && $REVISION =~ ^[a-f0-9]{7,40}$ ]] || fail 'Invalid package identity.'
 ID=$VERSION-$REVISION
 mkdir -p -- "$APP/releases" "$(dirname "$BIN")" "$(dirname "$DESKTOP")"
 printf '%s\n' "$MARKER" > "$APP/.managed-by-burnout-revenge"
