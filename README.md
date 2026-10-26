@@ -97,7 +97,9 @@
 **As of October 26, 2026, Linux is an internal release candidate, not a published
 beta.** The stable Mac release remains v0.1.26. Linux work is on
 [`codex/linux-port`](https://github.com/secretpray/burnout-revenge/tree/codex/linux-port);
-the runtime tested below is revision `b05b4908`.
+the gameplay screenshots and installation baseline below use `b05b4908`.
+Candidate `9204c22c` adds guards for offscreen present timing and failed Vulkan
+surface queries. Its packaging and regression checks are tracked separately.
 
 <table>
   <tr>
@@ -124,8 +126,10 @@ these are **not native Linux PC or Steam Deck measurements**.
 - Linux tests: 162/162 on ARM64; the x86-64 baseline passed 160/160 with
   ASan/LSan, followed by the new memory/fault tests. Memory aliases and
   write-watch passed again after the x86 guest's kernel upgrade. Asset-free
-  [CI passed 43/43](https://github.com/secretpray/burnout-revenge/actions/runs/40256353639).
-  macOS regression: 157/157 passed.
+  [CI passed 43/43 on 9204c22c](https://github.com/secretpray/burnout-revenge/actions/runs/40298936437).
+  macOS previously passed 157/157; the latest full run passed 156/157, with one
+  intermittent system-clock monotonicity failure. Three isolated retries passed;
+  that failure remains open.
 - Packaging checks include archive checksums, all 802 game files at install,
   a read-only bundle, an empty home, XDG paths and no developer tools on PATH.
   Test saves and settings are isolated; the user's real data is unchanged.
