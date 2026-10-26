@@ -3650,6 +3650,7 @@ void main()
 #endif
             }
         }
+        ui::UpdateControllerShortcuts();
         // Without the queue lock: the command processor's submits take it,
         // and the main thread would hold it nearly all the suspension.
         if (s_background.load(std::memory_order_acquire))

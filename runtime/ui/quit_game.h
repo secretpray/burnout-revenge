@@ -27,7 +27,7 @@
 #pragma once
 
 #include <cstdint>
-#include <unordered_set>
+#include <unordered_map>
 
 #if defined(__APPLE__)
 #include <TargetConditionals.h>  // TARGET_OS_IPHONE: __APPLE__ alone means macOS or iOS
@@ -42,20 +42,56 @@
 
 namespace ui::quit
 {
-    // Home/Guide/PS is an edge, never a held-button action. Remember even
-    // ignored presses (background, another dialog) until their own release.
+    // Home/Guide/PS: a short release toggles Settings, holding three seconds
+    // asks to quit once. Ignored/cancelled presses need their own release
+    // before another gesture can begin. Times are host monotonic nanoseconds:
+    // opening Settings pauses the game clock, but must not stop this timer.
     class GuidePress
     {
     public:
-        bool Button(uint32_t device, bool down, bool allowed)
+        enum class Action { None, Settings, Quit };
+        static constexpr uint64_t kHoldNs = 3000000000ull;
+
+        Action Button(uint32_t device, bool down, bool allowed, uint64_t now)
         {
-            if (!down) { m_held.erase(device); return false; }
-            return m_held.insert(device).second && allowed;
+            if (down)
+            {
+                m_held.try_emplace(device, Press{now, allowed});
+                return Action::None;
+            }
+            auto it = m_held.find(device);
+            if (it == m_held.end())
+                return Action::None;
+            const Press press = it->second;
+            m_held.erase(it);
+            if (!allowed || !press.armed || now < press.started)
+                return Action::None;
+            return now - press.started >= kHoldNs ? Action::Quit : Action::Settings;
+        }
+
+        // Called after the event queue is drained, so a queued release or
+        // focus loss is processed before a hold can fire. Returns its pad.
+        template<class Allowed>
+        uint32_t Tick(uint64_t now, Allowed allowed)
+        {
+            for (auto& [device, press] : m_held)
+            {
+                if (!allowed(device))
+                    press.armed = false;
+                if (press.armed && now >= press.started && now - press.started >= kHoldNs)
+                {
+                    press.armed = false;
+                    return device;
+                }
+            }
+            return 0;
         }
         void Removed(uint32_t device) { m_held.erase(device); }
+        void Cancel() { for (auto& [device, press] : m_held) press.armed = false; }
         void Clear() { m_held.clear(); }
     private:
-        std::unordered_set<uint32_t> m_held;
+        struct Press { uint64_t started; bool armed; };
+        std::unordered_map<uint32_t, Press> m_held;
     };
 
     enum class System { Mac, IPhoneIPad, Linux, Windows, Other };

@@ -819,13 +819,21 @@ namespace ui
         if ((e.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN || e.type == SDL_EVENT_GAMEPAD_BUTTON_UP) &&
             e.gbutton.button == SDL_GAMEPAD_BUTTON_GUIDE)
         {
-            const bool allowed = SDL_GetKeyboardFocus() == s_window && hid::AssignedGamepad(e.gbutton.which);
-            if (s_guide.Button(e.gbutton.which, e.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN, allowed))
+            const bool allowed = SDL_GetKeyboardFocus() == s_window && hid::AssignedGamepad(e.gbutton.which) &&
+                ControllerShortcutsAllowed();
+            const auto action = s_guide.Button(e.gbutton.which, e.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN, allowed,
+                e.gbutton.timestamp ? e.gbutton.timestamp : SDL_GetTicksNS());
+            if (action == quit::GuidePress::Action::Quit)
                 RequestControllerQuit(e.gbutton.which);
+            else if (action == quit::GuidePress::Action::Settings)
+                ToggleSettings();
             return;  // Guide is a host shortcut, never a game control or remapped chord.
         }
         if (e.type == SDL_EVENT_GAMEPAD_REMOVED)
             s_guide.Removed(e.gdevice.which);
+        if (e.type == SDL_EVENT_WINDOW_FOCUS_LOST || e.type == SDL_EVENT_WINDOW_HIDDEN ||
+            e.type == SDL_EVENT_WINDOW_MINIMIZED)
+            s_guide.Cancel();
 #endif
         bool forward = s_capturing.load(std::memory_order_relaxed);
         if (s_settingsOpen && !s_modal && SettingsMenuRecordingChord() &&
@@ -841,7 +849,7 @@ namespace ui
 #endif
             if (toggle && !e.key.repeat && !s_modal)
             {
-                s_settingsOpen ? CloseSettings() : OpenSettings();
+                ToggleSettings();
                 return;
             }
             if (s_settingsOpen && !s_modal && SettingsMenuTakesKey(e.key))
@@ -1285,8 +1293,25 @@ namespace ui
         ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
     }
 
+    void UpdateControllerShortcuts()
+    {
+#if BR_QUIT_GAME
+        if (!s_ready)
+            return;
+        const auto device = s_guide.Tick(SDL_GetTicksNS(), [](uint32_t pad) {
+            return SDL_GetKeyboardFocus() == s_window && hid::AssignedGamepad(pad) && ControllerShortcutsAllowed();
+        });
+        if (device)
+            RequestControllerQuit(SDL_JoystickID(device));
+#endif
+    }
+
     void SetModal(std::function<void()> draw, bool preserveSettings, SDL_JoystickID controller)
     {
+#if BR_QUIT_GAME
+        if (draw)
+            s_guide.Cancel();
+#endif
         ReleaseModalGamepad();
         if (draw && controller && s_ready)
         {
@@ -1315,6 +1340,13 @@ namespace ui
     bool Ready()
     {
         return s_ready;
+    }
+
+    void ToggleSettings()
+    {
+        if (!s_ready || s_modal)
+            return;
+        s_settingsOpen ? CloseSettings() : OpenSettings();
     }
 
     void OpenSettings()

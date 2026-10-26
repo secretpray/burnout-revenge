@@ -11,7 +11,7 @@ endfunction()
 foreach(name sha1 socket_compat block_ranges texture_volume_layout rectangle_list temporal_history
         burnout_motion composite_controls xma_mmio rumble_focus rewind_shortcuts
         rewind_gate crash_launch_model crash_launch_texture bit_copy xmp_playlist
-        notification_queue memory_plan zpd_report edge_bars pipeline_cache_header
+        notification_queue memory_plan zpd_report edge_bars pipeline_cache_header quit_game
         gpu_choice present_schedule audio_cadence whole_vblanks light_trails
         hud_anchor suspend_count vehicle_detail pad_slots online_identity key_map
         wheel_map version_check front_end_matrix)

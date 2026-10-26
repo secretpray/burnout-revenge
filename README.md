@@ -62,7 +62,7 @@
 <sub>Unedited macOS screenshots from this port on an M1 Pro. The game content in them belongs to its owners.</sub>
 
 > [!TIP]
-> **New in v0.1.26:** Press **Home / Xbox Guide / PS** to open the quit confirmation. Cancel is selected first, the dialog follows the controller that opened it, and an open Settings page stays intact. The active game requests priority over the macOS system gesture without changing your shortcut settings. [Release notes](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.26).
+> **New in v0.1.27:** Tap **Home / Xbox Guide / PS** to open or close Settings; hold it for **3 seconds** for the quit confirmation. On Mac, **Burnout Revenge → Settings…** and **Cmd+,** open the same settings screen. [Release notes](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.27).
 
 
 **TL;DR**
@@ -83,8 +83,9 @@
 - Updates install over the old version. Saves and settings stay.
 - Linux x86-64 has a separate experimental beta. Read the
   [Linux validation limits](#linux-port-status) before installing it.
-- Settings: **F1**, **Cmd+,** or **Back + Start** on a controller.
-- Quit confirmation: press the controller's **Home / Xbox Guide / PS** button.
+- Settings: tap **Home / Xbox Guide / PS**, **F1**, **Cmd+,** or **Back + Start**.
+  On macOS, **Burnout Revenge → Settings…** opens the same screen.
+- Quit confirmation: hold **Home / Xbox Guide / PS** for **3 seconds**.
   Cancel is selected first; **B / Circle** dismisses the prompt. The game window
   must be active and the controller driver must expose the button. macOS or
   Steam may reserve it; **Settings > Quit Game** remains available. While the
@@ -224,9 +225,10 @@ Requirements, data locations and troubleshooting:
 
 **Controls**
 
-- **Home / Xbox Guide / PS** opens the quit confirmation in the active game
-  window, with Cancel selected first. B / Circle dismisses it. The dialog
-  follows the controller that opened it and preserves an open Settings page.
+- Tap **Home / Xbox Guide / PS** and release to open or close Settings in the
+  active game window. Hold it for **3 seconds** for the quit confirmation,
+  with Cancel selected first. B / Circle dismisses it. The dialog follows
+  the controller that opened it and preserves an open Settings page.
   macOS is asked to give Home to the game while focused; system shortcut
   settings stay unchanged. [See the dialog](docs/screenshots/controller-quit.jpg).
 - Xbox controllers and DualSense through SDL, with vibration. Back + Start
@@ -459,7 +461,8 @@ and GOD packages are not supported. [Xbox 360 saves can be imported](#highlights
 
 ## Settings
 
-Open with **F1**, **Cmd+,** or **Back + Start**. LB/RB (Q/E) switch pages.
+Open with a short **Home / Xbox Guide / PS** press, **F1**, **Cmd+,** or **Back + Start**.
+On macOS, you can also choose **Burnout Revenge → Settings…**. LB/RB (Q/E) switch pages.
 
 <table>
   <tr>

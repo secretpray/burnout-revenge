@@ -1872,13 +1872,18 @@ namespace ui
 
     bool SettingsMenuRecordingChord() { return s_chordRecording; }
 
+    bool ControllerShortcutsAllowed()
+    {
+        return Ready() && !HasModal() && s_waiting == Id::Count && !s_chordRecording && !s_calibrating &&
+            !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel);
+    }
+
     bool RequestControllerQuit(SDL_JoystickID controller)
     {
 #if BR_QUIT_GAME
         // Do not replace installation/notices, save dialogs, calibration or
         // a binding being recorded. A fresh press can ask after they close.
-        if (!Ready() || HasModal() || s_waiting != Id::Count || s_chordRecording || s_calibrating ||
-            ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel))
+        if (!ControllerShortcutsAllowed())
             return false;
         if (s_quit.Choose() != quit::Outcome::Asking)
             return false;

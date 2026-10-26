@@ -53,28 +53,61 @@ namespace
 
     void GuideButton()
     {
-        ui::quit::GuidePress guide;
-        CHECK(guide.Button(1, true, true), "a focused player's fresh Guide press asks");
-        CHECK(!guide.Button(1, true, true), "held or duplicate Guide cannot ask again");
-        CHECK(!guide.Button(1, false, true), "releasing Guide never asks");
-        CHECK(guide.Button(1, true, true), "release then press asks again");
-        CHECK(guide.Button(2, true, true), "player 2 has an independent Guide edge");
-        guide.Button(2, false, true);
-        CHECK(!guide.Button(1, true, true), "another pad's release cannot rearm player 1");
-        guide.Button(1, false, true);
-        CHECK(!guide.Button(1, true, false), "a background or unassigned pad press is ignored");
-        CHECK(!guide.Button(1, true, true), "gaining focus while held does not ask");
-        guide.Button(1, false, false);
-        CHECK(guide.Button(1, true, true), "a fresh foreground press works");
+        using Guide = ui::quit::GuidePress;
+        using A = Guide::Action;
+        constexpr uint64_t second = 1000000000ull;
+        Guide guide;
+        auto allowed = [](uint32_t) { return true; };
+        CHECK(guide.Button(1, true, true, 0) == A::None, "down waits: no settings flash before a hold");
+        CHECK(guide.Tick(second, allowed) == 0, "a short hold has no action yet");
+        CHECK(guide.Button(1, false, true, second) == A::Settings, "short release toggles settings");
+        CHECK(guide.Button(1, false, true, second) == A::None, "duplicate release cannot toggle twice");
+
+        guide.Button(1, true, true, 0);
+        guide.Button(1, true, true, 2 * second);  // duplicate must not restart the clock
+        CHECK(guide.Tick(3 * second - 1, allowed) == 0, "three-second boundary: not a nanosecond early");
+        CHECK(guide.Tick(3 * second, allowed) == 1, "hold asks to quit at exactly three seconds");
+        CHECK(guide.Tick(9 * second, allowed) == 0, "continued hold cannot repeat after Cancel");
+        CHECK(guide.Button(1, false, true, 9 * second) == A::None, "long release never opens settings");
+
+        guide.Button(1, true, true, 0);
+        CHECK(guide.Button(1, false, true, 3 * second - 1) == A::Settings, "just under threshold is short");
+        guide.Button(1, true, true, 0);
+        CHECK(guide.Button(1, false, true, 3 * second) == A::Quit, "queued threshold release handles a stalled event pump");
+        CHECK(guide.Tick(4 * second, allowed) == 0, "queued release plus tick still asks only once");
+
+        guide.Button(1, true, true, 0);
+        guide.Button(2, true, true, second);
+        CHECK(guide.Tick(3 * second, allowed) == 1, "players have independent hold timers");
+        CHECK(guide.Button(2, false, true, 3 * second) == A::Settings, "player 2 short release is independent");
+        CHECK(guide.Button(1, false, true, 4 * second) == A::None, "player 2 release cannot rearm player 1");
+
+        guide.Button(1, true, false, 0);
+        CHECK(guide.Tick(4 * second, allowed) == 0, "background/unassigned/modal press cannot become eligible while held");
+        CHECK(guide.Button(1, false, true, 4 * second) == A::None, "ignored press has no release action");
+        guide.Button(1, true, true, 0);
+        guide.Tick(second, [](uint32_t) { return false; });
+        CHECK(guide.Tick(4 * second, allowed) == 0, "losing eligibility cancels a pending gesture");
+        CHECK(guide.Button(1, false, true, 5 * second) == A::None, "regaining focus cannot turn old hold into a tap");
+
+        guide.Button(1, true, true, 0);
+        guide.Cancel();  // focus lost then regained within one event batch, or another modal
+        guide.Button(1, true, true, second);
+        CHECK(guide.Button(1, false, true, 2 * second) == A::None, "focus/modal cancellation survives duplicate downs");
+        guide.Button(1, true, true, 3 * second);
+        CHECK(guide.Button(1, false, true, 4 * second) == A::Settings, "fresh press after cancellation works");
+
+        guide.Button(1, true, true, 0);
         guide.Removed(1);
-        CHECK(guide.Button(1, true, true), "disconnect drops stale state");
+        CHECK(guide.Tick(4 * second, allowed) == 0, "detach cancels the held pad");
+        CHECK(guide.Button(1, false, true, 4 * second) == A::None, "detached pad's stray release is harmless");
+        guide.Button(1, true, true, 0);
         guide.Clear();
-        CHECK(guide.Button(1, true, true), "a new UI session has no stale held buttons");
+        CHECK(guide.Tick(4 * second, allowed) == 0, "shutdown clears pending timers");
 
         Prompt p;
         p.Choose(); p.Shown(); p.Shown();
-        CHECK(p.Press(Button::Cancel) == Outcome::Cancelled, "the controller shortcut still defaults to Cancel");
-        CHECK(!guide.Button(1, true, true), "cancelling while Guide is held cannot reopen the prompt");
+        CHECK(p.Press(Button::Cancel) == Outcome::Cancelled, "hold shortcut still defaults to Cancel");
     }
 
     void Steps()

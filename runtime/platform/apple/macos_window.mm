@@ -11,12 +11,34 @@
 #import <GameController/GameController.h>
 #include <cmath>
 #include <SDL3/SDL.h>
+#include <ui/ui.h>
 #include <cstdio>
 #include <utility>
 
 // The app menu's Hide (Cmd+H), redirected here (InstallHide).
 @interface BRHideHandler : NSObject
 - (void)hideGame:(id)sender;
+@end
+
+// SDL creates the app menu's Settings item without an action. Adapted from
+// SpeedBreaker PR #47 (SOHAM4884), including v0.2.0's key-repeat guard.
+@interface BRSettingsHandler : NSObject
+- (void)openSettings:(id)sender;
+@end
+
+@implementation BRSettingsHandler
+- (void)openSettings:(id)sender
+{
+    NSEvent* event = NSApp.currentEvent;
+    if (event.type == NSEventTypeKeyDown && event.isARepeat)
+        return;
+    ui::ToggleSettings();
+}
+
+- (BOOL)validateMenuItem:(NSMenuItem*)item
+{
+    return ui::Ready() && !ui::HasModal();
+}
 @end
 
 namespace platform::macos
@@ -54,6 +76,7 @@ namespace platform::macos
         NSWindow* s_window = nil;      // the game's (SDL's, not retained here)
         bool s_inTransition = false;   // between a fullscreen transition's "will" and its "did" (or "did fail")
         NSMutableArray* s_observers = nil;
+        BRSettingsHandler* s_settingsHandler = nil;
 
         NSWindow* CocoaWindow(SDL_Window* window)
         {
@@ -92,6 +115,21 @@ namespace platform::macos
             id token = [NSNotificationCenter.defaultCenter addObserverForName:name object:window queue:nil usingBlock:block];
             [s_observers addObject:token];
         }
+
+        void WireSettingsMenu()
+        {
+            NSMenu* appMenu = NSApp.mainMenu.numberOfItems ? [NSApp.mainMenu itemAtIndex:0].submenu : nil;
+            for (NSMenuItem* item in appMenu.itemArray)
+                if ([item.keyEquivalent isEqualToString:@","] &&
+                    (item.keyEquivalentModifierMask & NSEventModifierFlagCommand))
+                {
+                    if (!s_settingsHandler)
+                        s_settingsHandler = [[BRSettingsHandler alloc] init];
+                    item.target = s_settingsHandler;
+                    item.action = @selector(openSettings:);
+                    return;
+                }
+        }
     }
 
     void ConfigureWindow(SDL_Window* window, bool windowed)
@@ -129,6 +167,7 @@ namespace platform::macos
         if (!s_hideHandler)
             s_hideHandler = [[BRHideHandler alloc] init];
         InstallHide(NSApp.mainMenu);
+        WireSettingsMenu();
     }
 
     bool HideAfterLeavingFullscreen()

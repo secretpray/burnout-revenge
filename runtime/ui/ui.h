@@ -72,6 +72,8 @@ namespace ui
     // and closes the settings menu (keys, controller chord, three-finger
     // tap), and feeds the UI while it has input.
     void ProcessEvent(const SDL_Event& event);
+    // Main thread, after polling events: Home/Guide/PS's three-second hold.
+    void UpdateControllerShortcuts();
 
     // Any thread: a menu is open and owns the input.
     bool CapturingInput();
@@ -132,6 +134,7 @@ namespace ui
 
     void OpenSettings();
     void CloseSettings();  // saves any change
+    void ToggleSettings();  // main thread; ignored before UI ready or during a modal
     bool TriggerRewind(unsigned seconds);
     bool SettingsOpen();
 
@@ -145,6 +148,7 @@ namespace ui
     // refused, so ImGui must not see it.
     bool SettingsMenuTakesKey(const SDL_KeyboardEvent& key);
     bool SettingsMenuRecordingChord();
+    bool ControllerShortcutsAllowed();
     void DrawPerfOverlay();
 
     // Settings > Advanced > Check for Updates (update_dialog.cpp, the check

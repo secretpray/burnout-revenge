@@ -17,6 +17,8 @@
 - **AMD FidelityFX Super Resolution 1** (MIT): unchanged EASU and RCAS headers,
   incorporated through SpeedBreaker v0.1.5.
 - **aleszczynskig**: transparent macOS title bar (SpeedBreaker PR #23).
+- **SOHAM4884**: the macOS Settings menu action (SpeedBreaker PR #47), adapted
+  with the release's key-repeat guard and Burnout's modal handling.
 - **love-gamer**: keyboard remapping contributions to SpeedBreaker.
 - **byteofmydream**: USB steering wheel support (SpeedBreaker PR #29, branch
   `claude/macos-usb-steering-wheel-dca9ae` at `ae418a8`): `hid/wheel.*`,

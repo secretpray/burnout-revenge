@@ -2,6 +2,19 @@
 
 ## v0.1.27
 
+- Tap Home / Xbox Guide / PS and release to open or close Settings. Hold it
+  for three seconds to open the quit confirmation instead. Cancel is selected
+  first; B / Circle or Escape dismisses it. Releasing a long hold cannot open
+  Settings, and continuing to hold cannot repeat the prompt.
+- A hold is cancelled if the window loses focus, the controller disconnects,
+  or another dialog takes over. The quit dialog follows the controller that
+  invoked it and preserves an open Settings page.
+- On macOS, Burnout Revenge > Settings… and Cmd+, use the same settings
+  screen. Holding the shortcut does not repeatedly open and close it; other
+  dialogs are not interrupted. Adapted from SpeedBreaker PR #47 by SOHAM4884.
+
+## v0.1.27-linux-beta.1
+
 - Experimental Linux x86-64 build with a shared runtime, Vulkan rendering,
   XDG data paths and FFmpeg support for My Music.
 - Install for your user with `./install.sh`, then launch from the applications
