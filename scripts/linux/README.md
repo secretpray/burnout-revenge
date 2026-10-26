@@ -10,8 +10,8 @@ The stable Mac release remains separate.
 ## Install and play
 
 You need a graphical Linux session, an **x86-64-v3 CPU (AVX2/FMA)**, **glibc
-2.38+**, **GLIBCXX_3.4.32** and a Vulkan driver. This build uses an Ubuntu 24.04
-SDK; Ubuntu 22.04's own glibc is too old. Hardware compatibility and minimum
+2.38+**, **GLIBCXX_3.4.32** and a Vulkan 1.2+ driver with dynamic rendering and push descriptors.
+This build uses an Ubuntu 24.04 SDK; Ubuntu 22.04's own glibc is too old. Hardware compatibility and minimum
 performance requirements have not been established. ARM64 is diagnostic only.
 
 1. Download the Linux `tar.xz` archive and extract it with your file manager.
