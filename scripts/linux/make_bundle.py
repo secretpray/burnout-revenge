@@ -24,12 +24,13 @@ def main():
     parser.add_argument('build', type=Path)
     parser.add_argument('output', type=Path)
     parser.add_argument('--deps', type=Path, required=True)
-    parser.add_argument('--allow-unverified', action='store_true', help='Internal RC only; marks hardware gates open')
+    qualification = parser.add_mutually_exclusive_group(required=True)
+    qualification.add_argument('--allow-unverified', action='store_true', help='Internal RC only; marks hardware gates open')
+    qualification.add_argument('--emulator-validation', type=Path,
+                               help='Publishable experimental beta: matching revision and completed VM checks, native hardware untested')
     args = parser.parse_args()
     if platform.system() != 'Linux':
         parser.error('Run on Linux, with a native ELF build')
-    if not args.allow_unverified:
-        parser.error('No hardware release qualification recorded: use --allow-unverified for an internal RC')
     build, deps, output = args.build.resolve(), args.deps.resolve(), args.output.resolve()
     binary = build / 'runtime/BurnoutRevenge'
     machine = run('readelf', '-h', str(binary))
@@ -43,8 +44,23 @@ def main():
     version, commit = define('VERSION'), define('COMMIT')
     if commit == 'unknown' or define('DIRTY') != '0':
         parser.error('Candidate must come from a clean, identified revision')
+    validation = None
+    if args.emulator_validation:
+        try:
+            validation = json.loads(args.emulator_validation.read_text())
+            required = ('full_tests', 'clean_install', 'gameplay_save_reload', 'display', 'endurance')
+            environments = validation.get('environments')
+            if (arch != 'x86_64' or validation.get('schema') != 1 or validation.get('revision') != commit or
+                    validation.get('architecture') != arch or validation.get('native_hardware_tested') is not False or
+                    not isinstance(environments, list) or not environments or
+                    not all(isinstance(item, str) and item.strip() for item in environments) or
+                    any(validation.get('checks', {}).get(key) != 'pass' for key in required)):
+                raise ValueError('revision, architecture, environment or completed checks do not match this build')
+        except (OSError, ValueError, TypeError, AttributeError) as error:
+            parser.error(f'Invalid emulator validation report: {error}')
     output.mkdir(parents=True, exist_ok=True)
-    name = f'BurnoutRevenge-{version}-{commit}-linux-{arch}-rc'
+    name = (f'BurnoutRevenge-{version}-{commit}-linux-{arch}-rc' if validation is None else
+            f'BurnoutRevenge-{version}-linux-{arch}')
     archive = output / (name + '.tar.xz')
     if archive.exists():
         parser.error(f'Refusing to overwrite {archive}')
@@ -101,8 +117,9 @@ def main():
         shutil.copy2(ROOT / 'scripts/linux/burnout-revenge.sh', stage)
         shutil.copy2(ROOT / 'scripts/linux/README.md', stage)
         shutil.copy2(ROOT / 'scripts/macos/AppIcon.png', stage / 'burnout-revenge.png')
+        desktop_name = 'Linux RC' if validation is None else 'Linux experimental beta'
         (stage / 'burnout-revenge.desktop').write_text(
-            '[Desktop Entry]\nType=Application\nName=Burnout Revenge (Linux RC)\n'
+            f'[Desktop Entry]\nType=Application\nName=Burnout Revenge ({desktop_name})\n'
             'Exec=burnout-revenge.sh\nIcon=burnout-revenge\nTerminal=false\nCategories=Game;\n')
         requirements = {}
         for prefix in ('GLIBC', 'GLIBCXX', 'CXXABI'):
@@ -115,10 +132,13 @@ def main():
         (stage / 'ARCHITECTURE').write_text(('x86_64' if arch == 'x86_64' else 'aarch64') + '\n')
         (stage / 'MIN_GLIBC').write_text(requirements['GLIBC'] + '\n')
         manifest = dict(version=version, revision=commit, architecture=arch,
-                        qualification='UNVERIFIED RELEASE CANDIDATE; native GPU gates OPEN',
+                        qualification=('UNVERIFIED RELEASE CANDIDATE; native GPU gates OPEN' if validation is None else
+                                       'EMULATOR-TESTED EXPERIMENTAL BETA; native Linux hardware UNTESTED'),
                         required_symbol_versions=requirements, bundled_libraries=sorted(bundled),
                         system_libraries=sorted(system))
         (stage / 'bundle-info.json').write_text(json.dumps(manifest, indent=2) + '\n')
+        if validation is not None:
+            (stage / 'VALIDATION.json').write_text(json.dumps(validation, indent=2) + '\n')
         forbidden = [str(ROOT).encode(), str(build).encode(), str(Path.home()).encode() + b'/']
         cache = (build / 'CMakeCache.txt').read_text()
         for key in ('CMAKE_HOME_DIRECTORY', 'FFMPEG_XMA', 'SDL3_DIR'):

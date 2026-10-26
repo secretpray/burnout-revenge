@@ -1,10 +1,11 @@
 # Burnout Revenge Linux candidate
 
-This is an internal release candidate. Native Linux GPU qualification is still
-required; a successful VM/container run does not establish hardware support,
-Steam Deck compatibility, performance or beta readiness. The Mac release remains
-separate. See `bundle-info.json` for this build's revision, architecture and
-measured glibc/libstdc++ symbol requirements.
+Check `bundle-info.json` for this build's qualification, revision, architecture
+and measured glibc/libstdc++ symbol requirements. An internal RC is unverified.
+An emulator-tested experimental beta includes `VALIDATION.json` with its exact
+test environment and completed checks. It has only been tested in UTM on a Mac:
+native Linux PC hardware, Steam Deck compatibility and performance are untested.
+The stable Mac release remains separate.
 
 Extract the archive into a folder you own and run `./burnout-revenge.sh`.
 The x86-64 build requires x86-64-v3 (AVX2/FMA and OS AVX support). Install your
@@ -37,11 +38,16 @@ My Music reads local MP3, AAC/M4A, ALAC, FLAC, WAV, AIFF, Ogg Vorbis and Opus
 through FFmpeg at 48 kHz stereo. EA Trax retains the patched XMA/WMA path. Device
 switching, physical rumble, listening and sleep/resume require hardware checks.
 
-Before calling a candidate a beta, validate install → World Tour → controlled
+Before publishing an emulator-tested experimental beta, validate install → World Tour → controlled
 Race → result → native Save → restart → Reload, Crash, six solo modes,
 Rewind/Classic/Replay, two-controller ownership, network/Locker and Mac↔Linux;
-run at least 60 minutes on the declared native GPU profile. Record hardware,
-driver, kernel, display/session, settings and frame-time/memory evidence.
+record what passed, failed or remains untested on each architecture. Run at least
+60 minutes in the declared VM profile and record driver, kernel, display/session,
+settings and memory evidence. VM results do not qualify native Linux GPUs.
+Physical controls, listening, real device switching and native GPU endurance
+remain separate hardware checks; do not describe scripted or muted runs as those
+checks. Known runtime failures must be resolved or explicitly scoped out before
+publication.
 
 ## Building
 
@@ -66,6 +72,14 @@ ctest --preset linux-release
 scripts/linux/make_bundle.py build/linux-release build/linux-package \
   --deps build/linux-deps --allow-unverified
 ```
+
+After validation, `--emulator-validation /path/to/report.json` replaces
+`--allow-unverified`. The report must use schema `1`, the exact build `revision`
+and `architecture`, an `environments` list, `native_hardware_tested: false`, and
+`checks` entries `full_tests`, `clean_install`, `gameplay_save_reload`, `display`
+and `endurance`, all set to `"pass"`. Include the detailed test matrix and known
+limitations in the release notes. The packager records this evidence; it does
+not run or establish those checks itself.
 
 Build inside the intended minimum SDK; do not infer SteamOS support from a newer
 Ubuntu binary. Dependencies are pinned by source SHA-256 where built here;
