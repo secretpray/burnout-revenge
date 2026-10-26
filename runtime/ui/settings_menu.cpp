@@ -28,6 +28,9 @@
 #include <user/key_names.h>  // a key's name in the file, when SDL has none
 #include <video/frame_rate.h>
 #include <video/presenter.h>
+#include <video/picture_fit.h>
+#include <gpu/renderer.h>
+#include <gpu/render_scale.h>
 #include <game/title.h>
 #include <game/burnout_addons.h>
 #include <platform/audio_file.h>
@@ -361,11 +364,32 @@ namespace ui
             return kSpaceM * Scale();
         }
 
+        std::string ValueText(const settings::Option& o, double value)
+        {
+            const std::string label = settings::FormatValue(o.id, value);
+            if (o.id != Id::InternalResolution)
+                return label;
+            uint32_t width = 0, height = 0;
+            // Use what the renderer has actually applied, including Auto and
+            // the developer scale override, without reading its thread's state.
+            if (value == settings::GetInt(o.id))
+                gpu::renderer::InternalResolutionSize(width, height);
+            if ((!width || !height) && value > 0)
+            {
+                const auto axis = gpu::AxisFromHalves(uint32_t(value));
+                width = axis.Size(1280);
+                height = axis.Size(720);
+            }
+            // Translate Auto before appending dimensions; the completed
+            // dynamic label is not a localization catalog key.
+            return video::ResolutionLabel(value <= 0 ? locale::Text(label.c_str()) : label.c_str(), width, height);
+        }
+
         // Widest value this option can show, for the value column.
         float ValueWidth(const settings::Option& o)
         {
             float width = 0.0f;
-            auto measure = [&](double v) { width = std::max(width, ImGui::CalcTextSize(Upper(settings::FormatValue(o.id, v).c_str()).c_str()).x); };
+            auto measure = [&](double v) { width = std::max(width, ImGui::CalcTextSize(Upper(ValueText(o, v).c_str()).c_str()).x); };
             switch (o.type)
             {
             case settings::Type::Bool:
@@ -609,7 +633,7 @@ namespace ui
             ImGui::PopStyleColor(2);
             ImGui::PopItemFlag();
 
-            std::string text = Upper(settings::FormatValue(o.id, stored).c_str());
+            std::string text = Upper(ValueText(o, stored).c_str());
             ImVec2 size = ImGui::CalcTextSize(text.c_str());
             ImDrawList* draw = ImGui::GetWindowDrawList();
             ImU32 color = locked ? ImGui::GetColorU32(ImGuiCol_TextDisabled) : kRowWhite;

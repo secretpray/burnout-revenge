@@ -5,9 +5,16 @@
 
 #include <algorithm>
 #include <cmath>
+#include <format>
 
 namespace video
 {
+    std::string ResolutionLabel(std::string_view label, uint32_t width, uint32_t height)
+    {
+        const auto name = label.substr(0, label.find(" ("));
+        return width && height ? std::format("{} ({}x{})", name, width, height) : std::string(name);
+    }
+
     PictureFit FitPicture(uint32_t screenW, uint32_t screenH, float frameW, float frameH, bool fillWide, bool fillTall)
     {
         float scaleX = 1.0f, scaleY = 1.0f;

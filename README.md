@@ -461,6 +461,9 @@ and GOD packages are not supported. [Xbox 360 saves can be imported](#highlights
 
 ## Settings
 
+Internal Resolution shows the render size, including Auto's current choice.
+This is the game's internal image size, before upscaling to the window.
+
 Open with a short **Home / Xbox Guide / PS** press, **F1**, **Cmd+,** or **Back + Start**.
 On macOS, you can also choose **Burnout Revenge → Settings…**. LB/RB (Q/E) switch pages.
 

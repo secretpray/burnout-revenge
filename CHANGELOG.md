@@ -2,6 +2,9 @@
 
 ## v0.1.27
 
+- Internal Resolution shows its render dimensions, including the size
+  currently selected by Auto. Window size and upscaling do not change this
+  readout. Render resolution and screen-shape behavior are unchanged.
 - Tap Home / Xbox Guide / PS and release to open or close Settings. Hold it
   for three seconds to open the quit confirmation instead. Cancel is selected
   first; B / Circle or Escape dismisses it. Releasing a long hold cannot open

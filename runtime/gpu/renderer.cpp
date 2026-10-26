@@ -1884,6 +1884,13 @@ namespace gpu::renderer
         // the new scale between two frames, and Auto follows the picture's
         // size (the window, fullscreen, the aspect ratio setting).
         gpu::RenderScale s_renderScale;
+        std::atomic<uint64_t> s_renderSize{0};  // width:height, published for Settings on the UI thread
+
+        void PublishRenderSize()
+        {
+            s_renderSize.store((uint64_t(s_renderScale.x.Size(1280)) << 32) | s_renderScale.y.Size(720),
+                std::memory_order_relaxed);
+        }
         uint32_t s_scalePitchMin = 640, s_scalePitchMax = 1280;
         uint32_t s_scaleBudget = 6;  // Auto's most host pixels per guest pixel
         bool s_scaleFixed = false;   // BURNOUT_RENDER_SCALE: no live changes
@@ -1966,6 +1973,7 @@ namespace gpu::renderer
             }
             if (const char* v = std::getenv("BURNOUT_SCALE_PITCH"))
                 sscanf(v, "%u-%u", &s_scalePitchMin, &s_scalePitchMax);
+            PublishRenderSize();
             fprintf(stderr, "[renderer] internal resolution %s (%ux%u, %s; surface pitches %u-%u)\n", gpu::ScaleName(s_renderScale).c_str(),
                 s_renderScale.x.Size(1280), s_renderScale.y.Size(720), ScaleReason(setting, regionW, regionH).c_str(), s_scalePitchMin,
                 s_scalePitchMax);
@@ -6745,6 +6753,7 @@ void main()
                 recent = {};
             size_t textures = DropTextures([](const Texture& t) { return t.scaled; });
             ResetScaledMemory(!scale.IsOne());
+            PublishRenderSize();
             fprintf(stderr, "[renderer] internal resolution %s -> %s (%ux%u, %s): %zu targets and %zu scaled textures replaced in %.1f ms\n",
                 gpu::ScaleName(old).c_str(), gpu::ScaleName(scale).c_str(), scale.x.Size(1280), scale.y.Size(720), how.c_str(), targets, textures,
                 std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count());
@@ -9672,6 +9681,13 @@ void main()
     {
         std::mutex s_perfMutex;
         PerfNumbers s_perfNumbers;
+    }
+
+    void InternalResolutionSize(uint32_t& width, uint32_t& height)
+    {
+        const uint64_t size = s_renderSize.load(std::memory_order_relaxed);
+        width = uint32_t(size >> 32);
+        height = uint32_t(size);
     }
 
     PerfNumbers GetPerfNumbers()

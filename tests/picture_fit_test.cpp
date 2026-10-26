@@ -118,6 +118,12 @@ int main()
     Scale(1280, 960, 4, 1, 2);    // a 4:3 picture letterboxed on 1280x1024
     Scale(2560, 1600, 6, 2, 2);   // 16:10 on a discrete GPU: as its 16:9 box, not 2x3
 
+    CHECK(video::ResolutionLabel("1x (720p)", 1280, 720) == "1x (1280x720)", "render size replaces the old shorthand");
+    CHECK(video::ResolutionLabel("1.5x (1080p)", 1920, 1080) == "1.5x (1920x1080)", "fractional scale size");
+    CHECK(video::ResolutionLabel("Auto", 1280, 720) == "Auto (1280x720)", "Auto shows its applied size");
+    CHECK(video::ResolutionLabel("Auto", 3840, 1440) == "Auto (3840x1440)", "asymmetric override is not mistaken for window size");
+    CHECK(video::ResolutionLabel("Auto", 0, 0) == "Auto", "uninitialized renderer does not invent dimensions");
+
     if (g_failures)
     {
         printf("%d FAILED\n", g_failures);

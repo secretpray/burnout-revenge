@@ -18,9 +18,15 @@
 // the hooks) the 16:9 frame is letterboxed as it always was.
 #pragma once
 #include <cstdint>
+#include <string>
+#include <string_view>
 
 namespace video
 {
+    // Internal Resolution's display label, using render pixels rather than
+    // the window's size. A zero size means the renderer is not ready yet.
+    std::string ResolutionLabel(std::string_view label, uint32_t width, uint32_t height);
+
     // The narrowest picture Vert+ makes: 4:3, at most 4/3 the vertical
     // view's tan of the half-angle.
     constexpr float kTallMinAspect = 4.0f / 3.0f;

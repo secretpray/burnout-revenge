@@ -33,6 +33,9 @@ namespace gpu::renderer
     // false (and every other call is then a no-op) when running headless.
     bool Initialize(const uint32_t* regs);
     bool Enabled();
+    // Any thread: the applied internal render size for the game's 1280x720
+    // frame. Zero before initialization; independent of window/upscale size.
+    void InternalResolutionSize(uint32_t& width, uint32_t& height);
 
     // IM_LOAD / IM_LOAD_IMMEDIATE: `words` in guest (big-endian) order.
     void LoadShader(uint32_t type, const uint32_t* words, uint32_t dwords);
