@@ -144,6 +144,27 @@ build directly; the VM tests use the newer container runtime. CPU/GPU performanc
 and minimum RAM requirements have not been established. See
 [Linux build and candidate instructions](scripts/linux/README.md).
 
+### Linux installation
+
+When a Linux package is available, download its `tar.xz` archive and extract it.
+Open a terminal in the extracted **BurnoutRevenge** folder and run:
+
+```sh
+./install.sh
+```
+
+Then open **Burnout Revenge** from your applications menu. On first launch,
+select your own supported **USA Xbox 360 disc image** or extracted game folder.
+No game files are included. The installer works for your user, without `sudo`.
+
+To update, quit the game and run `./install.sh` from the new archive; your game,
+saves and settings stay. To remove only the app, run
+`~/.local/bin/burnout-revenge --uninstall`. You can also skip installation and
+run `./burnout-revenge.sh` directly from the extracted folder.
+
+Requirements, data locations and troubleshooting:
+[Linux quick start](scripts/linux/README.md#install-and-play).
+
 ## Highlights
 
 **Gameplay and mods**

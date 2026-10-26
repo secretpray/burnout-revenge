@@ -1,4 +1,4 @@
-# Burnout Revenge Linux candidate
+# Burnout Revenge for Linux (experimental)
 
 Check `bundle-info.json` for this build's qualification, revision, architecture
 and measured glibc/libstdc++ symbol requirements. An internal RC is unverified.
@@ -7,15 +7,47 @@ test environment and completed checks. It has only been tested in UTM on a Mac:
 native Linux PC hardware, Steam Deck compatibility and performance are untested.
 The stable Mac release remains separate.
 
-Extract the archive into a folder you own and run `./burnout-revenge.sh`.
-The x86-64 build requires x86-64-v3 (AVX2/FMA and OS AVX support). Install your
-distribution's Vulkan loader and GPU driver, curl with CA certificates, and the
-usual SDL display/audio dependencies. The package never replaces glibc or GPU
-drivers. X11 and Wayland must be qualified separately. ARM64 packages are for
-infrastructure diagnostics only, outside the first beta's supported scope.
+## Install and play
 
-The first run installs from your own supported USA disc image or extracted game
-folder. No game files are included. A terminal installation is also available:
+You need a graphical Linux session, an **x86-64-v3 CPU (AVX2/FMA)**, **glibc
+2.38+**, **GLIBCXX_3.4.32** and a Vulkan driver. This build uses an Ubuntu 24.04
+SDK; Ubuntu 22.04's own glibc is too old. Hardware compatibility and minimum
+performance requirements have not been established. ARM64 is diagnostic only.
+
+1. Download the Linux `tar.xz` archive and extract it with your file manager.
+2. Open a terminal in the extracted `BurnoutRevenge` folder and run:
+
+   ```sh
+   ./install.sh
+   ```
+
+3. Open **Burnout Revenge** from your applications menu. On first launch, choose
+   your own supported **USA Xbox 360 disc image** or extracted game folder.
+
+The installer needs **no sudo**. It checks the package, CPU and linked libraries,
+copies the app into your user directory and creates the menu entry. You can
+delete the extracted download afterwards. Game files are not included.
+
+Prefer to keep the app in its extracted folder? Run `./burnout-revenge.sh`
+directly; installing a menu entry is optional. To check CPU and linked libraries
+without starting the game, run `./burnout-revenge.sh --check-system`.
+
+If system dependencies are missing, install your distribution's Vulkan loader
+and GPU driver, C++ runtime, curl with CA certificates, and SDL's normal
+X11/Wayland/audio dependencies. The package does not replace system libraries or
+GPU drivers. Check `bundle-info.json` and the release's tested-system table.
+
+## Update or remove
+
+**Update:** quit the game, extract the new Linux archive, then run its
+`./install.sh`. Your installed game, saves and settings stay in place.
+
+**Remove the app:** run `~/.local/bin/burnout-revenge --uninstall`, or run
+`./uninstall.sh` from an extracted archive. Your game, saves and settings stay.
+
+## Data and advanced use
+
+A terminal game installation is also available:
 
 ```
 ./burnout-revenge.sh --install /path/to/your-disc.iso --dest /path/to/game
@@ -29,14 +61,18 @@ folders. `--portable on` enables the existing portable layout beside the launche
 that folder must be writable. Replacing an ordinary package must preserve user
 data. Never extract an update over portable data without a backup.
 
-For desktop integration, copy the supplied desktop entry and icon to your user
-applications/icons folders and change its Exec/Icon fields to the absolute paths
-of your installation. Paths containing spaces need quoting in Exec. Adding the
-launcher to Steam is optional; Steam Input/Home delivery remains a separate test.
+App files live in `$XDG_DATA_HOME/burnout-revenge/runtime` (normally
+`~/.local/share/burnout-revenge/runtime`), with a launcher in `~/.local/bin`.
+The installed app's data remains separate from its versioned runtime folders.
+The desktop entry follows the freedesktop standard and works with paths
+containing spaces. Adding the launcher to Steam is optional; Steam Input/Home
+delivery remains a separate test.
 
 My Music reads local MP3, AAC/M4A, ALAC, FLAC, WAV, AIFF, Ogg Vorbis and Opus
 through FFmpeg at 48 kHz stereo. EA Trax retains the patched XMA/WMA path. Device
 switching, physical rumble, listening and sleep/resume require hardware checks.
+
+## Validation
 
 Before publishing an emulator-tested experimental beta, validate install → World Tour → controlled
 Race → result → native Save → restart → Reload, Crash, six solo modes,

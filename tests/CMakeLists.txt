@@ -6,6 +6,10 @@ set(ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)
 set(RT ${ROOT}/runtime)
 find_package(Threads REQUIRED)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    add_test(NAME linux_user_install COMMAND ${Python3_EXECUTABLE}
+        ${CMAKE_CURRENT_SOURCE_DIR}/linux_user_install_test.py)
+endif()
 
 function(sb_test name)
     cmake_parse_arguments(T "" "" "SOURCES;ARGS" ${ARGN})

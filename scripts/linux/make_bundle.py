@@ -115,6 +115,8 @@ def main():
         shutil.copytree(deps / 'share/licenses', licenses / 'dependencies')
         shutil.copy2(deps / 'share/linux-dependencies.txt', licenses / 'linux-dependencies.txt')
         shutil.copy2(ROOT / 'scripts/linux/burnout-revenge.sh', stage)
+        shutil.copy2(ROOT / 'scripts/linux/install.sh', stage)
+        shutil.copy2(ROOT / 'scripts/linux/uninstall.sh', stage)
         shutil.copy2(ROOT / 'scripts/linux/README.md', stage)
         shutil.copy2(ROOT / 'scripts/macos/AppIcon.png', stage / 'burnout-revenge.png')
         desktop_name = 'Linux RC' if validation is None else 'Linux experimental beta'

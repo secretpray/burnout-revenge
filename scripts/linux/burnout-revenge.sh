@@ -25,4 +25,13 @@ elif [[ $ARCH != aarch64 ]]; then
     exit 64
 fi
 export LD_LIBRARY_PATH="$ROOT/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+if [[ ${1:-} == --check-system ]]; then
+    LIBRARIES=$(ldd "$ROOT/lib/BurnoutRevenge" 2>&1) || { printf '%s\n' "$LIBRARIES" >&2; exit 65; }
+    if [[ $LIBRARIES == *'not found'* ]]; then
+        printf 'Missing system libraries:\n%s\nSee README.md for dependencies.\n' "$LIBRARIES" >&2
+        exit 65
+    fi
+    printf 'CPU, glibc and linked libraries checked. Vulkan GPU compatibility needs a game launch.\n'
+    exit 0
+fi
 exec "$ROOT/lib/BurnoutRevenge" "$@"
