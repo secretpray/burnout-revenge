@@ -619,8 +619,10 @@ namespace video
             if ((s_presentScale < 1.0f || s_viewScaled) && platform::ios::SetDrawableScale(s_window, s_presentScale))
                 s_viewScaled = true;
 #endif
-            VkSurfaceCapabilitiesKHR caps;
-            vkGetPhysicalDeviceSurfaceCapabilitiesKHR(s_physical, s_surface, &caps);
+            VkSurfaceCapabilitiesKHR caps{};
+            if (!Check(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(s_physical, s_surface, &caps),
+                    "vkGetPhysicalDeviceSurfaceCapabilitiesKHR"))
+                return false;
             const VkExtent2D previous = s_swapExtent;
             // A landscape-only iPhone takes no portrait swapchain under a
             // landscape interface (swapchain_policy.h): the same size turned,
@@ -639,9 +641,21 @@ namespace video
             ui::SetFramebufferSize(s_swapExtent.width, s_swapExtent.height);
 
             uint32_t count = 0;
-            vkGetPhysicalDeviceSurfaceFormatsKHR(s_physical, s_surface, &count, nullptr);
+            if (!Check(vkGetPhysicalDeviceSurfaceFormatsKHR(s_physical, s_surface, &count, nullptr),
+                    "vkGetPhysicalDeviceSurfaceFormatsKHR(count)"))
+                return false;
+            if (count == 0)
+            {
+                fprintf(stderr, "[video] the Vulkan surface offers no formats\n");
+                return false;
+            }
             std::vector<VkSurfaceFormatKHR> formats(count);
-            vkGetPhysicalDeviceSurfaceFormatsKHR(s_physical, s_surface, &count, formats.data());
+            if (!Check(vkGetPhysicalDeviceSurfaceFormatsKHR(s_physical, s_surface, &count, formats.data()),
+                    "vkGetPhysicalDeviceSurfaceFormatsKHR"))
+                return false;
+            formats.resize(count);
+            if (formats.empty())
+                return false;
             // B8G8R8A8_UNORM in plain sRGB: the picture is sRGB-encoded.
             // MoltenVK lists each format in every color space it knows (asked
             // for VK_EXT_swapchain_colorspace or not), and the last
@@ -2632,7 +2646,14 @@ void main()
         // BURNOUT_PRESENT_TIMING=0 leaves it off, should a driver object to the
         // waits beside presents: no lock, and no repeat counts.
         const char* timing = std::getenv("BURNOUT_PRESENT_TIMING");
-        const bool timingOff = timing && timing[0] == '0';
+        // An offscreen surface has no display to lock to. Venus can advertise
+        // present_wait but waiting on its offscreen WSI crashes on Mesa 26;
+        // use the ordinary guest timer for this test surface.
+        const char* videoDriver = SDL_GetCurrentVideoDriver();
+        const bool offscreen = videoDriver && strcmp(videoDriver, "offscreen") == 0;
+        const bool timingOff = offscreen || (timing && timing[0] == '0');
+        if (offscreen)
+            fprintf(stderr, "[vblank] offscreen surface: display-present timing disabled\n");
         VkPhysicalDevicePresentIdFeaturesKHR presentIdFeatures{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_ID_FEATURES_KHR };
         VkPhysicalDevicePresentWaitFeaturesKHR presentWaitFeatures{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_WAIT_FEATURES_KHR };
         if (presentId && presentWait && !timingOff)
@@ -2820,6 +2841,7 @@ void main()
             fprintf(stderr, "[vblank] new frames shown when ready: not a 120 Hz display at launch, or no VK_GOOGLE_display_timing (not used)\n");
 #endif
         fprintf(stderr, "[vblank] %s\n", s_presentTiming ? "presents are timed (VK_KHR_present_wait)"
+            : offscreen ? "presents aren't timed (offscreen surface): using the ordinary guest vblank timer"
             : timingOff ? "presents aren't timed (BURNOUT_PRESENT_TIMING=0): the guest vblank can't lock to the display"
             : "no present timing (VK_KHR_present_wait) on this device: the guest vblank can't lock to the display");
 
