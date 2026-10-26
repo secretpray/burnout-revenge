@@ -119,6 +119,8 @@ these are **not native Linux PC or Steam Deck measurements**.
 - The x86-64 package installs and renders Traffic Attack, including driving,
   traffic, collisions and the HUD. The ARM64 diagnostic build has also reached
   results, Replay, a native Player File save and reload after restarting.
+  The x86-64 offscreen captures have black menu-video backgrounds; normal
+  x86-64 desktop presentation and visual parity still need checking.
 - Linux tests: 162/162 on ARM64; the x86-64 baseline passed 160/160 with
   ASan/LSan, followed by the new memory/fault tests. Memory aliases and
   write-watch passed again after the x86 guest's kernel upgrade. Asset-free
