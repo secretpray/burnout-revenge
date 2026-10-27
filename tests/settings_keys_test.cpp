@@ -112,6 +112,10 @@ int main()
     }
     CHECK(size_t(Id::OnlineEnabled) == previous + 1, "Online follows the keys");
     CHECK(EnvOverride(Id::KeyA) == nullptr, "nothing overrides a key");
+    const auto& hold = Info(Id::HoldCrashbreaker);
+    CHECK(hold.category == Category::Codes && std::string_view(hold.table) == "codes" &&
+        hold.type == Type::Bool && hold.defaultValue == 0 && hold.apply == Apply::Live,
+        "Hold Crashbreaker is an opt-in Cheat Code, separate from Classic launch");
 
     // A scratch folder of our own.
     std::string pattern = (std::filesystem::temp_directory_path() / "burnout-revenge-keys-XXXXXX").string();

@@ -492,7 +492,7 @@ On macOS, you can also choose **Burnout Revenge → Settings…**. LB/RB (Q/E) s
 | Controls | Two keys for each Xbox 360 control |
 | Online | Online Play, Server (Xerenge Community, My Server, LAN), Gamertag, Server Address, Check Server ([online play](docs/ONLINE.md)) |
 | Achievements | Original Xbox 360 list, requirements, earned dates and local Gamerscore ([details](docs/ACHIEVEMENTS.md)) |
-| Mods | Cheat Codes: five solo driving modifiers and Unlock Madden Van. Modifications: Classic Crash Launch ([details](#mods)) |
+| Mods | Cheat Codes: five solo driving modifiers, [Hold Crashbreaker](docs/CRASHBREAKER.md), and Unlock Madden Van. Modifications: Classic Crash Launch ([details](#mods)) |
 | Rewind | 10/20/30-second history, editable keyboard and controller shortcuts; [controls and current limits](docs/REWIND_EXPERIMENT.md#working-controls) |
 | Advanced | Language, Import Languages from Disc, Asynchronous Shaders, Performance Overlay, Auto-import Add-ons, Skip Intro Movies, Save Bug Report, Check for Updates, Add-ons, Save Backups, About |
 

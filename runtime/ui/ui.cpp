@@ -1156,6 +1156,7 @@ namespace ui
         game::rewind::ring::SetEnabled(settings::GetBool(settings::Id::RewindEnabled));
         uint32_t codes=0;
         for (unsigned i=0;i<5;++i) if (settings::GetBool(settings::Id(unsigned(settings::Id::InfiniteBoost)+i))) codes|=1u<<i;
+        if (settings::GetBool(settings::Id::HoldCrashbreaker)) codes |= 1u << 5;
         game::rewind::ring::SetWorldOptions(codes);
         if (const int result=game::rewind::ring::TakeOutcome())
         {

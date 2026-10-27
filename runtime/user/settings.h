@@ -139,7 +139,7 @@ namespace settings
         OnlineEnabled,
         OnlineServer,
         // Mods page: original Codes IDs and persisted keys stay compatible.
-        InfiniteBoost, InfiniteTime, QuickMoney, QuickTakedowns, EasyBoost,
+        InfiniteBoost, InfiniteTime, QuickMoney, QuickTakedowns, EasyBoost, HoldCrashbreaker,
         CrashLaunchMeter,
         RewindEnabled, RewindDuration, RewindChord10, RewindChord20, RewindChord30,
         KeyRewind10, KeyRewind10_2, KeyRewind20, KeyRewind20_2, KeyRewind30, KeyRewind30_2,

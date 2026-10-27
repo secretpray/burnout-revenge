@@ -3,10 +3,17 @@
 #include <stdafx.h>
 #include <game/crash_launch_scope.h>
 #include <game/rewind_probe.h>
+#include <user/settings.h>
 #include <unistd.h>
 
 PPC_EXTERN_FUNC(sub_821325E8);
 PPC_EXTERN_FUNC(sub_82277A90);
+PPC_EXTERN_FUNC(sub_8225E778);
+namespace settings::detail {
+    std::atomic<double> g_effective[kCount]{};
+    std::atomic<uint8_t> g_state{2};
+    void InitBeforeLoad(Id) { assert(false); }
+}
 namespace report { double SessionSeconds() { return 2.; } }
 static PPCContext expected;
 static unsigned originals;
@@ -19,6 +26,8 @@ static void Original(PPCContext& ctx)
 }
 extern "C" PPC_FUNC(__imp__sub_821325E8) { Original(ctx); }
 extern "C" PPC_FUNC(__imp__sub_82277A90) { Original(ctx); }
+extern "C" PPC_FUNC(__imp__sub_8225E778) { Original(ctx); }
+extern "C" PPC_FUNC(__imp__sub_8210BB70) { Original(ctx); }
 
 int main(int argc, char**)
 {
@@ -47,9 +56,10 @@ int main(int argc, char**)
     for (unsigned i = 0; i < 160; ++i)
     {
         PPCContext ctx{};
-        ctx.r3.u32 = i % 2 ? car : game::crash_launch::kSoloEvent;
+        ctx.r3.u32 = i % 3 ? car : game::crash_launch::kSoloEvent;
         ctx.lr = 0x82104584; expected = ctx;
-        if (i % 2) sub_82277A90(ctx, base);
+        if (i % 3 == 2) sub_8225E778(ctx, base);
+        else if (i % 3 == 1) sub_82277A90(ctx, base);
         else sub_821325E8(ctx, base);
         expected.r3.u64 = 0x123456789ABCDEF0; expected.f1.f64 = 42.;
         assert(originals == i + 1 && std::memcmp(&ctx, &expected, sizeof(ctx)) == 0);
@@ -60,7 +70,7 @@ int main(int argc, char**)
     fclose(read);
     if (enabled)
     {
-        for (const char* kind : {"charge_pre,", "charge_post,", "controls,"})
+        for (const char* kind : {"charge_pre,", "charge_post,", "controls,", "burst,"})
             assert(log.find(kind) != std::string::npos);
         // Even in a valid solo session, a foreign receiver stays unmapped.
         PPCContext foreign{}; foreign.r3.u32 = 0xDEADBEEF; expected = foreign;

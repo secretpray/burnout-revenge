@@ -50,16 +50,17 @@ itself collects no Bluetooth address, device path, actual keys or OS-wide text.
 ## Native Crashbreaker charge trace
 
 `BURNOUT_CRASHBREAKER_LOG=/absolute/path/charge.csv` enables a separate,
-read-only in-game probe. Run it with isolated `BR_DATA_DIR` and `BR_CACHE_DIR`,
+read-only in-game trace. Run it with isolated `BR_DATA_DIR` and `BR_CACHE_DIR`,
 `BURNOUT_MUTE=1`, and a bounded test. It observes the verified USA solo World
-Tour Crash event; it does not enable an accessibility option or synthesize input.
-With the variable unset, its hooks do not read guest memory.
+Tour Crash event; it does not enable input assistance.
+With the trace unset and Hold Crashbreaker off, its hooks do not read guest memory.
 
 The CSV records native charge entry/exit and the Crash controls producer:
 world time, clock/playback flags, charge window, maximum/current/cumulative
 boost, accepted press count, previous button level, and the native input flags
-(`-1` when not sampled). Bit 0 of a controls row is the native Crashbreaker
-action after the game's input mapping. The minimum-press field is the native
+(`-1` when not sampled). Burst rows also record the strength requested by the
+native charge routine; other rows use `-1`. Bit 0 of a controls row is the
+native Crashbreaker action after the game's input mapping. The minimum-press field is the native
 threshold, not a universal recommended tapping rate. Charge parameters vary
 with the selected vehicle.
 

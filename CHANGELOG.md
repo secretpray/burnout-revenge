@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Optional Hold Crashbreaker in Settings > Mods > Cheat Codes replaces
+  repeated charge presses in solo World Tour Crash. Release stops the repeats;
+  the native charge timer keeps running. Launch and explosion mechanics are preserved.
+
 ## v0.1.27
 
 - Internal Resolution shows its render dimensions, including the size
