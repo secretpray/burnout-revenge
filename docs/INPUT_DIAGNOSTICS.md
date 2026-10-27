@@ -46,3 +46,25 @@ every fullscreen transition. See [Apple: Use Game Mode](https://support.apple.co
 
 Keep reports private until identifiers in OS logs have been removed. Our probe
 itself collects no Bluetooth address, device path, actual keys or OS-wide text.
+
+## Native Crashbreaker charge trace
+
+`BURNOUT_CRASHBREAKER_LOG=/absolute/path/charge.csv` enables a separate,
+read-only in-game probe. Run it with isolated `BR_DATA_DIR` and `BR_CACHE_DIR`,
+`BURNOUT_MUTE=1`, and a bounded test. It observes the verified USA solo World
+Tour Crash event; it does not enable an accessibility option or synthesize input.
+With the variable unset, its hooks do not read guest memory.
+
+The CSV records native charge entry/exit and the Crash controls producer:
+world time, clock/playback flags, charge window, maximum/current/cumulative
+boost, accepted press count, previous button level, and the native input flags
+(`-1` when not sampled). Bit 0 of a controls row is the native Crashbreaker
+action after the game's input mapping. The minimum-press field is the native
+threshold, not a universal recommended tapping rate. Charge parameters vary
+with the selected vehicle.
+
+The trace stops at 30,000 rows and flushes every 120 rows. A forced exit may
+leave a buffered or incomplete tail; exclude incomplete records. Compare
+simulation time and actual accepted edges, not nominal script tap intervals.
+This trace and captures perturb timing and do not measure input latency or
+qualify physical keyboards, controllers, transports, or remapping behavior.

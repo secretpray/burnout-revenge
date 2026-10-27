@@ -152,6 +152,10 @@ sb_test(crash_pacing_probe_test SOURCES ${RT}/game/crash_pacing.cpp)
 target_include_directories(crash_pacing_probe_test PRIVATE ${RT}/kernel ${RT}/thirdparty/o1heap ${BR_PPC_DIR}
     ${ROOT}/tools/XenonRecomp/XenonUtils ${ROOT}/tools/XenonRecomp/thirdparty/simde)
 add_test(NAME crash_pacing_probe_enabled_test COMMAND crash_pacing_probe_test enabled)
+sb_test(crashbreaker_probe_test SOURCES ${RT}/game/crashbreaker_probe.cpp)
+target_include_directories(crashbreaker_probe_test PRIVATE ${RT}/kernel ${RT}/thirdparty/o1heap ${BR_PPC_DIR}
+    ${ROOT}/tools/XenonRecomp/XenonUtils ${ROOT}/tools/XenonRecomp/thirdparty/simde)
+add_test(NAME crashbreaker_probe_enabled_test COMMAND crashbreaker_probe_test enabled)
 sb_test(rewind_trial_test SOURCES ${RT}/game/rewind_trial.cpp)
 target_include_directories(rewind_trial_test PRIVATE ${RT}/kernel ${RT}/thirdparty/o1heap ${BR_PPC_DIR}
     ${ROOT}/tools/XenonRecomp/XenonUtils ${ROOT}/tools/XenonRecomp/thirdparty/simde)
