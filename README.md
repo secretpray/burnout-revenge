@@ -62,7 +62,7 @@
 <sub>Unedited macOS screenshots from this port on an M1 Pro. The game content in them belongs to its owners.</sub>
 
 > [!TIP]
-> **New in v0.1.27:** Tap **Home / Xbox Guide / PS** to open or close Settings; hold it for **3 seconds** for the quit confirmation. On Mac, **Burnout Revenge → Settings…** and **Cmd+,** open the same settings screen. [Release notes](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.27).
+> **New in v0.1.28:** **Hold Crashbreaker** in **Settings → Mods → Cheat Codes** replaces repeated charge presses in solo World Tour Crash. Off by default; release to stop the repeats. Network events and local Multiplayer are excluded, while Xbox Live sign-in in solo play is allowed. [Release notes](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.28).
 
 
 **TL;DR**

@@ -1,10 +1,13 @@
 # Changelog
 
-## Unreleased
+## v0.1.28
 
 - Optional Hold Crashbreaker in Settings > Mods > Cheat Codes replaces
   repeated charge presses in solo World Tour Crash. Release stops the repeats;
   the native charge timer keeps running. Launch and explosion mechanics are preserved.
+- The helper is off by default and only acts in an active solo World Tour
+  Crash charge. Network events, local Multiplayer, menus and Replay are
+  excluded. Xbox Live sign-in does not block solo play.
 
 ## v0.1.27
 

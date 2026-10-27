@@ -66,7 +66,7 @@ endif()
 # apps' versions, the SteamOS bundles' VERSION file and the release tag
 # (v<version>). CHANGELOG.md has an entry for each version (the in-game
 # "What's new" note is built from it).
-project(BurnoutRevenge VERSION 0.1.27 LANGUAGES C CXX)
+project(BurnoutRevenge VERSION 0.1.28 LANGUAGES C CXX)
 set(BR_RELEASE_VERSION "${CMAKE_PROJECT_VERSION}")
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     string(APPEND BR_RELEASE_VERSION "-linux-beta.1")

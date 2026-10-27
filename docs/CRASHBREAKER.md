@@ -20,3 +20,5 @@ The game still determines when a Crashbreaker is available, the charge drain,
 boost added per press, the charge limit and the explosion strength. The option
 only replaces repeated charge input, before the game records it for playback.
 Other buttons and axes keep their normal behavior. No render or simulation update is added.
+
+![Hold Crashbreaker in the Cheat Codes section of Mods](screenshots/hold-crashbreaker-settings.jpg)
