@@ -4,7 +4,67 @@ This experimental x86-64 beta was tested **only in UTM 5.0.8 on an Apple M1 Pro
 Mac with 16 GB RAM**. It is not a native Linux GPU or performance qualification.
 See the package's `bundle-info.json` and `VALIDATION.json` for its exact revision.
 
-## Environments
+## Current release: 0.1.28 Linux beta 1
+
+[Download the release](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.28-linux-beta.1).
+Its source is `6f7ea3ee1d3a1616935e50a0480cfae024f2d8ea`, the exact macOS
+v0.1.28 source revision. It includes Hold Crashbreaker, Home tap/three-second
+hold, and Internal Resolution dimensions. The following results are new checks
+of this revision; earlier beta results below keep their original scope.
+
+- ARM64 full suite: **166/166**, 21.91 seconds.
+- Native x86-64 guest full suite: **166/166**, 358.90 seconds summed test time,
+  ordinary uid 1000, ASan/LSan enabled. The runner allows 600 seconds per test;
+  clock stress uses its explicit 600-second watchdog. Workloads/assertions
+  are unchanged. An earlier root run was invalid for permission checks and
+  is excluded from this result.
+- Public asset-free CI: **45/45** on
+  [the release revision](https://github.com/secretpray/burnout-revenge/actions/runs/40464866158).
+  The same revision's macOS release separately passed 160/160 tests.
+- Packaged x86-64: controlled Race driving, traffic, collisions and Aftertouch;
+  solo Dock Fight Crash, Classic launch meter, damage accounting, $21,550
+  result with no medal, native Replay entry/exit and return to results.
+- Native Player File save: **3 writes, 21,316 bytes**, process exit, independent
+  restart and **Load Successful** from the same isolated data. The save hash
+  remains unchanged through reload. The profile name used the existing test
+  callback; this does not qualify physical keyboard input.
+- Ordinary-user clean installation and update from published 0.1.27 beta 1:
+  checksums, system check and automatic game discovery; nine isolated data
+  files, including save/settings/game-location, retain their hashes.
+- Endurance: **3,701.79 seconds**, clean bounded exit, zero unimplemented calls;
+  123 memory samples, last 30 minutes **1,219–1,296 MiB RSS**. This combines
+  menus, Race, Crash, results and Replay, not continuous driving.
+- ARM64 Hold Crashbreaker A/B: Classic On and Live sign-in, same held input;
+  helper On gives native burst strength 1.0, Off gives native 0.1. Both exit
+  cleanly. Mods toggle/save/reopen, virtual Home tap/hold/Cancel and Internal
+  Resolution dimensions were also checked. Full charge was **not reached on
+  the packaged x86 build**: the weak Dock Fight start ended at 22%. ARM64
+  native A/B and x86 hook tests must not be described as x86 full-charge proof.
+- All six public assets were anonymously downloaded and matched local bytes,
+  SHA-256 files and GitHub digests. The same downloaded final package was
+  installed and run for 150.78 seconds, exit 0, no unimplemented calls, normal
+  XDG paths and automatic game discovery without a game-directory override.
+
+The environment remains UTM 5.0.8 on Apple M1 Pro: x86 Skylake emulation,
+2 CPUs/4 GB RAM, Ubuntu 22.04.5 HWE 6.8, Ubuntu 24.04 runtime, Mesa 25.2.8
+Venus and Wayland/headless Weston GL; ARM64 diagnostics use Ubuntu 26.04,
+4 CPUs/8 GB RAM and Mesa 26.0.8 Venus. VM disks are on an external SSD.
+
+**Black menu-video backgrounds on x86 Venus remain unresolved.** Native Linux
+GPUs, Steam Deck/SteamOS, normal x86 desktop compositors, hardware performance,
+physical controls/remapping/rumble, listening, sleep and device switching remain
+untested. Classic Launch Off full charging, exact Replay trajectory/pixel parity
+and saved-clip lifecycle are not newly qualified. Runs were scripted, muted and
+isolated. The earlier beta's six-mode/network/split/clip checks below are not a
+new complete x86-64 feature matrix. Read the release's `VALIDATION.json` for the
+exact scopes and limitations.
+
+## Previous beta: 0.1.27 Linux beta 1
+
+The following records describe the earlier beta and its own source revisions.
+They are retained as historical evidence, not reruns of the current package.
+
+### Environments
 
 | Build | Guest and runtime | Graphics and presentation |
 |---|---|---|
@@ -16,7 +76,7 @@ Venus forwards rendering to the Mac GPU. The container supplies newer userspace
 libraries; it is not another CPU/GPU emulator. ARM64 evidence does not qualify
 the x86-64 release package. VM FPS is not a minimum-hardware specification.
 
-## Automated tests
+### Automated tests
 
 - Full Linux ARM64 suite: **163/163**, 40.65 seconds.
 - Full macOS regression suite: **157/157**, 48.67 seconds. An earlier isolated
@@ -40,7 +100,7 @@ The functional runtime is `5bfc9d0b`. Later clock-test/documentation changes
 retain identical `runtime` and `recomp` source trees; the final package is also
 checked independently. Tests do not establish physical input or audio quality.
 
-## Runtime checks
+### Runtime checks
 
 | Check | Evidence and scope |
 |---|---|
@@ -62,7 +122,7 @@ checked independently. Tests do not establish physical input or audio quality.
 Every automated gameplay run used scripted or SDL virtual controls and was
 muted. Saves/settings were scratch data. No OS keyboard injection was used.
 
-## Known issues and untested checks
+### Known issues and untested checks
 
 - **Black menu-video backgrounds on x86 Venus**, reproduced in Wayland and
   offscreen rendering. 3D gameplay renders. This remains an unresolved visual

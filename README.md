@@ -95,8 +95,9 @@
 ## Linux port status
 
 **Linux x86-64 is an experimental, emulator-tested beta.** Download it from the
-[Linux beta release](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.27-linux-beta.1).
-The stable Mac release remains **v0.1.26 / Latest**.
+[Linux 0.1.28 beta 1 release](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.28-linux-beta.1).
+It uses the same source revision and shared features as **macOS v0.1.28 / Latest**;
+the beta suffix describes Linux platform qualification.
 
 <table>
   <tr>
@@ -114,12 +115,14 @@ with the Mac's GPU; window presentation uses Wayland / headless Weston GL.
 ARM64 diagnostics use a separate Ubuntu 26.04 VM with Mesa 26.0.8 and Wayland.
 These are **not native Linux PC, Steam Deck or performance qualifications**.
 
-Checks include the packaged x86-64 game's controlled Traffic Attack, results,
+The current ARM64 and x86-64 suites each passed **166/166**. The x86-64 suite
+ran as an ordinary user, with ASan/LSan enabled and explicit emulation time
+budgets. Packaged checks cover Race driving, Dock Fight Crash results and
 Replay, native Player File save/restart/load, clean per-user installation and
-updates. ARM64 diagnostics separately cover more modes, Rewind and networking.
-The full ARM64 suite passed **163/163**, and macOS regression passed **157/157**.
-The x86-64 suite passed **160/163 initially**; all three rechecks passed, with
-longer time budgets needed for two tests under CPU emulation. See the
+updating from the previous beta. A 3,701.79-second mixed gameplay/menu run
+exited cleanly. ARM64 separately confirms Hold Crashbreaker On/Off charging;
+full charge was not reached in the packaged x86 attempt. Earlier beta mode,
+Rewind and networking checks remain historical evidence. See the
 [validation matrix](docs/linux-validation.md) for revisions, conditions and limits.
 
 **Known visual issue:** menu-video backgrounds are black on x86 Venus;
