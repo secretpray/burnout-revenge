@@ -51,8 +51,12 @@ namespace gpu::burnout
         if (taps != kBlurTaps)
             return original;
         body = std::regex_replace(body, tap, "texture(t2d_0, blurTap(" + uv + ", $1), fetchLodBias(0u))");
+        // Keep the native taps exact at 100%; at 0%, do not let an unused
+        // NaN/Inf tap contaminate the pixel through zero multiplication.
         return original.substr(0, entry) +
-            "vec2 blurTap(vec2 pixel, vec2 at) { return pixel + (at - pixel) * (1.0 - float((pc.flags >> " +
-            std::to_string(kBlurCutShift) + "u) & 127u) * 0.01); }\n\n" + body;
+            "vec2 blurTap(vec2 pixel, vec2 at) { uint cut = (pc.flags >> " +
+            std::to_string(kBlurCutShift) + "u) & 127u; "
+            "if (cut == 0u) return at; if (cut >= 100u) return pixel; "
+            "return pixel + (at - pixel) * (1.0 - float(cut) * 0.01); }\n\n" + body;
     }
 }

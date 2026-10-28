@@ -7,6 +7,7 @@
 #include <gpu/burnout_blur.h>
 
 #include <cassert>
+#include <fstream>
 #include <string>
 
 namespace
@@ -38,7 +39,7 @@ namespace
     }
 }
 
-int main()
+int main(int argc, char** argv)
 {
     using namespace gpu::burnout;
     // Flags: 100% is the game's (nothing set); the share in place and the
@@ -72,4 +73,18 @@ int main()
     assert(Count(both_glsl, "blurTap(vec2(r[0].x, r[0].y)") == 8);
     assert(both_glsl.find("float bloomInPlaceRatio(") < both_glsl.find("void main()"));
     assert(both_glsl.find("vec2 blurTap(") < both_glsl.find("void main()"));
+
+    // Compile the actual emitted helper in the endpoint numeric test rather
+    // than maintaining a second copy of its formula in the test.
+    if (argc == 3 && std::string(argv[1]) == "--emit-blur-helper")
+    {
+        const size_t begin = blur.find("vec2 blurTap(");
+        const size_t end = blur.find("\n\nvoid main()", begin);
+        assert(begin != std::string::npos && end != std::string::npos);
+        std::ofstream output(argv[2]);
+        output << blur.substr(begin, end - begin) << '\n';
+        output.close();
+        return output ? 0 : 1;
+    }
+    return argc == 1 ? 0 : 2;
 }

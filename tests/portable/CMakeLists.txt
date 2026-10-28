@@ -17,6 +17,7 @@ foreach(name sha1 socket_compat block_ranges texture_volume_layout rectangle_lis
         wheel_map version_check front_end_matrix)
     portable_test(${name}_test)
 endforeach()
+include(../blur_endpoints.cmake)
 portable_test(voice_mix_test)
 target_compile_options(voice_mix_test PRIVATE -ffp-contract=off)
 portable_test(picture_fit_test ${RT}/video/picture_fit.cpp)
