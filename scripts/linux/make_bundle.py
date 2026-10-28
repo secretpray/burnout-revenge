@@ -119,10 +119,9 @@ def main():
         shutil.copy2(ROOT / 'scripts/linux/uninstall.sh', stage)
         shutil.copy2(ROOT / 'scripts/linux/README.md', stage)
         shutil.copy2(ROOT / 'scripts/macos/AppIcon.png', stage / 'burnout-revenge.png')
-        desktop_name = 'Linux RC' if validation is None else 'Linux experimental beta'
-        (stage / 'burnout-revenge.desktop').write_text(
-            f'[Desktop Entry]\nType=Application\nName=Burnout Revenge ({desktop_name})\n'
-            'Exec=burnout-revenge.sh\nIcon=burnout-revenge\nTerminal=false\nCategories=Game;\n')
+        # install.sh creates the menu entry with the installed launcher's absolute
+        # path. A relocatable archive cannot use a bare Exec name: desktop launchers
+        # look on PATH, not beside the .desktop file.
         requirements = {}
         for prefix in ('GLIBC', 'GLIBCXX', 'CXXABI'):
             versions = []
@@ -135,7 +134,7 @@ def main():
         (stage / 'MIN_GLIBC').write_text(requirements['GLIBC'] + '\n')
         manifest = dict(version=version, revision=commit, architecture=arch,
                         qualification=('UNVERIFIED RELEASE CANDIDATE; native GPU gates OPEN' if validation is None else
-                                       'EMULATOR-TESTED EXPERIMENTAL BETA; native Linux hardware UNTESTED'),
+                                       'EMULATOR-TESTED EXPERIMENTAL; native Linux hardware UNTESTED'),
                         required_symbol_versions=requirements, bundled_libraries=sorted(bundled),
                         system_libraries=sorted(system))
         (stage / 'bundle-info.json').write_text(json.dumps(manifest, indent=2) + '\n')

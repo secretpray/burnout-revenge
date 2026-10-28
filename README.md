@@ -101,13 +101,9 @@ Choose one app download for your device. No game data is included.
 | --- | --- | --- |
 | Apple silicon Mac, macOS 15+ | [macOS disk image](https://github.com/secretpray/burnout-revenge/releases/download/v0.1.28/BurnoutRevenge-0.1.28-macos.dmg) | Available · [macOS setup](#macos) |
 | Linux PC, x86-64 / AVX2 | [Linux archive](https://github.com/secretpray/burnout-revenge/releases/download/v0.1.28/BurnoutRevenge-0.1.28-linux-x86_64-app.tar.xz) | Experimental; VM tested · [Linux setup](#linux) |
-| Steam Deck / Steam Machine, x86-64 | Same Linux archive | Preparation in progress; hardware and Game Mode untested · [Steam Deck setup](#steam-deck-and-steam-machine) |
-| Windows | No download yet | [Port status](#windows) |
-| Android | No download yet | [Port status](#android) |
 
-Steam Deck uses the x86-64 Linux program; it does not need a separate copy of
-an executable. There is no ARM64/Steam Frame download for this release.
-Availability in this table does not establish native GPU or device compatibility.
+These are the available app packages. Linux hardware compatibility and
+performance limits are described [below](#linux-port-status).
 
 **Optional files — not needed to install or play:** library source archives are
 for developers who want to inspect, rebuild or relink the bundled libraries;
@@ -118,7 +114,7 @@ archives contain code, not a playable app. See [third-party source details](THIR
 
 ## Quick Start
 
-[macOS](#macos) · [Linux](#linux) · [Steam Deck / Steam Machine](#steam-deck-and-steam-machine) · [Windows](#windows) · [Android](#android)
+[macOS](#macos) · [Linux](#linux)
 
 Everyone needs their own supported **USA Xbox 360 disc image**. Download only
 the app for your platform; the optional files above are not installation steps.
@@ -178,36 +174,18 @@ saves and settings stay. To remove only the app, run
 `~/.local/bin/burnout-revenge --uninstall`. You can also skip installation and
 run `./burnout-revenge.sh` directly from the extracted folder.
 
+**Adding to Steam:** use Games > Add a Non-Steam Game > Browse, set the filter
+to **All Files**, and select `burnout-revenge.sh` in the extracted folder (or the
+installed launcher `~/.local/bin/burnout-revenge`). A `.sh` file is a valid native
+Linux launcher; leave the Proton compatibility override off. Keep the extracted
+folder if your shortcut points there.
+
+**For the current 0.1.28 archive:** do not open its bundled `.desktop` file.
+Its launcher name is not resolved from that folder. Run `./install.sh` and use
+the generated applications-menu entry, or run `./burnout-revenge.sh` directly.
+
 Requirements, data locations and troubleshooting:
 [Linux quick start](scripts/linux/README.md#install-and-play).
-
-### Steam Deck and Steam Machine
-
-The native Linux package is the starting point. **This is a preparation path,
-not a hardware-tested Deck or Game Mode release.** Use Desktop Mode for the
-[Linux installation](#linux). To prepare a Steam shortcut, choose Games > Add a
-Non-Steam Game > Browse, show all files, and select the installed launcher
-`~/.local/bin/burnout-revenge`. Leave the Proton compatibility override off.
-
-Start at **1280×800 / 60 Hz** on Deck. First-run profile entry, the on-screen
-keyboard, Steam Input, rumble, audio and sleep/resume still need testing on the
-device. Keep your saves backed up before testing. The VM result does not measure
-Deck GPU performance or prove a controller-only setup. Steam Frame/ARM64 is not
-supported by the x86-64 download.
-
-### Windows
-
-No Burnout Revenge Windows package is available yet. The port needs a Windows
-build and dependency pipeline, platform compatibility work and Vulkan testing.
-A Windows VM alone does not qualify a native PC GPU. Do not download the macOS
-or Linux package for Windows.
-
-### Android
-
-No Burnout Revenge APK is available yet. Android requires its own app lifecycle,
-file access, native dependencies and packaging. Emulator checks will be followed
-by tests on real devices; supported Android versions and GPU requirements have
-not been established.
 
 ## Linux port status
 

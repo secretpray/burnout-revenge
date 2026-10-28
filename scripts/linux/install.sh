@@ -74,9 +74,12 @@ if [[ -e $DEST ]]; then
 else
     STAGE=$(mktemp -d "$APP/releases/.install.XXXXXX")
     # Only package files: never copy portable saves, caches or game assets.
-    for item in lib licenses burnout-revenge.sh burnout-revenge.desktop burnout-revenge.png README.md ARCHITECTURE MIN_GLIBC SHA256SUMS bundle-info.json install.sh uninstall.sh; do
+    for item in lib licenses burnout-revenge.sh burnout-revenge.png README.md ARCHITECTURE MIN_GLIBC SHA256SUMS bundle-info.json install.sh uninstall.sh; do
         cp -a -- "$SOURCE/$item" "$STAGE/"
     done
+    # Keep legacy packages' checksummed file when present. The applications-menu
+    # entry below is always generated for the installed path, never copied from it.
+    [[ ! -f $SOURCE/burnout-revenge.desktop ]] || cp -- "$SOURCE/burnout-revenge.desktop" "$STAGE/"
     [[ ! -f $SOURCE/VALIDATION.json ]] || cp -- "$SOURCE/VALIDATION.json" "$STAGE/"
     (cd "$STAGE" && sha256sum --check --strict SHA256SUMS >/dev/null) || fail 'The copied package did not verify.'
     mv -- "$STAGE" "$DEST"

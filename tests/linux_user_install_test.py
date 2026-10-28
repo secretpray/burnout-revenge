@@ -44,8 +44,7 @@ class UserInstall(unittest.TestCase):
             '{ printf "ran\\0"; printf "%s\\0" "$@"; } > "$BR_INSTALL_TEST_RESULT"\n')
         (self.source / 'burnout-revenge.sh').chmod(0o755)
         for name, value in {'burnout-revenge.png': 'synthetic icon', 'README.md': 'fixture',
-                            'ARCHITECTURE': 'x86_64\n', 'MIN_GLIBC': '2.38\n',
-                            'burnout-revenge.desktop': '[Desktop Entry]\nType=Application\n'}.items():
+                            'ARCHITECTURE': 'x86_64\n', 'MIN_GLIBC': '2.38\n'}.items():
             (self.source / name).write_text(value)
         self.identity('abcdef1')
 
@@ -107,6 +106,16 @@ class UserInstall(unittest.TestCase):
         self.identity('abcdef1', '1.2.3-linux-beta.1')
         self.install()
         self.assertEqual((self.app / 'current').resolve().name, '1.2.3-linux-beta.1-abcdef1')
+
+    def test_legacy_archive_entry_is_not_used_for_the_menu(self):
+        legacy = '[Desktop Entry]\nType=Application\nExec=burnout-revenge.sh\n'
+        (self.source / 'burnout-revenge.desktop').write_text(legacy)
+        self.hashes()
+        self.install()
+        self.assertEqual((self.app / 'current/burnout-revenge.desktop').read_text(), legacy)
+        self.assertIn('Exec=/usr/bin/env -- ', self.desktop.read_text())
+        subprocess.run([str(self.launcher), 'legacy archive'], env=self.env, check=True, timeout=10)
+        self.assertEqual(self.result.read_bytes(), b'ran\0legacy archive\0')
 
     def test_portable_bundle_is_not_migrated_implicitly(self):
         (self.source / 'portable.txt').write_text('')

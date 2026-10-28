@@ -2,10 +2,10 @@
 
 Check `bundle-info.json` for this build's qualification, revision, architecture
 and measured glibc/libstdc++ symbol requirements. An internal RC is unverified.
-An emulator-tested experimental beta includes `VALIDATION.json` with its exact
+An emulator-tested experimental package includes `VALIDATION.json` with its exact
 test environment and completed checks. It has only been tested in UTM on a Mac:
 native Linux PC hardware, Steam Deck compatibility and performance are untested.
-The stable Mac release remains separate.
+macOS and Linux downloads share the same release page.
 
 ## Install and play
 
@@ -36,6 +36,35 @@ If system dependencies are missing, install your distribution's Vulkan loader
 and GPU driver, C++ runtime, curl with CA certificates, and SDL's normal
 X11/Wayland/audio dependencies. The package does not replace system libraries or
 GPU drivers. Check `bundle-info.json` and the release's tested-system table.
+
+## Desktop launcher and Steam
+
+The current 0.1.28 archive includes a `.desktop` file whose bare launcher name
+is not found through the desktop's PATH. Do not use that archive's `.desktop`
+file. Run `./install.sh`, then use the applications-menu entry it generates,
+or run `./burnout-revenge.sh` from the extracted folder. New packages omit the
+unusable archive entry; installation still creates the proper menu entry.
+
+A `.sh` launcher can be added to Steam. Use **Games > Add a Non-Steam Game >
+Browse**, change the filter to **All Files**, and select `burnout-revenge.sh` in
+the extracted folder, or the installed `~/.local/bin/burnout-revenge`. Leave the
+Proton compatibility override off: this is a native Linux program. Keep the
+extracted folder if the Steam shortcut points there. The program in `lib/`
+needs the launcher to set up its libraries; do not add that binary on its own.
+
+If one controller button appears to produce both a controller action and a
+keyboard action, check whether Steam Input or another mapper is also sending a
+key. Compare once with Steam fully exited and other mappers stopped. In Steam,
+use a **Gamepad** template for the shortcut rather than a keyboard/mouse layout.
+This is a diagnostic comparison, not proof that the game's input is correct.
+
+For graphical artifacts or input problems, reproduce the issue and use
+**Settings > Advanced > Create bug report**. Include your distro, GPU/driver,
+controller/connection and whether Steam was running, plus a short video of the
+artifact when possible. For FPS, enable **Settings > Advanced > Performance
+Overlay**; Steam is not required. Reports contain the build, settings, GPU and
+session log.
+Do not attach your disc image or game files.
 
 ## Update or remove
 
@@ -74,7 +103,7 @@ switching, physical rumble, listening and sleep/resume require hardware checks.
 
 ## Validation
 
-Before publishing an emulator-tested experimental beta, validate install → World Tour → controlled
+Before publishing an emulator-tested experimental package, validate install → World Tour → controlled
 Race → result → native Save → restart → Reload, Crash, six solo modes,
 Rewind/Classic/Replay, two-controller ownership, network/Locker and Mac↔Linux;
 record what passed, failed or remains untested on each architecture. Run at least
