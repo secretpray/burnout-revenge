@@ -100,7 +100,7 @@ Choose one app download for your device. No game data is included.
 | Platform | Download | Status / setup |
 | --- | --- | --- |
 | Apple silicon Mac, macOS 15+ | [macOS disk image](https://github.com/secretpray/burnout-revenge/releases/download/v0.1.28/BurnoutRevenge-0.1.28-macos.dmg) | Available · [macOS setup](#macos) |
-| Linux PC, x86-64 / AVX2 | [Linux archive](https://github.com/secretpray/burnout-revenge/releases/download/v0.1.28/BurnoutRevenge-0.1.28-linux-x86_64.tar.xz) | Experimental; VM tested · [Linux setup](#linux) |
+| Linux PC, x86-64 / AVX2 | [Linux archive](https://github.com/secretpray/burnout-revenge/releases/download/v0.1.28/BurnoutRevenge-0.1.28-linux-x86_64-app.tar.xz) | Experimental; VM tested · [Linux setup](#linux) |
 | Steam Deck / Steam Machine, x86-64 | Same Linux archive | Preparation in progress; hardware and Game Mode untested · [Steam Deck setup](#steam-deck-and-steam-machine) |
 | Windows | No download yet | [Port status](#windows) |
 | Android | No download yet | [Port status](#android) |
