@@ -55,6 +55,11 @@ and SHA-256 of each, next to its license files.
 
 ## Source code of the LGPL parts
 
+**Optional for players:** these archives contain library source code, patches
+and build instructions for developers rebuilding or relinking the application.
+They are not installers, game files or required downloads. The release page
+separates them from the app downloads.
+
 The macOS application and Linux build link FFmpeg 7.1.1 and libmspack
 statically. Each release provides a corresponding source archive alongside the
 binary package at <https://github.com/secretpray/burnout-revenge/releases>.

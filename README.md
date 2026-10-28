@@ -5,14 +5,14 @@
 <h1 align="center">Burnout Revenge</h1>
 
 <p align="center">
-  An unofficial native port of <i>Burnout Revenge</i> (Xbox 360, USA) for Apple silicon Macs.<br>
-  The game's PowerPC code is recompiled ahead of time into an arm64 program; graphics run on Metal through Vulkan/MoltenVK.<br>
-  An experimental Linux x86-64 beta is available; tested only in UTM on a Mac.<br>
+  An unofficial native port of <i>Burnout Revenge</i> (Xbox 360, USA) for macOS and Linux.<br>
+  The game's PowerPC code is recompiled ahead of time; graphics use Vulkan (MoltenVK/Metal on Mac).<br>
+  Linux is experimental and tested in UTM; Steam Deck hardware testing is pending.<br>
   You bring the game from your own disc.
 </p>
 
 <p align="center">
-  <a href="https://github.com/secretpray/burnout-revenge/releases/latest"><b>Download for Mac</b></a>
+  <a href="#download"><b>Download</b></a>
   &nbsp;·&nbsp;
   <a href="#linux-port-status">Linux status</a>
   &nbsp;·&nbsp;
@@ -73,16 +73,15 @@
 - Compared with the console: up to 4K internal resolution, SMAA or FXAA,
   FSR 1 or MetalFX upscaling, 16x anisotropic filtering, any window shape,
   your own music instead of EA Trax, keyboard play and save backups.
-- [Download](https://github.com/secretpray/burnout-revenge/releases/latest) the DMG, drag the app to
-  Applications, open it and choose your disc image. It checks and installs the
-  game, then you play.
+- [Download for your platform](#download), follow [Quick Start](#quick-start),
+  and choose your own disc image. The app checks and installs the game.
 - Optional [Rewind](#rewind) for solo World Tour, and [Codes](#mods) for the solo career, and Xbox Live
   play again through community or your own servers.
 - Menus and game text in **English, Japanese, German, French, Spanish, Italian, Dutch, Swedish and Finnish**.
   [Language setup](#languages) explains the optional European disc import.
 - Updates install over the old version. Saves and settings stay.
-- Linux x86-64 has a separate experimental beta. Read the
-  [Linux validation limits](#linux-port-status) before installing it.
+- macOS and Linux downloads share [one release page](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.28).
+  Read the [Linux validation limits](#linux-port-status); Steam Deck hardware is not yet qualified.
 - Settings: tap **Home / Xbox Guide / PS**, **F1**, **Cmd+,** or **Back + Start**.
   On macOS, **Burnout Revenge → Settings…** opens the same screen.
 - Quit confirmation: hold **Home / Xbox Guide / PS** for **3 seconds**.
@@ -92,12 +91,131 @@
   game is focused it asks macOS to give Home to this dialog; system gestures
   resume when focus leaves. This keeps your system shortcut settings intact.
 
+## Download
+
+**[Burnout Revenge 0.1.28 — all platform downloads](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.28)**
+
+Choose one app download for your device. No game data is included.
+
+| Platform | Download | Status / setup |
+| --- | --- | --- |
+| Apple silicon Mac, macOS 15+ | [macOS disk image](https://github.com/secretpray/burnout-revenge/releases/download/v0.1.28/BurnoutRevenge-0.1.28-macos.dmg) | Available · [macOS setup](#macos) |
+| Linux PC, x86-64 / AVX2 | [Linux archive](https://github.com/secretpray/burnout-revenge/releases/download/v0.1.28/BurnoutRevenge-0.1.28-linux-x86_64.tar.xz) | Experimental; VM tested · [Linux setup](#linux) |
+| Steam Deck / Steam Machine, x86-64 | Same Linux archive | Preparation in progress; hardware and Game Mode untested · [Steam Deck setup](#steam-deck-and-steam-machine) |
+| Windows | No download yet | [Port status](#windows) |
+| Android | No download yet | [Port status](#android) |
+
+Steam Deck uses the x86-64 Linux program; it does not need a separate copy of
+an executable. There is no ARM64/Steam Frame download for this release.
+Availability in this table does not establish native GPU or device compatibility.
+
+**Optional files — not needed to install or play:** library source archives are
+for developers who want to inspect, rebuild or relink the bundled libraries;
+validation reports describe testing; screenshots are previews. Checksums verify
+a download. The optional 100% save changes progression: import it only if you
+want that, after backing up your own save. GitHub's automatic **Source code**
+archives contain code, not a playable app. See [third-party source details](THIRD_PARTY_NOTICES.md#source-code-of-the-lgpl-parts).
+
+## Quick Start
+
+[macOS](#macos) · [Linux](#linux) · [Steam Deck / Steam Machine](#steam-deck-and-steam-machine) · [Windows](#windows) · [Android](#android)
+
+Everyone needs their own supported **USA Xbox 360 disc image**. Download only
+the app for your platform; the optional files above are not installation steps.
+
+### macOS
+
+1. Download **BurnoutRevenge-x.y.z-macos.dmg** from
+   [Releases](https://github.com/secretpray/burnout-revenge/releases/latest) and drag
+   **Burnout Revenge.app** to Applications.
+2. Open it. The app is signed ad hoc, not notarized: if macOS blocks it, use
+   System Settings > Privacy & Security > Open Anyway.
+3. Choose your language and your **USA Xbox 360 disc image** (.iso). Optionally choose an install
+   folder and your add-on car packs, then Install & Verify.
+4. Start your engines. Later launches go straight to the game. For translated game
+   text, [import language resources](#languages) from your own European disc image.
+
+<p align="center">
+  <img src="docs/screenshots/setup-drag-to-applications.png" alt="The download's Finder window: hazard stripes, BURNOUT REVENGE in heavy italic capitals, the game's icon with chevrons running to the Applications folder, and DRAG THE GAME TO APPLICATIONS" width="60%">
+  <br>
+  <sub>The download: drag the game to Applications.</sub>
+</p>
+
+<table>
+  <tr>
+    <td width="25%"><img src="docs/screenshots/setup-choose-iso.jpg" alt="Setup page 1: Get ready to drive, Choose ISO"><br><sub>1. Your game.</sub></td>
+    <td width="25%"><img src="docs/screenshots/setup-make-it-yours.jpg" alt="Setup page 2: install folder and add-on car packs"><br><sub>2. Setup.</sub></td>
+    <td width="25%"><img src="docs/screenshots/setup-installing.jpg" alt="Setup page 3: Building your garage, 41 percent, every file verified"><br><sub>3. Install, every file verified.</sub></td>
+    <td width="25%"><img src="docs/screenshots/setup-ready.jpg" alt="Setup done: Ready for Revenge, Start your engines"><br><sub>Ready.</sub></td>
+  </tr>
+</table>
+
+Settings, saves and the installed game live in
+`~/Library/Application Support/BurnoutRevenge`; shader caches in
+`~/Library/Caches/BurnoutRevenge`.
+
+**Requirements:** an Apple silicon Mac with macOS 15 or later, and the USA
+Xbox 360 disc image of Burnout Revenge. Developed and tested on an M1 Pro.
+European disc images can supply [language resources](#languages); game installation
+still requires the USA revision. European or Japanese executables, title updates
+and GOD packages are not supported. [Xbox 360 saves can be imported](#highlights).
+
+### Linux
+
+Download the Linux `tar.xz` archive and extract it.
+Open a terminal in the extracted **BurnoutRevenge** folder and run:
+
+```sh
+./install.sh
+```
+
+Then open **Burnout Revenge** from your applications menu. On first launch,
+select your own supported **USA Xbox 360 disc image** or extracted game folder.
+No game files are included. The installer works for your user, without `sudo`.
+
+To update, quit the game and run `./install.sh` from the new archive; your game,
+saves and settings stay. To remove only the app, run
+`~/.local/bin/burnout-revenge --uninstall`. You can also skip installation and
+run `./burnout-revenge.sh` directly from the extracted folder.
+
+Requirements, data locations and troubleshooting:
+[Linux quick start](scripts/linux/README.md#install-and-play).
+
+### Steam Deck and Steam Machine
+
+The native Linux package is the starting point. **This is a preparation path,
+not a hardware-tested Deck or Game Mode release.** Use Desktop Mode for the
+[Linux installation](#linux). To prepare a Steam shortcut, choose Games > Add a
+Non-Steam Game > Browse, show all files, and select the installed launcher
+`~/.local/bin/burnout-revenge`. Leave the Proton compatibility override off.
+
+Start at **1280×800 / 60 Hz** on Deck. First-run profile entry, the on-screen
+keyboard, Steam Input, rumble, audio and sleep/resume still need testing on the
+device. Keep your saves backed up before testing. The VM result does not measure
+Deck GPU performance or prove a controller-only setup. Steam Frame/ARM64 is not
+supported by the x86-64 download.
+
+### Windows
+
+No Burnout Revenge Windows package is available yet. The port needs a Windows
+build and dependency pipeline, platform compatibility work and Vulkan testing.
+A Windows VM alone does not qualify a native PC GPU. Do not download the macOS
+or Linux package for Windows.
+
+### Android
+
+No Burnout Revenge APK is available yet. Android requires its own app lifecycle,
+file access, native dependencies and packaging. Emulator checks will be followed
+by tests on real devices; supported Android versions and GPU requirements have
+not been established.
+
 ## Linux port status
 
-**Linux x86-64 is an experimental, emulator-tested beta.** Download it from the
-[Linux 0.1.28 beta 1 release](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.28-linux-beta.1).
-It uses the same source revision and shared features as **macOS v0.1.28 / Latest**;
-the beta suffix describes Linux platform qualification.
+**Linux x86-64 is experimental and emulator tested.** Download it alongside macOS
+from the [shared 0.1.28 release](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.28).
+Both packages use source revision `6f7ea3ee` and share features and fixes.
+The existing Linux binary retains its original internal version string; the
+consolidated download is byte-for-byte the previously validated build.
 
 <table>
   <tr>
@@ -119,9 +237,9 @@ The current ARM64 and x86-64 suites each passed **166/166**. The x86-64 suite
 ran as an ordinary user, with ASan/LSan enabled and explicit emulation time
 budgets. Packaged checks cover Race driving, Dock Fight Crash results and
 Replay, native Player File save/restart/load, clean per-user installation and
-updating from the previous beta. A 3,701.79-second mixed gameplay/menu run
+updating from the previous Linux release. A 3,701.79-second mixed gameplay/menu run
 exited cleanly. ARM64 separately confirms Hold Crashbreaker On/Off charging;
-full charge was not reached in the packaged x86 attempt. Earlier beta mode,
+full charge was not reached in the packaged x86 attempt. Earlier Linux mode,
 Rewind and networking checks remain historical evidence. See the
 [validation matrix](docs/linux-validation.md) for revisions, conditions and limits.
 
@@ -136,27 +254,6 @@ The package requires **x86-64-v3 / AVX2 / FMA**, **glibc 2.38+**,
 It was built with an Ubuntu 24.04 SDK;
 Ubuntu 22.04's own glibc 2.35 cannot run it directly. Minimum CPU/GPU performance
 and RAM requirements have not been established.
-
-### Linux installation
-
-Download the Linux beta’s `tar.xz` archive and extract it.
-Open a terminal in the extracted **BurnoutRevenge** folder and run:
-
-```sh
-./install.sh
-```
-
-Then open **Burnout Revenge** from your applications menu. On first launch,
-select your own supported **USA Xbox 360 disc image** or extracted game folder.
-No game files are included. The installer works for your user, without `sudo`.
-
-To update, quit the game and run `./install.sh` from the new archive; your game,
-saves and settings stay. To remove only the app, run
-`~/.local/bin/burnout-revenge --uninstall`. You can also skip installation and
-run `./burnout-revenge.sh` directly from the extracted folder.
-
-Requirements, data locations and troubleshooting:
-[Linux quick start](scripts/linux/README.md#install-and-play).
 
 ## Highlights
 
@@ -424,43 +521,6 @@ Xbox Live, Steam or RetroAchievements account.
   <br>
   <sub>Crashes To Ashes: the six-second achievement notification during online play.</sub>
 </p>
-
-## Quick start
-
-1. Download **BurnoutRevenge-x.y.z-macos.dmg** from
-   [Releases](https://github.com/secretpray/burnout-revenge/releases/latest) and drag
-   **Burnout Revenge.app** to Applications.
-2. Open it. The app is signed ad hoc, not notarized: if macOS blocks it, use
-   System Settings > Privacy & Security > Open Anyway.
-3. Choose your language and your **USA Xbox 360 disc image** (.iso). Optionally choose an install
-   folder and your add-on car packs, then Install & Verify.
-4. Start your engines. Later launches go straight to the game. For translated game
-   text, [import language resources](#languages) from your own European disc image.
-
-<p align="center">
-  <img src="docs/screenshots/setup-drag-to-applications.png" alt="The download's Finder window: hazard stripes, BURNOUT REVENGE in heavy italic capitals, the game's icon with chevrons running to the Applications folder, and DRAG THE GAME TO APPLICATIONS" width="60%">
-  <br>
-  <sub>The download: drag the game to Applications.</sub>
-</p>
-
-<table>
-  <tr>
-    <td width="25%"><img src="docs/screenshots/setup-choose-iso.jpg" alt="Setup page 1: Get ready to drive, Choose ISO"><br><sub>1. Your game.</sub></td>
-    <td width="25%"><img src="docs/screenshots/setup-make-it-yours.jpg" alt="Setup page 2: install folder and add-on car packs"><br><sub>2. Setup.</sub></td>
-    <td width="25%"><img src="docs/screenshots/setup-installing.jpg" alt="Setup page 3: Building your garage, 41 percent, every file verified"><br><sub>3. Install, every file verified.</sub></td>
-    <td width="25%"><img src="docs/screenshots/setup-ready.jpg" alt="Setup done: Ready for Revenge, Start your engines"><br><sub>Ready.</sub></td>
-  </tr>
-</table>
-
-Settings, saves and the installed game live in
-`~/Library/Application Support/BurnoutRevenge`; shader caches in
-`~/Library/Caches/BurnoutRevenge`.
-
-**Requirements:** an Apple silicon Mac with macOS 15 or later, and the USA
-Xbox 360 disc image of Burnout Revenge. Developed and tested on an M1 Pro.
-European disc images can supply [language resources](#languages); game installation
-still requires the USA revision. European or Japanese executables, title updates
-and GOD packages are not supported. [Xbox 360 saves can be imported](#highlights).
 
 ## Settings
 
