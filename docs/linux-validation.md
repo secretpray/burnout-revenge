@@ -1,10 +1,27 @@
-# Linux beta validation
+# Linux and Steam Deck validation
 
-This experimental x86-64 beta was tested **only in UTM 5.0.8 on an Apple M1 Pro
-Mac with 16 GB RAM**. It is not a native Linux GPU or performance qualification.
-See the package's `bundle-info.json` and `VALIDATION.json` for its exact revision.
+Checks apply to the named revision and environment. A shared Linux download
+can run on Steam Deck without making every Linux GPU or input route qualified.
+The package's `VALIDATION.json` identifies its exact candidate checks and limits.
 
-## Current release: 0.1.28 Linux beta 1
+## 0.1.29
+
+This patch corrects Motion Blur endpoints and Linux launch packaging. Its
+candidate-specific full tests, clean per-user installation and native Deck smoke
+are recorded in the package report. Earlier gameplay and endurance checks below
+remain baseline evidence, not reruns of every mode in this patch.
+
+Physical baseline0.1.28 was checked on Valve Jupiter/SteamOS3.8.28/glibc2.41,
+RADV VANGOGH and a1280×800/60Hz display. Checks included title/background video,
+physical profile creation, one completed level with audible sound and used cheats,
+Save/Restart/Reload, actual gamescope Gaming Mode, and deep sleep/resume on the
+title screen. Later play included another deep sleep; the session ended with
+SIGTERM at the private900-second launcher limit, with no coredump or matching
+fatal/Vulkan/GPU-reset evidence. This is not a crash reproduction or proof of
+stable race FPS. Physical rumble, overlay/OSK, every cheat/mode, audio switching
+and long-session sleep reliability remain unqualified.
+
+## Historical baseline: 0.1.28 Linux beta 1
 
 [Download the release](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.28-linux-beta.1).
 Its source is `6f7ea3ee1d3a1616935e50a0480cfae024f2d8ea`, the exact macOS
