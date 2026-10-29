@@ -5,16 +5,14 @@
 <h1 align="center">Burnout Revenge</h1>
 
 <p align="center">
-  An unofficial native port of <i>Burnout Revenge</i> (Xbox 360, USA) for macOS and Linux.<br>
-  The game's PowerPC code is recompiled ahead of time; graphics use Vulkan (MoltenVK/Metal on Mac).<br>
-  Linux is experimental and tested in UTM; Steam Deck hardware testing is pending.<br>
-  You bring the game from your own disc.
+  An unofficial native port of <i>Burnout Revenge</i> (Xbox 360, USA) for macOS, Linux and Steam Deck.<br>
+  Bring your own USA Xbox 360 disc image; the app installs the game for you.
 </p>
 
 <p align="center">
   <a href="#download"><b>Download</b></a>
   &nbsp;·&nbsp;
-  <a href="#linux-port-status">Linux status</a>
+  <a href="#steam-deck">Steam Deck</a>
   &nbsp;·&nbsp;
   <a href="#quick-start">Quick start</a>
   &nbsp;·&nbsp;
@@ -62,12 +60,12 @@
 <sub>Unedited macOS screenshots from this port on an M1 Pro. The game content in them belongs to its owners.</sub>
 
 > [!TIP]
-> **New in v0.1.29:** corrected Motion Blur endpoints and improved Linux launch guidance. macOS, Linux and Steam Deck share one release. [Release notes](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.29).
+> **New in v0.1.29:** fixed Motion Blur at 0% and 100%, with clearer Linux and Steam Deck setup. macOS, Linux and Steam Deck share one release. [Release notes](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.29).
 
 
 **TL;DR**
 
-- The original 2006 Xbox 360 game runs as a native Mac app: its own cars, tracks,
+- The original 2006 Xbox 360 game runs natively on Mac, Linux and Steam Deck: its own cars, tracks,
   physics, menus, EA Trax and saves. Nothing is remastered; the extras are
   options on top.
 - Compared with the console: up to 4K internal resolution, SMAA or FXAA,
@@ -80,38 +78,27 @@
 - Menus and game text in **English, Japanese, German, French, Spanish, Italian, Dutch, Swedish and Finnish**.
   [Language setup](#languages) explains the optional European disc import.
 - Updates install over the old version. Saves and settings stay.
-- macOS and Linux downloads share [one release page](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.29).
-  Read the [Linux and Steam Deck validation limits](#linux-port-status).
 - Settings: tap **Home / Xbox Guide / PS**, **F1**, **Cmd+,** or **Back + Start**.
   On macOS, **Burnout Revenge → Settings…** opens the same screen.
-- Quit confirmation: hold **Home / Xbox Guide / PS** for **3 seconds**.
-  Cancel is selected first; **B / Circle** dismisses the prompt. The game window
-  must be active and the controller driver must expose the button. macOS or
-  Steam may reserve it; **Settings > Quit Game** remains available. While the
-  game is focused it asks macOS to give Home to this dialog; system gestures
-  resume when focus leaves. This keeps your system shortcut settings intact.
+- To quit, hold **Home / Xbox Guide / PS** for **3 seconds**, or use
+  **Settings > Quit Game**. **B / Circle** cancels the confirmation.
 
 ## Download
 
-**[Burnout Revenge 0.1.29 — all platform downloads](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.29)**
+**[Burnout Revenge 0.1.29 — macOS, Linux and Steam Deck](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.29)**
 
 Choose one app download for your device. No game data is included.
 
-| Platform | Download | Status / setup |
+| Platform | Download | Setup |
 | --- | --- | --- |
-| Apple silicon Mac, macOS 15+ | [macOS disk image](https://github.com/secretpray/burnout-revenge/releases/download/v0.1.29/BurnoutRevenge-0.1.29-macos.dmg) | Available · [macOS setup](#macos) |
+| Apple silicon Mac, macOS 15+ | [macOS disk image](https://github.com/secretpray/burnout-revenge/releases/download/v0.1.29/BurnoutRevenge-0.1.29-macos.dmg) | [macOS setup](#macos) |
 | Linux PC, x86-64 / AVX2 | [Linux archive](https://github.com/secretpray/burnout-revenge/releases/download/v0.1.29/BurnoutRevenge-0.1.29-linux-x86_64-app.tar.xz) | [Linux setup](#linux) |
 | Steam Deck, SteamOS x86-64 | Same Linux archive above | [Steam Deck setup](#steam-deck) |
 
-These are the available app packages. Linux hardware compatibility and
-performance limits are described [below](#linux-port-status).
-
-**Optional files — not needed to install or play:** library source archives are
-for developers who want to inspect, rebuild or relink the bundled libraries;
-validation reports describe testing; screenshots are previews. Checksums verify
-a download. The optional 100% save changes progression: import it only if you
-want that, after backing up your own save. GitHub's automatic **Source code**
-archives contain code, not a playable app. See [third-party source details](THIRD_PARTY_NOTICES.md#source-code-of-the-lgpl-parts).
+**Optional files — not needed to play:** library sources are for developers;
+validation reports describe testing; checksums verify your download. GitHub's
+**Source code** archives contain code, not an app.
+[About library sources](THIRD_PARTY_NOTICES.md#source-code-of-the-lgpl-parts).
 
 ## Quick Start
 
@@ -159,111 +146,41 @@ and GOD packages are not supported. [Xbox 360 saves can be imported](#highlights
 
 ### Linux
 
-Download the Linux `tar.xz` archive and extract it.
-Open a terminal in the extracted **BurnoutRevenge** folder and run:
+1. Download and extract the **Linux x86-64** archive.
+2. Open a terminal in the extracted **BurnoutRevenge** folder and run:
 
-```sh
-./install.sh
-```
+   ```sh
+   ./install.sh
+   ```
 
-Then open **Burnout Revenge** from your applications menu. On first launch,
-select your own supported **USA Xbox 360 disc image** or extracted game folder.
-No game files are included. The installer works for your user, without `sudo`.
+3. Open **Burnout Revenge** from your applications menu and choose your own
+   **USA Xbox 360 disc image** or extracted game folder.
 
-To update, quit the game and run `./install.sh` from the new archive; your game,
-saves and settings stay. To remove only the app, run
-`~/.local/bin/burnout-revenge --uninstall`. You can also skip installation and
-run `./burnout-revenge.sh` directly from the extracted folder.
+The installer runs without `sudo`. For updates, quit the game and run the new
+archive's `./install.sh`; your game, saves and settings stay.
 
-**Adding to Steam:** use Games > Add a Non-Steam Game > Browse, set the filter
-to **All Files**, and select `burnout-revenge.sh` in the extracted folder (or the
-installed launcher `~/.local/bin/burnout-revenge`). A `.sh` file is a valid native
-Linux launcher; leave the Proton compatibility override off. Keep the extracted
-folder if your shortcut points there.
-
-Requirements, data locations and troubleshooting:
-[Linux quick start](scripts/linux/README.md#install-and-play).
+Requires **AVX2/FMA**, **glibc 2.38+**, **GLIBCXX_3.4.32** and a compatible
+**Vulkan 1.2+** driver. See the [Linux guide](scripts/linux/README.md) for
+requirements, Steam shortcuts, data locations and troubleshooting.
 
 ### Steam Deck
 
-1. In Desktop Mode, extract the **Linux x86-64** archive and run `./install.sh`
-   from its **BurnoutRevenge** folder. This installs the app for your user and
-   creates **Burnout Revenge** in the applications menu, with the game's icon.
-2. In Desktop Steam, choose **Games > Add a Non-Steam Game**, select the installed
-   **Burnout Revenge** entry and add it. If it is not listed, browse to
-   `/home/deck/.local/bin/burnout-revenge` with **All Files** selected. In that
-   case set the shortcut name to **Burnout Revenge** and select the included
-   `burnout-revenge.png` as its icon in Properties.
+1. Switch to **Desktop Mode**, extract the **Linux x86-64** archive and run
+   `./install.sh` from its **BurnoutRevenge** folder.
+2. In Desktop Steam, choose **Games > Add a Non-Steam Game**, select
+   **Burnout Revenge** and add it.
 3. Leave forced Proton compatibility **off** and use the **Gamepad** controller
-   template. Return to Gaming Mode and launch **Burnout Revenge**.
-4. Select your own supported USA Xbox 360 disc image. Use **1280×800** and
-   **60 Hz**; on OLED, set the per-game refresh rate to 60 Hz.
+   template. Return to **Gaming Mode** and launch **Burnout Revenge**.
+4. Choose your own **USA Xbox 360 disc image**. Use **1280×800** and **60 Hz**;
+   on OLED, set the per-game refresh rate to 60 Hz.
 
-The Linux archive contains the same native executable used on Deck; there is
-no separate Deck executable to download. Installed launchers keep a stable
-path across updates. The developer-only `launch-controller-test.sh` is not a
-release launcher and must not be used for a normal installation.
+If the app is not listed in Steam, choose **Browse > All Files** and select
+`/home/deck/.local/bin/burnout-revenge`. Set the name to **Burnout Revenge** and
+choose the package's `burnout-revenge.png` as its icon.
 
-Steam controls library artwork separately from the app icon. The package includes
-`artwork/burnout-revenge-cover.jpg` for **Manage > Set custom artwork** in Desktop
-Steam. Use the game's icon above for the shortcut icon. No Steam account files
-are edited by the installer.
-
-## Linux port status
-
-**Linux x86-64 and Steam Deck use the same download** on the
-[shared release page](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.29).
-macOS and Linux are built from one source revision with matching features and
-fixes. `VALIDATION.json` in the Linux package records candidate-specific checks
-and their limits; release notes distinguish those from earlier baseline tests.
-
-Physical Steam Deck baseline testing used SteamOS 3.8.28, RADV VANGOGH,
-1280×800 and 60 Hz: title/background video, controller profile creation, one
-completed level with audible sound, save/restart/reload, actual Gaming Mode
-launch and a title-screen deep sleep/resume cycle were checked. Later play
-included another deep sleep; the session ended with SIGTERM at the private
-launcher's 15-minute test limit, with no crash evidence. Those play checks
-used **0.1.28**, before this release's Motion Blur fix. They do not establish
-stable race FPS, every cheat/mode, rumble or long-session reliability.
-
-<table>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/linux-x86-64-traffic-attack.png" alt="Linux x86-64 Traffic Attack through UTM Venus: the red car at 123 mph, traffic, sparks and the game HUD"><br><sub><b>Linux x86-64:</b> controlled Traffic Attack in UTM; gameplay capture from candidate b05b4908.</sub></td>
-    <td width="50%"><img src="docs/screenshots/linux-x86-64-traffic-results.png" alt="Linux x86-64 Traffic Attack results showing OK, 7775 dollars vehicle damage and no medal"><br><sub><b>Linux x86-64:</b> native results in the final runtime, 5bfc9d0b; save and restart/load are checked separately.</sub></td>
-  </tr>
-</table>
-
-<sub>Unedited frames captured by the Linux builds. Game content belongs to its owners.</sub>
-
-**Earlier 0.1.28 Linux regression testing used UTM 5.0.8 on an Apple M1 Pro Mac.** The x86-64 guest uses
-2 emulated CPUs with AVX2/FMA, 4 GB RAM, Ubuntu Server 22.04.5 / HWE 6.8 and an
-Ubuntu 24.04 runtime container. Rendering uses Mesa 25.2.8 / Virtio-GPU Venus
-with the Mac's GPU; window presentation uses Wayland / headless Weston GL.
-ARM64 diagnostics use a separate Ubuntu 26.04 VM with Mesa 26.0.8 and Wayland.
-These VM results do not establish native GPU or performance behavior; physical
-Deck checks are described separately above.
-
-The 0.1.28 ARM64 and x86-64 suites each passed **166/166**. The x86-64 suite
-ran as an ordinary user, with ASan/LSan enabled and explicit emulation time
-budgets. Packaged checks cover Race driving, Dock Fight Crash results and
-Replay, native Player File save/restart/load, clean per-user installation and
-updating from the previous Linux release. A 3,701.79-second mixed gameplay/menu run
-exited cleanly. ARM64 separately confirms Hold Crashbreaker On/Off charging;
-full charge was not reached in the packaged x86 attempt. Earlier Linux mode,
-Rewind and networking checks remain historical evidence. See the
-[validation matrix](docs/linux-validation.md) for revisions, conditions and limits.
-
-**Known visual issue:** menu-video backgrounds are black on x86 Venus;
-3D gameplay renders. The issue was not seen in native RADV title/background
-checks on Deck. Other GPUs, physical rumble and audio device switching remain
-unqualified. Earlier automated VM runs used scripted controls and were muted. Test data was isolated;
-the user's real saves/settings and installed Mac release were preserved.
-
-The package requires **x86-64-v3 / AVX2 / FMA**, **glibc 2.38+**,
-**GLIBCXX_3.4.32** and a Vulkan 1.2+ driver with dynamic rendering and push descriptors.
-It was built with an Ubuntu 24.04 SDK;
-Ubuntu 22.04's own glibc 2.35 cannot run it directly. Minimum CPU/GPU performance
-and RAM requirements have not been established.
+For a library cover, select `artwork/burnout-revenge-cover.jpg` using
+**Manage > Set custom artwork** in Desktop Steam. Deck uses the same Linux
+archive; there is no separate Deck download.
 
 ## Highlights
 
@@ -693,8 +610,7 @@ Every key can be changed in Settings > Controls.
 
 ## Known limits
 
-- Tested on one M1 Pro with its own controllers; other Macs and accessories
-  may behave differently. USB is the fallback for a Bluetooth pad.
+- Tested on Apple M1 Pro and a Steam Deck running SteamOS 3.8.28.
 - Steering wheels are tested on a virtual Logitech G29 only, not yet on a
   real wheel; reports are welcome. Split screen for two is tested with two
   virtual controllers (Multiplayer Race), not yet with two real ones.
@@ -707,7 +623,8 @@ Every key can be changed in Settings > Controls.
   Xbox Live friends, reputation and gamer-picture services are unavailable.
 - Live frame generation is not enabled.
 
-More detail: [rendering notes](docs/RENDERING.md), [picture settings](docs/IMAGE_QUALITY.md).
+More detail: [rendering notes](docs/RENDERING.md), [picture settings](docs/IMAGE_QUALITY.md),
+[Linux and Deck test results](docs/linux-validation.md).
 
 ## Origins and license
 

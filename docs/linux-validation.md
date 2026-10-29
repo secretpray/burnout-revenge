@@ -21,6 +21,10 @@ fatal/Vulkan/GPU-reset evidence. This is not a crash reproduction or proof of
 stable race FPS. Physical rumble, overlay/OSK, every cheat/mode, audio switching
 and long-session sleep reliability remain unqualified.
 
+On 30 October, the published 0.1.29 package replaced the old test installation
+on the physical Deck. The owner launched it from Gaming Mode and confirmed
+that it works. This adds a manual launch check for the released package.
+
 ## Historical baseline: 0.1.28 Linux beta 1
 
 [Download the release](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.28-linux-beta.1).

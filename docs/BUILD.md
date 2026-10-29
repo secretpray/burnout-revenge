@@ -1,4 +1,8 @@
-# Build on Apple silicon
+# Build from source
+
+[macOS](#macos) · [Linux](#linux)
+
+## macOS
 
 Needs Xcode command-line tools, Homebrew LLVM (Clang 18+), CMake, Ninja, Git,
 Python 3 and Pillow for regenerating the icon. Game data is never downloaded.
@@ -59,3 +63,41 @@ A fresh build regenerates all game code from your own XEX. The optional
 `BR_PREBUILT_RECOMP` cache value can reuse a locally generated library only when
 its XEX, recompiler patches, compiler and build options are identical; normal
 source builds leave it empty. It does not replace source generation or validation.
+
+## Linux
+
+
+Use Clang 18 or newer with a C++20 standard library supporting `std::format`,
+CMake 3.21+, Ninja, Python 3, git, curl, make, nasm, pkg-config, Vulkan/glslang
+development packages and SDL's X11/Wayland/audio development packages. On Ubuntu:
+
+```
+sudo apt-get install clang lld cmake ninja-build python3 git curl xz-utils make nasm pkg-config \
+  libvulkan-dev vulkan-tools glslang-dev glslang-tools patchelf \
+  libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev libxss-dev \
+  libxkbcommon-dev libwayland-dev libasound2-dev libpulse-dev libpipewire-0.3-dev \
+  libudev-dev libdrm-dev libgbm-dev libegl-dev libgl-dev libdecor-0-dev
+scripts/linux/inventory.sh > environment.txt 2>&1
+scripts/linux/build_deps.sh
+scripts/setup_tools.sh
+# Generate ppc/burnout from your own supported default.xex, as in the root README.
+cmake --preset linux-release
+cmake --build --preset linux-release
+ctest --preset linux-release
+# Running directly from the build folder requires LD_LIBRARY_PATH=build/linux-deps/lib.
+scripts/linux/make_bundle.py build/linux-release build/linux-package \
+  --deps build/linux-deps --allow-unverified
+```
+
+For a release package, replace `--allow-unverified` with
+`--native-validation /path/to/report.json`. Schema 2 requires the exact revision
+and architecture, a native hardware environment, explicit limitations and
+passing `full_tests`, `clean_install` and `candidate_smoke` checks. The packager
+records the report; it does not perform those checks. Keep results from older
+builds separate. Historical schema 1 VM reports use `--emulator-validation`.
+
+Build against the intended minimum SDK. Dependency versions and hashes are
+recorded in `linux-dependencies.txt`. Use `BR_JOBS` to limit build parallelism.
+Generated PPC, game files, saves and private logs must not enter public CI or
+source archives. Asset-free tests use the `portable-tests` configure/build/test
+presets; full tests require locally generated game headers.
