@@ -6,6 +6,8 @@ set(ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)
 set(RT ${ROOT}/runtime)
 find_package(Threads REQUIRED)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_test(NAME linux_bundle_validation COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_SOURCE_DIR}/linux_bundle_validation_test.py)
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     add_test(NAME linux_user_install COMMAND ${Python3_EXECUTABLE}
         ${CMAKE_CURRENT_SOURCE_DIR}/linux_user_install_test.py)

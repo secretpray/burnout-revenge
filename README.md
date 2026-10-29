@@ -62,7 +62,7 @@
 <sub>Unedited macOS screenshots from this port on an M1 Pro. The game content in them belongs to its owners.</sub>
 
 > [!TIP]
-> **New in v0.1.28:** **Hold Crashbreaker** in **Settings → Mods → Cheat Codes** replaces repeated charge presses in solo World Tour Crash. Off by default; release to stop the repeats. Network events and local Multiplayer are excluded, while Xbox Live sign-in in solo play is allowed. [Release notes](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.28).
+> **New in v0.1.29:** corrected Motion Blur endpoints and improved Linux launch guidance. macOS, Linux and Steam Deck share one release. [Release notes](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.29).
 
 
 **TL;DR**
@@ -80,8 +80,8 @@
 - Menus and game text in **English, Japanese, German, French, Spanish, Italian, Dutch, Swedish and Finnish**.
   [Language setup](#languages) explains the optional European disc import.
 - Updates install over the old version. Saves and settings stay.
-- macOS and Linux downloads share [one release page](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.28).
-  Read the [Linux validation limits](#linux-port-status); Steam Deck hardware is not yet qualified.
+- macOS and Linux downloads share [one release page](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.29).
+  Read the [Linux and Steam Deck validation limits](#linux-port-status).
 - Settings: tap **Home / Xbox Guide / PS**, **F1**, **Cmd+,** or **Back + Start**.
   On macOS, **Burnout Revenge → Settings…** opens the same screen.
 - Quit confirmation: hold **Home / Xbox Guide / PS** for **3 seconds**.
@@ -93,14 +93,15 @@
 
 ## Download
 
-**[Burnout Revenge 0.1.28 — all platform downloads](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.28)**
+**[Burnout Revenge 0.1.29 — all platform downloads](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.29)**
 
 Choose one app download for your device. No game data is included.
 
 | Platform | Download | Status / setup |
 | --- | --- | --- |
-| Apple silicon Mac, macOS 15+ | [macOS disk image](https://github.com/secretpray/burnout-revenge/releases/download/v0.1.28/BurnoutRevenge-0.1.28-macos.dmg) | Available · [macOS setup](#macos) |
-| Linux PC, x86-64 / AVX2 | [Linux archive](https://github.com/secretpray/burnout-revenge/releases/download/v0.1.28/BurnoutRevenge-0.1.28-linux-x86_64-app.tar.xz) | Experimental; VM tested · [Linux setup](#linux) |
+| Apple silicon Mac, macOS 15+ | [macOS disk image](https://github.com/secretpray/burnout-revenge/releases/download/v0.1.29/BurnoutRevenge-0.1.29-macos.dmg) | Available · [macOS setup](#macos) |
+| Linux PC, x86-64 / AVX2 | [Linux archive](https://github.com/secretpray/burnout-revenge/releases/download/v0.1.29/BurnoutRevenge-0.1.29-linux-x86_64-app.tar.xz) | [Linux setup](#linux) |
+| Steam Deck, SteamOS x86-64 | Same Linux archive above | [Steam Deck setup](#steam-deck) |
 
 These are the available app packages. Linux hardware compatibility and
 performance limits are described [below](#linux-port-status).
@@ -114,7 +115,7 @@ archives contain code, not a playable app. See [third-party source details](THIR
 
 ## Quick Start
 
-[macOS](#macos) · [Linux](#linux)
+[macOS](#macos) · [Linux](#linux) · [Steam Deck](#steam-deck)
 
 Everyone needs their own supported **USA Xbox 360 disc image**. Download only
 the app for your platform; the optional files above are not installation steps.
@@ -180,20 +181,50 @@ installed launcher `~/.local/bin/burnout-revenge`). A `.sh` file is a valid nati
 Linux launcher; leave the Proton compatibility override off. Keep the extracted
 folder if your shortcut points there.
 
-**For the current 0.1.28 archive:** do not open its bundled `.desktop` file.
-Its launcher name is not resolved from that folder. Run `./install.sh` and use
-the generated applications-menu entry, or run `./burnout-revenge.sh` directly.
-
 Requirements, data locations and troubleshooting:
 [Linux quick start](scripts/linux/README.md#install-and-play).
 
+### Steam Deck
+
+1. In Desktop Mode, extract the **Linux x86-64** archive and run `./install.sh`
+   from its **BurnoutRevenge** folder. This installs the app for your user and
+   creates **Burnout Revenge** in the applications menu, with the game's icon.
+2. In Desktop Steam, choose **Games > Add a Non-Steam Game**, select the installed
+   **Burnout Revenge** entry and add it. If it is not listed, browse to
+   `/home/deck/.local/bin/burnout-revenge` with **All Files** selected. In that
+   case set the shortcut name to **Burnout Revenge** and select the included
+   `burnout-revenge.png` as its icon in Properties.
+3. Leave forced Proton compatibility **off** and use the **Gamepad** controller
+   template. Return to Gaming Mode and launch **Burnout Revenge**.
+4. Select your own supported USA Xbox 360 disc image. Use **1280×800** and
+   **60 Hz**; on OLED, set the per-game refresh rate to 60 Hz.
+
+The Linux archive contains the same native executable used on Deck; there is
+no separate Deck executable to download. Installed launchers keep a stable
+path across updates. The developer-only `launch-controller-test.sh` is not a
+release launcher and must not be used for a normal installation.
+
+Steam controls library artwork separately from the app icon. The package includes
+`artwork/burnout-revenge-cover.jpg` for **Manage > Set custom artwork** in Desktop
+Steam. Use the game's icon above for the shortcut icon. No Steam account files
+are edited by the installer.
+
 ## Linux port status
 
-**Linux x86-64 is experimental and emulator tested.** Download it alongside macOS
-from the [shared 0.1.28 release](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.28).
-Both packages use source revision `6f7ea3ee` and share features and fixes.
-The existing Linux binary retains its original internal version string; the
-consolidated download is byte-for-byte the previously validated build.
+**Linux x86-64 and Steam Deck use the same download** on the
+[shared release page](https://github.com/secretpray/burnout-revenge/releases/tag/v0.1.29).
+macOS and Linux are built from one source revision with matching features and
+fixes. `VALIDATION.json` in the Linux package records candidate-specific checks
+and their limits; release notes distinguish those from earlier baseline tests.
+
+Physical Steam Deck baseline testing used SteamOS 3.8.28, RADV VANGOGH,
+1280×800 and 60 Hz: title/background video, controller profile creation, one
+completed level with audible sound, save/restart/reload, actual Gaming Mode
+launch and a title-screen deep sleep/resume cycle were checked. Later play
+included another deep sleep; the session ended with SIGTERM at the private
+launcher's 15-minute test limit, with no crash evidence. Those play checks
+used **0.1.28**, before this release's Motion Blur fix. They do not establish
+stable race FPS, every cheat/mode, rumble or long-session reliability.
 
 <table>
   <tr>
@@ -204,14 +235,15 @@ consolidated download is byte-for-byte the previously validated build.
 
 <sub>Unedited frames captured by the Linux builds. Game content belongs to its owners.</sub>
 
-**Testing was only in UTM 5.0.8 on an Apple M1 Pro Mac.** The x86-64 guest uses
+**Earlier 0.1.28 Linux regression testing used UTM 5.0.8 on an Apple M1 Pro Mac.** The x86-64 guest uses
 2 emulated CPUs with AVX2/FMA, 4 GB RAM, Ubuntu Server 22.04.5 / HWE 6.8 and an
 Ubuntu 24.04 runtime container. Rendering uses Mesa 25.2.8 / Virtio-GPU Venus
 with the Mac's GPU; window presentation uses Wayland / headless Weston GL.
 ARM64 diagnostics use a separate Ubuntu 26.04 VM with Mesa 26.0.8 and Wayland.
-These are **not native Linux PC, Steam Deck or performance qualifications**.
+These VM results do not establish native GPU or performance behavior; physical
+Deck checks are described separately above.
 
-The current ARM64 and x86-64 suites each passed **166/166**. The x86-64 suite
+The 0.1.28 ARM64 and x86-64 suites each passed **166/166**. The x86-64 suite
 ran as an ordinary user, with ASan/LSan enabled and explicit emulation time
 budgets. Packaged checks cover Race driving, Dock Fight Crash results and
 Replay, native Player File save/restart/load, clean per-user installation and
@@ -222,9 +254,9 @@ Rewind and networking checks remain historical evidence. See the
 [validation matrix](docs/linux-validation.md) for revisions, conditions and limits.
 
 **Known visual issue:** menu-video backgrounds are black on x86 Venus;
-3D gameplay renders. Native Linux GPUs, other desktop sessions, physical
-controllers/rumble, audio listening and sleep/device switching are untested.
-Automated runs used scripted controls and were muted. Test data was isolated;
+3D gameplay renders. The issue was not seen in native RADV title/background
+checks on Deck. Other GPUs, physical rumble and audio device switching remain
+unqualified. Earlier automated VM runs used scripted controls and were muted. Test data was isolated;
 the user's real saves/settings and installed Mac release were preserved.
 
 The package requires **x86-64-v3 / AVX2 / FMA**, **glibc 2.38+**,

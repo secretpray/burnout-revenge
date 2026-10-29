@@ -1,11 +1,9 @@
-# Burnout Revenge for Linux (experimental)
+# Burnout Revenge for Linux and Steam Deck
 
-Check `bundle-info.json` for this build's qualification, revision, architecture
-and measured glibc/libstdc++ symbol requirements. An internal RC is unverified.
-An emulator-tested experimental package includes `VALIDATION.json` with its exact
-test environment and completed checks. It has only been tested in UTM on a Mac:
-native Linux PC hardware, Steam Deck compatibility and performance are untested.
-macOS and Linux downloads share the same release page.
+Check `bundle-info.json` for the build revision, architecture and measured
+glibc/libstdc++ requirements. `VALIDATION.json` records checks for this exact
+candidate, earlier baseline evidence and limitations. macOS and Linux/Steam
+Deck share one release page and version. Game data is not included.
 
 ## Install and play
 
@@ -39,18 +37,28 @@ GPU drivers. Check `bundle-info.json` and the release's tested-system table.
 
 ## Desktop launcher and Steam
 
-The current 0.1.28 archive includes a `.desktop` file whose bare launcher name
-is not found through the desktop's PATH. Do not use that archive's `.desktop`
-file. Run `./install.sh`, then use the applications-menu entry it generates,
-or run `./burnout-revenge.sh` from the extracted folder. New packages omit the
-unusable archive entry; installation still creates the proper menu entry.
+Run `./install.sh` first. It creates **Burnout Revenge** in the applications menu
+with the game's icon. In Desktop Steam choose **Games > Add a Non-Steam Game**
+and select that installed entry. The name is **Burnout Revenge**, not a test
+script's filename.
 
-A `.sh` launcher can be added to Steam. Use **Games > Add a Non-Steam Game >
-Browse**, change the filter to **All Files**, and select `burnout-revenge.sh` in
-the extracted folder, or the installed `~/.local/bin/burnout-revenge`. Leave the
-Proton compatibility override off: this is a native Linux program. Keep the
-extracted folder if the Steam shortcut points there. The program in `lib/`
-needs the launcher to set up its libraries; do not add that binary on its own.
+If the entry is not listed, use **Browse > All Files** and select the installed
+`~/.local/bin/burnout-revenge` launcher. Set the shortcut name to **Burnout Revenge**
+and choose the package's `burnout-revenge.png` as the shortcut icon in Properties.
+The launcher is valid native Linux input for Steam. Leave forced Proton off;
+use a **Gamepad** template. Do not add the program in `lib/` on its own.
+
+For a portable extracted setup, add `burnout-revenge.sh` instead and keep its
+folder. Version0.1.29 omits the unusable archive `.desktop` file; installation
+still generates the correct applications-menu entry.
+
+On **Steam Deck**, return to Gaming Mode after adding the game. Use1280×800 and
+60Hz (also on OLED). The native Linux package is the Deck package: no Proton,
+VM, developer tools or separate Deck executable is needed. Add your own supported
+USA Xbox360 disc image on first launch. For library cover art, use the included
+`artwork/burnout-revenge-cover.jpg` via **Manage > Set custom artwork** in Desktop
+Steam. Library artwork and the shortcut icon are separate Steam settings; the
+installer does not edit Steam account files.
 
 If one controller button appears to produce both a controller action and a
 keyboard action, check whether Steam Input or another mapper is also sending a
@@ -138,7 +146,13 @@ scripts/linux/make_bundle.py build/linux-release build/linux-package \
   --deps build/linux-deps --allow-unverified
 ```
 
-After validation, `--emulator-validation /path/to/report.json` replaces
+For a native candidate, `--native-validation /path/to/report.json` replaces
+`--allow-unverified`. Schema2 requires the exact revision/architecture, a native
+hardware environment, explicit limitations and passing `full_tests`,
+`clean_install` and `candidate_smoke` checks. Earlier gameplay/endurance evidence
+belongs in a separate baseline section; do not relabel it as a new candidate run.
+
+For legacy VM reports, `--emulator-validation /path/to/report.json` replaces
 `--allow-unverified`. The report must use schema `1`, the exact build `revision`
 and `architecture`, an `environments` list, `native_hardware_tested: false`, and
 `checks` entries `full_tests`, `clean_install`, `gameplay_save_reload`, `display`

@@ -46,6 +46,8 @@ class UserInstall(unittest.TestCase):
         for name, value in {'burnout-revenge.png': 'synthetic icon', 'README.md': 'fixture',
                             'ARCHITECTURE': 'x86_64\n', 'MIN_GLIBC': '2.38\n'}.items():
             (self.source / name).write_text(value)
+        (self.source / 'artwork').mkdir()
+        (self.source / 'artwork/burnout-revenge-cover.jpg').write_bytes(b'cover fixture')
         self.identity('abcdef1')
 
     def identity(self, revision, version='1.2.3'):
@@ -71,6 +73,9 @@ class UserInstall(unittest.TestCase):
         save.write_bytes(b'untouched player data')
         self.install()
         first = (self.app / 'current').resolve()
+        self.assertIn('Name=Burnout Revenge\n', self.desktop.read_text())
+        self.assertIn('Icon=', self.desktop.read_text())
+        self.assertEqual((first / 'artwork/burnout-revenge-cover.jpg').read_bytes(), b'cover fixture')
         subprocess.run([str(self.launcher), 'argument with spaces', '$literal%"'],
                        env=self.env, check=True, timeout=10)
         self.assertEqual(self.result.read_bytes(), b'ran\0argument with spaces\0$literal%"\0')

@@ -30,6 +30,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     portable_test(shared_memory_test)
     portable_test(fault_policy_test)
     find_package(Python3 REQUIRED COMPONENTS Interpreter)
+    add_test(NAME linux_bundle_validation COMMAND ${Python3_EXECUTABLE}
+        ${CMAKE_CURRENT_SOURCE_DIR}/../linux_bundle_validation_test.py)
     add_test(NAME linux_user_install COMMAND ${Python3_EXECUTABLE}
         ${CMAKE_CURRENT_SOURCE_DIR}/../linux_user_install_test.py)
 endif()

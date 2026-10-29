@@ -81,6 +81,7 @@ else
     # entry below is always generated for the installed path, never copied from it.
     [[ ! -f $SOURCE/burnout-revenge.desktop ]] || cp -- "$SOURCE/burnout-revenge.desktop" "$STAGE/"
     [[ ! -f $SOURCE/VALIDATION.json ]] || cp -- "$SOURCE/VALIDATION.json" "$STAGE/"
+    [[ ! -d $SOURCE/artwork ]] || cp -a -- "$SOURCE/artwork" "$STAGE/"
     (cd "$STAGE" && sha256sum --check --strict SHA256SUMS >/dev/null) || fail 'The copied package did not verify.'
     mv -- "$STAGE" "$DEST"
     STAGE=
@@ -115,7 +116,7 @@ desktop_exec() {
 }
 DESKTOP_TEMP=$(mktemp "$(dirname "$DESKTOP")/.burnout-revenge.XXXXXX")
 {
-    printf '[Desktop Entry]\nType=Application\nName=Burnout Revenge\nComment=Experimental Linux port\n'
+    printf '[Desktop Entry]\nType=Application\nName=Burnout Revenge\nComment=Native Linux and Steam Deck port\n'
     # GIO checks argv[0] before expanding %% to %. Keep that first executable
     # fixed so a literal percent in the user's home is handled as an argument.
     printf 'Exec=/usr/bin/env -- %s\n' "$(desktop_exec "$BIN")"

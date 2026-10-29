@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.1.29
+
+- Fix Motion Blur coordinates at 0% and 100%. Intermediate strength settings
+  keep their existing formula. This fixes an independently reproduced defect;
+  it does not establish the cause of every reported graphical artifact.
+- Linux packages omit the unusable desktop shortcut in the extracted archive.
+  Run `./install.sh` for a working applications-menu entry, or add the shell
+  launcher to Steam with Proton disabled.
+- macOS and Linux, including Steam Deck, share one release and version.
+  See the release's validation notes for the exact builds and hardware checks.
+
 ## v0.1.28
 
 - Optional Hold Crashbreaker in Settings > Mods > Cheat Codes replaces
