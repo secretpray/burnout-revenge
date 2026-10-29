@@ -12,8 +12,6 @@
 <p align="center">
   <a href="#download"><b>Download</b></a>
   &nbsp;·&nbsp;
-  <a href="#steam-deck">Steam Deck</a>
-  &nbsp;·&nbsp;
   <a href="#quick-start">Quick start</a>
   &nbsp;·&nbsp;
   <a href="#highlights">Highlights</a>
@@ -92,8 +90,7 @@ Choose one app download for your device. No game data is included.
 | Platform | Download | Setup |
 | --- | --- | --- |
 | Apple silicon Mac, macOS 15+ | [macOS disk image](https://github.com/secretpray/burnout-revenge/releases/download/v0.1.29/BurnoutRevenge-0.1.29-macos.dmg) | [macOS setup](#macos) |
-| Linux PC, x86-64 / AVX2 | [Linux archive](https://github.com/secretpray/burnout-revenge/releases/download/v0.1.29/BurnoutRevenge-0.1.29-linux-x86_64-app.tar.xz) | [Linux setup](#linux) |
-| Steam Deck, SteamOS x86-64 | Same Linux archive above | [Steam Deck setup](#steam-deck) |
+| Linux / Steam Deck, x86-64 | [Linux archive](https://github.com/secretpray/burnout-revenge/releases/download/v0.1.29/BurnoutRevenge-0.1.29-linux-x86_64-app.tar.xz) | [Setup](#linux-and-steam-deck) |
 
 **Optional files — not needed to play:** library sources are for developers;
 validation reports describe testing; checksums verify your download. GitHub's
@@ -102,7 +99,7 @@ validation reports describe testing; checksums verify your download. GitHub's
 
 ## Quick Start
 
-[macOS](#macos) · [Linux](#linux) · [Steam Deck](#steam-deck)
+[macOS](#macos) · [Linux and Steam Deck](#linux-and-steam-deck)
 
 Everyone needs their own supported **USA Xbox 360 disc image**. Download only
 the app for your platform; the optional files above are not installation steps.
@@ -144,43 +141,51 @@ European disc images can supply [language resources](#languages); game installat
 still requires the USA revision. European or Japanese executables, title updates
 and GOD packages are not supported. [Xbox 360 saves can be imported](#highlights).
 
-### Linux
+<a id="linux"></a>
 
-1. Download and extract the **Linux x86-64** archive.
+### Linux and Steam Deck
+
+1. Download and extract the **Linux x86-64** archive. On Deck, switch to
+   **Desktop Mode** first.
 2. Open a terminal in the extracted **BurnoutRevenge** folder and run:
 
    ```sh
    ./install.sh
    ```
 
-3. Open **Burnout Revenge** from your applications menu and choose your own
-   **USA Xbox 360 disc image** or extracted game folder.
+3. Open **Burnout Revenge** from your applications menu, or add it to Steam
+   as described below. On first launch, choose your own **USA Xbox 360 disc
+   image** or extracted game folder.
 
 The installer runs without `sudo`. For updates, quit the game and run the new
 archive's `./install.sh`; your game, saves and settings stay.
 
 Requires **AVX2/FMA**, **glibc 2.38+**, **GLIBCXX_3.4.32** and a compatible
 **Vulkan 1.2+** driver. See the [Linux guide](scripts/linux/README.md) for
-requirements, Steam shortcuts, data locations and troubleshooting.
+data locations and troubleshooting.
 
-### Steam Deck
+#### Steam and Gaming Mode
 
-1. Switch to **Desktop Mode**, extract the **Linux x86-64** archive and run
-   `./install.sh` from its **BurnoutRevenge** folder.
-2. In Desktop Steam, choose **Games > Add a Non-Steam Game**, select
+1. In Desktop Steam, choose **Games > Add a Non-Steam Game**, select
    **Burnout Revenge** and add it.
-3. Leave forced Proton compatibility **off** and use the **Gamepad** controller
-   template. Return to **Gaming Mode** and launch **Burnout Revenge**.
-4. Choose your own **USA Xbox 360 disc image**. Use **1280×800** and **60 Hz**;
-   on OLED, set the per-game refresh rate to 60 Hz.
+2. Leave forced Proton compatibility **off** and use the **Gamepad** controller
+   template.
+3. On Deck, return to **Gaming Mode** and launch **Burnout Revenge**.
 
 If the app is not listed in Steam, choose **Browse > All Files** and select
-`/home/deck/.local/bin/burnout-revenge`. Set the name to **Burnout Revenge** and
-choose the package's `burnout-revenge.png` as its icon.
+`~/.local/bin/burnout-revenge` (`/home/deck/.local/bin/burnout-revenge` on Deck).
+Set the name to **Burnout Revenge** and choose the package's `burnout-revenge.png`
+as its icon. For a library cover, select `artwork/burnout-revenge-cover.jpg`
+using **Manage > Set custom artwork** in Desktop Steam.
 
-For a library cover, select `artwork/burnout-revenge-cover.jpg` using
-**Manage > Set custom artwork** in Desktop Steam. Deck uses the same Linux
-archive; there is no separate Deck download.
+<a id="steam-deck"></a>
+
+#### Steam Deck display and controls
+
+- Use **1280×800 / 60 Hz**, including on OLED; set the per-game refresh rate
+  to 60 Hz in Steam's Quick Access menu.
+- Open the game's settings with **Back + Start**. Steam may reserve the Steam
+  button for its own menu.
 
 ## Highlights
 
